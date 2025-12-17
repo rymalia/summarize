@@ -1,7 +1,7 @@
 {
   "name": "@steipete/summarize",
   "version": "0.1.0",
-  "description": "Link → clean text → summary. One command.",
+  "description": "Link → clean text → summary.",
   "type": "module",
   "bin": {
     "summarize": "./dist/esm/cli.js"
@@ -26,6 +26,7 @@
   "files": [
     "dist",
     "docs",
+    "CHANGELOG.md",
     "README.md",
     "LICENSE"
   ],

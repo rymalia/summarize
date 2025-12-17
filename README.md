@@ -1,4 +1,4 @@
-# summarize 🗜️ — Link → clean text → summary. One command.
+# summarize 🗜️ — Link → clean text → summary.
 
 Personal URL summarization CLI + a small reusable library.
 
@@ -29,7 +29,26 @@ Docs (by mode):
 
 ## CLI usage
 
-Install + build:
+Preferred install (global):
+
+```bash
+npm install -g @steipete/summarize
+```
+
+Run:
+
+```bash
+summarize "https://example.com"
+summarize "https://example.com" --prompt
+```
+
+One-off (no install):
+
+```bash
+npx -y @steipete/summarize "https://example.com"
+```
+
+Local dev:
 
 ```bash
 pnpm install
@@ -45,26 +64,26 @@ pnpm summarize -- "https://example.com" --prompt
 Summarize a URL:
 
 ```bash
-node dist/esm/cli.js "https://example.com"
+summarize "https://example.com"
 ```
 
 Print the prompt only:
 
 ```bash
-node dist/esm/cli.js "https://example.com" --prompt
+summarize "https://example.com" --prompt
 ```
 
 Change model, length, YouTube mode, and timeout:
 
 ```bash
-node dist/esm/cli.js "https://example.com" --length 20k --timeout 30s --model gpt-5.2
-node dist/esm/cli.js "https://www.youtube.com/watch?v=I845O57ZSy4&t=11s" --youtube auto --length 8k
+summarize "https://example.com" --length 20k --timeout 30s --model gpt-5.2
+summarize "https://www.youtube.com/watch?v=I845O57ZSy4&t=11s" --youtube auto --length 8k
 ```
 
 Structured JSON output:
 
 ```bash
-pnpm summarize -- "https://example.com" --json
+summarize "https://example.com" --json
 ```
 
 ### Flags
