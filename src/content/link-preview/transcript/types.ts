@@ -1,7 +1,7 @@
 import type { YoutubeTranscriptMode } from '../content/types.js'
 import type { TranscriptResolution, TranscriptSource } from '../types.js'
 
-export type TranscriptService = 'youtube' | 'twitter' | 'podcast' | 'generic'
+export type TranscriptService = 'youtube' | 'podcast' | 'generic'
 
 export interface ProviderContext {
   url: string

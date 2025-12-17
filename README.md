@@ -11,7 +11,6 @@ Docs (by mode):
 - `docs/firecrawl.md`
 - `docs/openai.md`
 - `docs/extract-only.md`
-- `docs/tweets.md`
 
 ## Features
 

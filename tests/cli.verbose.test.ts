@@ -34,7 +34,16 @@ describe('--verbose', () => {
     })
 
     await runCli(
-      ['--json', '--verbose', '--extract-only', '--timeout', '10s', 'https://example.com'],
+      [
+        '--json',
+        '--verbose',
+        '--extract-only',
+        '--firecrawl',
+        'off',
+        '--timeout',
+        '10s',
+        'https://example.com',
+      ],
       {
         env: {},
         fetch: fetchMock as unknown as typeof fetch,

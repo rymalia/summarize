@@ -56,7 +56,7 @@ function buildProgram() {
     )
     .option(
       '--firecrawl <mode>',
-      'Firecrawl usage: off, auto (fallback), always (try Firecrawl first)',
+      'Firecrawl usage: off, auto (fallback), always (try Firecrawl first). Note: in --extract-only website mode, defaults to always.',
       'auto'
     )
     .option(
@@ -298,12 +298,23 @@ export async function runCli(
   const printPrompt = Boolean(program.opts().prompt)
   const extractOnly = Boolean(program.opts().extractOnly)
   const json = Boolean(program.opts().json)
-  const firecrawlMode = parseFirecrawlMode(program.opts().firecrawl as string)
   const verbose = Boolean(program.opts().verbose)
 
   if (printPrompt && extractOnly) {
     throw new Error('--prompt and --extract-only are mutually exclusive')
   }
+
+  const isYoutubeUrl = /youtube\.com|youtu\.be/i.test(url)
+  const firecrawlExplicitlySet = normalizedArgv.some(
+    (arg) => arg === '--firecrawl' || arg.startsWith('--firecrawl=')
+  )
+  const firecrawlMode = (() => {
+    const parsed = parseFirecrawlMode(program.opts().firecrawl as string)
+    if (extractOnly && !isYoutubeUrl && !firecrawlExplicitlySet) {
+      return 'always'
+    }
+    return parsed
+  })()
 
   const model =
     (typeof program.opts().model === 'string' ? (program.opts().model as string) : null) ??

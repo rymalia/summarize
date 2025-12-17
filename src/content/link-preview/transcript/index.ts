@@ -9,10 +9,6 @@ import {
   fetchTranscript as fetchPodcast,
 } from './providers/podcast.js'
 import {
-  canHandle as canHandleTwitter,
-  fetchTranscript as fetchTwitter,
-} from './providers/twitter.js'
-import {
   canHandle as canHandleYoutube,
   fetchTranscript as fetchYoutube,
 } from './providers/youtube.js'
@@ -33,7 +29,6 @@ interface ResolveTranscriptOptions {
 
 const PROVIDERS: ProviderModule[] = [
   { id: 'youtube', canHandle: canHandleYoutube, fetchTranscript: fetchYoutube },
-  { id: 'twitter', canHandle: canHandleTwitter, fetchTranscript: fetchTwitter },
   { id: 'podcast', canHandle: canHandlePodcast, fetchTranscript: fetchPodcast },
   { id: 'generic', canHandle: canHandleGeneric, fetchTranscript: fetchGeneric },
 ]

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import * as generic from '../src/content/link-preview/transcript/providers/generic.js'
 import * as podcast from '../src/content/link-preview/transcript/providers/podcast.js'
-import * as twitter from '../src/content/link-preview/transcript/providers/twitter.js'
 import type {
   ProviderContext,
   ProviderFetchOptions,
@@ -18,10 +18,8 @@ describe('placeholder transcript providers', () => {
     expect(podcast.canHandle(contextFor('https://example.com/article'))).toBe(false)
   })
 
-  it('matches twitter/x URLs', () => {
-    expect(twitter.canHandle(contextFor('https://x.com/steipete/status/1'))).toBe(true)
-    expect(twitter.canHandle(contextFor('https://twitter.com/steipete/status/1'))).toBe(true)
-    expect(twitter.canHandle(contextFor('https://example.com/article'))).toBe(false)
+  it('matches generic URLs', () => {
+    expect(generic.canHandle(contextFor('https://example.com/article'))).toBe(true)
   })
 
   it('returns not_implemented provider metadata', async () => {
@@ -31,15 +29,15 @@ describe('placeholder transcript providers', () => {
       youtubeTranscriptMode: 'auto',
     }
 
-    const twitterResult = await twitter.fetchTranscript(contextFor('https://x.com/a'), options)
-    expect(twitterResult.text).toBeNull()
-    expect(twitterResult.metadata).toEqual({ provider: 'twitter', reason: 'not_implemented' })
-
     const podcastResult = await podcast.fetchTranscript(
       contextFor('https://example.com/podcast'),
       options
     )
     expect(podcastResult.text).toBeNull()
     expect(podcastResult.metadata).toEqual({ provider: 'podcast', reason: 'not_implemented' })
+
+    const genericResult = await generic.fetchTranscript(contextFor('https://example.com'), options)
+    expect(genericResult.text).toBeNull()
+    expect(genericResult.metadata).toEqual({ provider: 'generic', reason: 'not_implemented' })
   })
 })

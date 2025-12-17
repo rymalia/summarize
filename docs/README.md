@@ -5,5 +5,3 @@
 - `docs/firecrawl.md` — Firecrawl mode + API key
 - `docs/openai.md` — OpenAI summarization + model config
 - `docs/extract-only.md` — extraction mode (no LLM call)
-- `docs/tweets.md` — current state of tweet/X URLs
-
