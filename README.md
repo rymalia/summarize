@@ -51,7 +51,7 @@ node packages/cli/dist/esm/cli.js "https://example.com" --length xl --model gpt-
 If `OPENAI_API_KEY` is **not** set, the CLI prints the prompt instead of calling an LLM.
 
 - `OPENAI_API_KEY` (required to call OpenAI)
-- `OPENAI_MODEL` (optional, default: `gpt-4o-mini`)
+- `OPENAI_MODEL` (optional, default: `gpt-5.2`)
 
 ### Apify (optional YouTube fallback)
 
@@ -76,4 +76,3 @@ Used only as a fallback when YouTube transcript endpoints fail and only if the t
 pnpm check     # biome + build + tests
 pnpm lint:fix  # apply Biome fixes
 ```
-

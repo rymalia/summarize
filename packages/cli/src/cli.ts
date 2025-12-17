@@ -17,7 +17,7 @@ function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
     url: null,
     length: 'medium',
-    model: process.env.OPENAI_MODEL ?? 'gpt-4o-mini',
+    model: process.env.OPENAI_MODEL ?? 'gpt-5.2',
     printPrompt: false,
   }
 
