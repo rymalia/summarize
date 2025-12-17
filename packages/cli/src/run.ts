@@ -116,10 +116,24 @@ async function summarizeWithOpenAI({
     }
 
     const json = (await response.json()) as unknown
-    const content = readFirstChoiceContent(json)
-    if (!content) {
-      throw new Error('OpenAI response missing message content')
+    const firstMessage = readFirstChoiceMessage(json)
+    if (!firstMessage) {
+      const error = new Error('OpenAI response missing message content')
+      error.name = 'OpenAIResponseFormatError'
+      throw error
     }
+
+    const { content, refusal } = readMessageContentOrRefusal(firstMessage)
+    if (content === null) {
+      if (refusal) {
+        throw new Error(`OpenAI refusal: ${refusal}`)
+      }
+
+      const error = new Error('OpenAI response missing message content')
+      error.name = 'OpenAIResponseFormatError'
+      throw error
+    }
+
     return content
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
@@ -131,7 +145,17 @@ async function summarizeWithOpenAI({
   }
 }
 
-function readFirstChoiceContent(payload: unknown): string | null {
+type ChatCompletionMessage = Record<string, unknown> & {
+  content?: unknown
+  refusal?: unknown
+}
+
+type ChatCompletionContentPart = Record<string, unknown> & {
+  type?: unknown
+  text?: unknown
+}
+
+function readFirstChoiceMessage(payload: unknown): ChatCompletionMessage | null {
   if (!payload || typeof payload !== 'object') {
     return null
   }
@@ -147,8 +171,37 @@ function readFirstChoiceContent(payload: unknown): string | null {
   if (!message || typeof message !== 'object') {
     return null
   }
-  const content = (message as Record<string, unknown>).content
-  return typeof content === 'string' ? content : null
+  return message as ChatCompletionMessage
+}
+
+function readMessageContentOrRefusal(message: ChatCompletionMessage): {
+  content: string | null
+  refusal: string | null
+} {
+  const refusal = typeof message.refusal === 'string' ? message.refusal : null
+  const content = message.content
+
+  if (typeof content === 'string') {
+    return { content, refusal }
+  }
+
+  if (Array.isArray(content)) {
+    const text = content
+      .map((partUnknown) => {
+        if (!partUnknown || typeof partUnknown !== 'object') {
+          return ''
+        }
+        const part = partUnknown as ChatCompletionContentPart
+        if (part.type !== 'text') {
+          return ''
+        }
+        return typeof part.text === 'string' ? part.text : ''
+      })
+      .join('')
+    return { content: text, refusal }
+  }
+
+  return { content: null, refusal }
 }
 
 function splitTextIntoChunks(input: string, maxCharacters: number): string[] {
@@ -375,14 +428,23 @@ export async function runCli(
         content: chunks[i] ?? '',
       })
 
-      const notes = await summarizeWithOpenAI({
-        apiKey,
-        model,
-        prompt: chunkPrompt,
-        maxOutputTokens: SUMMARY_LENGTH_TO_TOKENS.medium,
-        timeoutMs,
-        fetchImpl: fetch,
-      })
+      let notes = ''
+      try {
+        notes = await summarizeWithOpenAI({
+          apiKey,
+          model,
+          prompt: chunkPrompt,
+          maxOutputTokens: SUMMARY_LENGTH_TO_TOKENS.medium,
+          timeoutMs,
+          fetchImpl: fetch,
+        })
+      } catch (error) {
+        if (error instanceof Error && error.name === 'OpenAIResponseFormatError') {
+          stderr.write(`OpenAI returned an empty response for chunk ${i + 1}; skipping.\n`)
+          continue
+        }
+        throw error
+      }
 
       chunkNotes.push(notes.trim())
     }
@@ -417,6 +479,9 @@ export async function runCli(
   }
 
   summary = summary.trim()
+  if (summary.length === 0) {
+    throw new Error('OpenAI returned an empty summary')
+  }
 
   if (json) {
     const payload: JsonOutput = {
