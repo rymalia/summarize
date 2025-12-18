@@ -18,18 +18,6 @@ describe('config loading', () => {
     expect(result.config).toEqual({ model: 'openai/gpt-5.2' })
   })
 
-  it('falls back to ~/.config/summarize/config.json when ~/.summarize/config.json is missing', () => {
-    const root = mkdtempSync(join(tmpdir(), 'summarize-config-'))
-    const legacyDir = join(root, '.config', 'summarize')
-    mkdirSync(legacyDir, { recursive: true })
-    const legacyPath = join(legacyDir, 'config.json')
-    writeFileSync(legacyPath, JSON.stringify({ model: 'openai/gpt-5.2' }), 'utf8')
-
-    const result = loadSummarizeConfig({ env: { HOME: root }, configPathArg: null })
-    expect(result.path).toBe(legacyPath)
-    expect(result.config).toEqual({ model: 'openai/gpt-5.2' })
-  })
-
   it('respects SUMMARIZE_CONFIG over the default path', () => {
     const root = mkdtempSync(join(tmpdir(), 'summarize-config-'))
     const configPath = join(root, 'custom.json')

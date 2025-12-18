@@ -95,7 +95,7 @@ function buildProgram() {
     )
     .option(
       '--config <path>',
-      'Optional config file path (JSON). Default: ~/.summarize/config.json (falls back to ~/.config/summarize/config.json)'
+      'Optional config file path (JSON). Default: ~/.summarize/config.json'
     )
     .option(
       '--model <model>',
@@ -184,7 +184,6 @@ ${heading('Env Vars')}
   GOOGLE_GENERATIVE_AI_API_KEY optional (required for google/... models)
   SUMMARIZE_MODEL       optional (overrides default model selection)
   SUMMARIZE_CONFIG      optional (path to config.json)
-  SUMMARIZE_HOME_DIR    optional (default config dir; uses <dir>/config.json)
   FIRECRAWL_API_KEY     optional website extraction fallback (Markdown)
   APIFY_API_TOKEN       optional YouTube transcript fallback
 `

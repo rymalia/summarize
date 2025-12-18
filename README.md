@@ -139,7 +139,7 @@ By default the CLI uses `xai/grok-4-fast-non-reasoning`, so you’ll want `XAI_A
 Provide prices via either:
 
 - `SUMMARIZE_PRICING_JSON` (JSON string), or
-- `~/.summarize/config.json` (falls back to `~/.config/summarize/config.json`):
+- `~/.summarize/config.json`:
 
 ```json
 {

@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import type { PricingConfig } from './costs.js'
 import { parsePricingJson } from './costs.js'
-import { getSummarizeHomeDir } from './summarizeHome.js'
 
 export type SummarizeConfig = {
   /**
@@ -24,28 +24,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function resolveLegacyXdgConfigPath(env: Record<string, string | undefined>): string | null {
-  const xdg = env.XDG_CONFIG_HOME?.trim()
-  if (xdg) {
-    return join(xdg, 'summarize', 'config.json')
-  }
-
-  const home = env.HOME?.trim()
-  if (!home) return null
-  return join(home, '.config', 'summarize', 'config.json')
-}
-
-function resolveOracleStyleConfigPath(env: Record<string, string | undefined>): string {
-  return join(getSummarizeHomeDir(env), 'config.json')
-}
-
 function resolveDefaultConfigPath(env: Record<string, string | undefined>): string | null {
-  const oracle = resolveOracleStyleConfigPath(env)
-  const legacy = resolveLegacyXdgConfigPath(env)
-
-  if (existsSync(oracle)) return oracle
-  if (legacy && existsSync(legacy)) return legacy
-  return oracle ?? legacy
+  const home = env.HOME?.trim() || homedir()
+  if (!home) return null
+  return join(home, '.summarize', 'config.json')
 }
 
 export function loadSummarizeConfig({

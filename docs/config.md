@@ -8,15 +8,10 @@ Default path:
 
 - `~/.summarize/config.json`
 
-Fallback (legacy):
-
-- `~/.config/summarize/config.json` (or `$XDG_CONFIG_HOME/summarize/config.json`)
-
 Override:
 
 - `--config <path>`
 - `SUMMARIZE_CONFIG=<path>`
-- `SUMMARIZE_HOME_DIR=<dir>` (uses `<dir>/config.json` as the default)
 
 ## Precedence
 
