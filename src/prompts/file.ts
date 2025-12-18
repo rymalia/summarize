@@ -5,11 +5,11 @@ const SUMMARY_LENGTH_TO_TOKENS: Record<
   'short' | 'medium' | 'long' | 'xl' | 'xxl',
   number
 > = {
-  short: 256,
-  medium: 512,
-  long: 1024,
-  xl: 2048,
-  xxl: 4096,
+  short: 768,
+  medium: 1536,
+  long: 3072,
+  xl: 6144,
+  xxl: 12288,
 }
 
 export function buildFileSummaryPrompt({
@@ -47,4 +47,3 @@ ${headerLines.length > 0 ? `${headerLines.join('\n')}\n\n` : ''}Return only the 
 
   return { prompt, maxOutputTokens }
 }
-

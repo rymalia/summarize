@@ -73,11 +73,11 @@ describe('buildLinkSummaryPrompt', () => {
 
   it('keeps token map stable', () => {
     expect(SUMMARY_LENGTH_TO_TOKENS).toEqual({
-      short: 256,
-      medium: 512,
-      long: 1024,
-      xl: 2048,
-      xxl: 4096,
+      short: 768,
+      medium: 1536,
+      long: 3072,
+      xl: 6144,
+      xxl: 12288,
     })
   })
 })

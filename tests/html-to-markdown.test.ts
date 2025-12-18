@@ -43,7 +43,7 @@ describe('HTML→Markdown converter', async () => {
     }
     expect(args.modelId).toBe('openai/gpt-5.2')
     expect(args.temperature).toBe(0)
-    expect(args.maxOutputTokens).toBe(8192)
+    expect(args.maxOutputTokens).toBe(12288)
     expect(args.system).toContain('You convert HTML')
     expect(args.prompt).toContain('URL: https://example.com')
     expect(args.prompt).toContain('<h1>Hello</h1>')

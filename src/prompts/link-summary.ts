@@ -33,11 +33,11 @@ const SUMMARY_LENGTH_DIRECTIVES: Record<SummaryLength, { guidance: string; forma
 }
 
 export const SUMMARY_LENGTH_TO_TOKENS: Record<SummaryLength, number> = {
-  short: 256,
-  medium: 512,
-  long: 1024,
-  xl: 2048,
-  xxl: 4096,
+  short: 768,
+  medium: 1536,
+  long: 3072,
+  xl: 6144,
+  xxl: 12288,
 }
 
 export type SummaryLengthTarget = SummaryLength | { maxCharacters: number }
@@ -52,7 +52,7 @@ export function pickSummaryLengthForCharacters(maxCharacters: number): SummaryLe
 
 export function estimateMaxCompletionTokensForCharacters(maxCharacters: number): number {
   const estimate = Math.ceil(maxCharacters / 4)
-  return Math.min(8192, Math.max(256, estimate))
+  return Math.min(12288, Math.max(256, estimate))
 }
 
 const resolveSummaryDirective = (

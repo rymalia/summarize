@@ -74,7 +74,7 @@ export function createHtmlToMarkdownConverter({
       system,
       prompt,
       temperature: 0,
-      maxOutputTokens: 8192,
+      maxOutputTokens: 12288,
       timeoutMs,
       fetchImpl,
     })
