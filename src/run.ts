@@ -1120,7 +1120,9 @@ export async function runCli(
       const loaded = await loadLocalAsset({ filePath: inputTarget.filePath })
       if (progressEnabled) {
         const mt = loaded.attachment.mediaType
-        spinner.setText(sizeLabel ? `Summarizing ${mt} (${sizeLabel})…` : `Summarizing ${mt}…`)
+        const name = loaded.attachment.filename
+        const details = sizeLabel ? `${mt}, ${sizeLabel}` : mt
+        spinner.setText(name ? `Summarizing ${name} (${details})…` : `Summarizing ${details}…`)
       }
       await summarizeAsset({
         sourceKind: 'file',
