@@ -1,4 +1,4 @@
-# Summarize 👉 Point at it. Get the gist.
+# Summarize 👉 Point at any URL or file. Get the gist.
 
 Fast CLI for summarizing *anything you can point at*:
 
@@ -9,10 +9,24 @@ Fast CLI for summarizing *anything you can point at*:
 
 It streams output by default on TTY and renders Markdown to ANSI (via `markdansi`). At the end it prints a single “Finished in …” line with timing, token usage, and a best-effort cost estimate (when pricing is available).
 
-## Quickstart
+## Install
+
+- npx (no install):
 
 ```bash
 npx -y @steipete/summarize "https://example.com" --model google/gemini-3-flash-preview
+```
+
+- Homebrew (custom tap):
+
+```bash
+brew tap steipete/tap && brew install steipete/tap/summarize
+```
+
+## Quickstart
+
+```bash
+summarize "https://example.com" --model google/gemini-3-flash-preview
 ```
 
 Input can be a URL or a local file path:
