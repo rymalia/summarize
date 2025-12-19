@@ -563,6 +563,17 @@ function formatUSD(value: number): string {
   return `$${value.toFixed(4)}`
 }
 
+function mergeStreamingChunk(
+  previous: string,
+  chunk: string
+): { next: string; appended: string } {
+  if (!chunk) return { next: previous, appended: '' }
+  if (chunk.startsWith(previous)) {
+    return { next: chunk, appended: chunk.slice(previous.length) }
+  }
+  return { next: previous + chunk, appended: chunk }
+}
+
 function writeFinishLine({
   stderr,
   elapsedMs,
@@ -1031,9 +1042,10 @@ export async function runCli(
                 clearProgressForStdout()
                 cleared = true
               }
-              streamed += delta
+              const merged = mergeStreamingChunk(streamed, delta)
+              streamed = merged.next
               if (shouldStreamSummaryToStdout) {
-                stdout.write(delta)
+                if (merged.appended) stdout.write(merged.appended)
                 continue
               }
 
@@ -1831,13 +1843,14 @@ export async function runCli(
           try {
             let cleared = false
             for await (const delta of streamResult.textStream) {
-              streamed += delta
+              const merged = mergeStreamingChunk(streamed, delta)
+              streamed = merged.next
               if (shouldStreamSummaryToStdout) {
                 if (!cleared) {
                   clearProgressForStdout()
                   cleared = true
                 }
-                stdout.write(delta)
+                if (merged.appended) stdout.write(merged.appended)
                 continue
               }
 
@@ -2046,9 +2059,10 @@ export async function runCli(
                 clearProgressForStdout()
                 cleared = true
               }
-              streamed += delta
+              const merged = mergeStreamingChunk(streamed, delta)
+              streamed = merged.next
               if (shouldStreamSummaryToStdout) {
-                stdout.write(delta)
+                if (merged.appended) stdout.write(merged.appended)
                 continue
               }
 

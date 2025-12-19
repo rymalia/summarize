@@ -4,6 +4,10 @@ All notable changes to this project are documented here.
 
 ## 0.1.2 - Unreleased
 
+### Fixes
+
+- Avoid duplicate streamed output when providers emit cumulative chunks instead of deltas.
+
 ## 0.1.1 - 2025-12-19
 
 ### Fixes
