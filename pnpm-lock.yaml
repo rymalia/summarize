@@ -21,14 +21,14 @@ importers:
         specifier: ^4.1.0
         version: 4.1.0
       osc-progress:
-        specifier: github:steipete/osc-progress#5543f1d4383edfe3040b6bcfdbdb646df8596bc8
-        version: https://codeload.github.com/steipete/osc-progress/tar.gz/5543f1d4383edfe3040b6bcfdbdb646df8596bc8
+        specifier: github:steipete/osc-progress#e43bd6afebe4f4a88b6ce71d00f657c51e1ac98a
+        version: https://codeload.github.com/steipete/osc-progress/tar.gz/e43bd6afebe4f4a88b6ce71d00f657c51e1ac98a
       sanitize-html:
         specifier: ^2.17.0
         version: 2.17.0
       tokentally:
-        specifier: github:steipete/tokentally#3c0079763da6f1bbb3a5a8a83a1d1d5da35923cf
-        version: https://codeload.github.com/steipete/tokentally/tar.gz/3c0079763da6f1bbb3a5a8a83a1d1d5da35923cf
+        specifier: github:steipete/tokentally#6c11adf31fa171c1218659ab5aa8b2b889c53cd6
+        version: https://codeload.github.com/steipete/tokentally/tar.gz/6c11adf31fa171c1218659ab5aa8b2b889c53cd6
     devDependencies:
       '@ai-sdk/anthropic':
         specifier: 3.0.0-beta.91
@@ -994,8 +994,8 @@ packages:
     resolution: {integrity: sha512-m0pg2zscbYgWbqRR6ABga5c3sZdEon7bSgjnlXC64kxtxLOyjRcbbUkLj7HFyy/FTD+P2xdBWu8snGhYI0jc4A==}
     engines: {node: '>=20'}
 
-  osc-progress@https://codeload.github.com/steipete/osc-progress/tar.gz/5543f1d4383edfe3040b6bcfdbdb646df8596bc8:
-    resolution: {tarball: https://codeload.github.com/steipete/osc-progress/tar.gz/5543f1d4383edfe3040b6bcfdbdb646df8596bc8}
+  osc-progress@https://codeload.github.com/steipete/osc-progress/tar.gz/e43bd6afebe4f4a88b6ce71d00f657c51e1ac98a:
+    resolution: {tarball: https://codeload.github.com/steipete/osc-progress/tar.gz/e43bd6afebe4f4a88b6ce71d00f657c51e1ac98a}
     version: 0.1.0
     engines: {node: '>=20'}
 
@@ -1112,8 +1112,8 @@ packages:
     resolution: {integrity: sha512-kh9LVIWH5CnL63Ipf0jhlBIy0UsrMj/NJDfpsy1SqOXlLKEVyXXYrnFxFT1yOOYVGBSApeVnjPw/sBz5BfEjAQ==}
     engines: {node: '>=14.16'}
 
-  tokentally@https://codeload.github.com/steipete/tokentally/tar.gz/3c0079763da6f1bbb3a5a8a83a1d1d5da35923cf:
-    resolution: {tarball: https://codeload.github.com/steipete/tokentally/tar.gz/3c0079763da6f1bbb3a5a8a83a1d1d5da35923cf}
+  tokentally@https://codeload.github.com/steipete/tokentally/tar.gz/6c11adf31fa171c1218659ab5aa8b2b889c53cd6:
+    resolution: {tarball: https://codeload.github.com/steipete/tokentally/tar.gz/6c11adf31fa171c1218659ab5aa8b2b889c53cd6}
     version: 0.0.1
     engines: {node: '>=20'}
 
@@ -2203,7 +2203,7 @@ snapshots:
       string-width: 8.1.0
       strip-ansi: 7.1.2
 
-  osc-progress@https://codeload.github.com/steipete/osc-progress/tar.gz/5543f1d4383edfe3040b6bcfdbdb646df8596bc8: {}
+  osc-progress@https://codeload.github.com/steipete/osc-progress/tar.gz/e43bd6afebe4f4a88b6ce71d00f657c51e1ac98a: {}
 
   parse-srcset@1.0.2: {}
 
@@ -2333,7 +2333,7 @@ snapshots:
       '@tokenizer/token': 0.3.0
       ieee754: 1.2.1
 
-  tokentally@https://codeload.github.com/steipete/tokentally/tar.gz/3c0079763da6f1bbb3a5a8a83a1d1d5da35923cf: {}
+  tokentally@https://codeload.github.com/steipete/tokentally/tar.gz/6c11adf31fa171c1218659ab5aa8b2b889c53cd6: {}
 
   tsx@4.21.0:
     dependencies:

@@ -53,9 +53,9 @@
     "es-toolkit": "^1.43.0",
     "file-type": "^21.1.1",
     "mime": "^4.1.0",
-    "osc-progress": "github:steipete/osc-progress#5543f1d4383edfe3040b6bcfdbdb646df8596bc8",
+    "osc-progress": "github:steipete/osc-progress#e43bd6afebe4f4a88b6ce71d00f657c51e1ac98a",
     "sanitize-html": "^2.17.0",
-    "tokentally": "github:steipete/tokentally#3c0079763da6f1bbb3a5a8a83a1d1d5da35923cf"
+    "tokentally": "github:steipete/tokentally#6c11adf31fa171c1218659ab5aa8b2b889c53cd6"
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "3.0.0-beta.91",
