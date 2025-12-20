@@ -52,7 +52,13 @@ describe('llm generate/stream', () => {
     generateTextMock.mockClear()
     await generateTextWithModelId({
       modelId: 'xai/grok-4-fast-non-reasoning',
-      apiKeys: { xaiApiKey: 'k', openaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        xaiApiKey: 'k',
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -60,7 +66,13 @@ describe('llm generate/stream', () => {
     })
     await generateTextWithModelId({
       modelId: 'google/gemini-3-flash-preview',
-      apiKeys: { xaiApiKey: null, openaiApiKey: null, googleApiKey: 'k', anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: 'k',
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -68,7 +80,13 @@ describe('llm generate/stream', () => {
     })
     await generateTextWithModelId({
       modelId: 'anthropic/claude-opus-4-5',
-      apiKeys: { xaiApiKey: null, openaiApiKey: null, googleApiKey: null, anthropicApiKey: 'k', openrouterApiKey: null},
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: 'k',
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -76,7 +94,13 @@ describe('llm generate/stream', () => {
     })
     await generateTextWithModelId({
       modelId: 'openai/gpt-5.2',
-      apiKeys: { openaiApiKey: 'k', xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        openaiApiKey: 'k',
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -93,7 +117,13 @@ describe('llm generate/stream', () => {
     streamTextMock.mockClear()
     await streamTextWithModelId({
       modelId: 'xai/grok-4-fast-non-reasoning',
-      apiKeys: { xaiApiKey: 'k', openaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        xaiApiKey: 'k',
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -101,7 +131,13 @@ describe('llm generate/stream', () => {
     })
     await streamTextWithModelId({
       modelId: 'google/gemini-3-flash-preview',
-      apiKeys: { xaiApiKey: null, openaiApiKey: null, googleApiKey: 'k', anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: 'k',
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -109,7 +145,13 @@ describe('llm generate/stream', () => {
     })
     await streamTextWithModelId({
       modelId: 'anthropic/claude-opus-4-5',
-      apiKeys: { xaiApiKey: null, openaiApiKey: null, googleApiKey: null, anthropicApiKey: 'k', openrouterApiKey: null},
+      apiKeys: {
+        xaiApiKey: null,
+        openaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: 'k',
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -117,7 +159,13 @@ describe('llm generate/stream', () => {
     })
     await streamTextWithModelId({
       modelId: 'openai/gpt-5.2',
-      apiKeys: { openaiApiKey: 'k', xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        openaiApiKey: 'k',
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -134,7 +182,13 @@ describe('llm generate/stream', () => {
     generateTextMock.mockClear()
     await generateTextWithModelId({
       modelId: 'openai/gpt-5.2',
-      apiKeys: { openaiApiKey: 'k', xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        openaiApiKey: 'k',
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -147,7 +201,13 @@ describe('llm generate/stream', () => {
     streamTextMock.mockClear()
     const result = await streamTextWithModelId({
       modelId: 'openai/gpt-5.2',
-      apiKeys: { openaiApiKey: 'k', xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        openaiApiKey: 'k',
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 2000,
       fetchImpl: globalThis.fetch.bind(globalThis),
@@ -167,7 +227,13 @@ describe('llm generate/stream', () => {
     await expect(
       generateTextWithModelId({
         modelId: 'openai/gpt-5.2',
-        apiKeys: { openaiApiKey: 'k', xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+        apiKeys: {
+          openaiApiKey: 'k',
+          xaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
         prompt: 'hi',
         timeoutMs: 1,
         fetchImpl: globalThis.fetch.bind(globalThis),
@@ -180,7 +246,13 @@ describe('llm generate/stream', () => {
     await expect(
       generateTextWithModelId({
         modelId: 'google/gemini-3-flash-preview',
-        apiKeys: { openaiApiKey: null, xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+        apiKeys: {
+          openaiApiKey: null,
+          xaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
         prompt: 'hi',
         timeoutMs: 2000,
         fetchImpl: globalThis.fetch.bind(globalThis),
@@ -191,7 +263,13 @@ describe('llm generate/stream', () => {
     await expect(
       generateTextWithModelId({
         modelId: 'xai/grok-4-fast-non-reasoning',
-        apiKeys: { openaiApiKey: null, xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+        apiKeys: {
+          openaiApiKey: null,
+          xaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
         prompt: 'hi',
         timeoutMs: 2000,
         fetchImpl: globalThis.fetch.bind(globalThis),
@@ -202,7 +280,13 @@ describe('llm generate/stream', () => {
     await expect(
       generateTextWithModelId({
         modelId: 'anthropic/claude-opus-4-5',
-        apiKeys: { openaiApiKey: null, xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+        apiKeys: {
+          openaiApiKey: null,
+          xaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
         prompt: 'hi',
         timeoutMs: 2000,
         fetchImpl: globalThis.fetch.bind(globalThis),
@@ -301,7 +385,13 @@ describe('llm generate/stream', () => {
     await expect(
       generateTextWithModelId({
         modelId: 'anthropic/claude-3-5-sonnet-latest',
-        apiKeys: { xaiApiKey: null, openaiApiKey: null, googleApiKey: null, anthropicApiKey: 'k', openrouterApiKey: null},
+        apiKeys: {
+          xaiApiKey: null,
+          openaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: 'k',
+          openrouterApiKey: null,
+        },
         prompt: 'hi',
         timeoutMs: 2000,
         fetchImpl: globalThis.fetch.bind(globalThis),
@@ -323,7 +413,13 @@ describe('llm generate/stream', () => {
     await expect(
       streamTextWithModelId({
         modelId: 'anthropic/claude-3-5-sonnet-latest',
-        apiKeys: { xaiApiKey: null, openaiApiKey: null, googleApiKey: null, anthropicApiKey: 'k', openrouterApiKey: null},
+        apiKeys: {
+          xaiApiKey: null,
+          openaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: 'k',
+          openrouterApiKey: null,
+        },
         prompt: 'hi',
         timeoutMs: 2000,
         fetchImpl: globalThis.fetch.bind(globalThis),
@@ -339,7 +435,13 @@ describe('llm generate/stream', () => {
     await expect(
       streamTextWithModelId({
         modelId: 'openai/gpt-5.2',
-        apiKeys: { openaiApiKey: 'k', xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+        apiKeys: {
+          openaiApiKey: 'k',
+          xaiApiKey: null,
+          googleApiKey: null,
+          anthropicApiKey: null,
+          openrouterApiKey: null,
+        },
         prompt: 'hi',
         timeoutMs: 1,
         fetchImpl: globalThis.fetch.bind(globalThis),
@@ -359,7 +461,13 @@ describe('llm generate/stream', () => {
     }))
     const result = await streamTextWithModelId({
       modelId: 'openai/gpt-5.2',
-      apiKeys: { openaiApiKey: 'k', xaiApiKey: null, googleApiKey: null, anthropicApiKey: null, openrouterApiKey: null},
+      apiKeys: {
+        openaiApiKey: 'k',
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
       prompt: 'hi',
       timeoutMs: 5,
       fetchImpl: globalThis.fetch.bind(globalThis),

@@ -75,11 +75,15 @@ export const resolveTranscriptForLink = async (
     apifyApiToken: deps.apifyApiToken,
     ytDlpPath: deps.ytDlpPath,
     falApiKey: deps.falApiKey,
+    openaiApiKey: deps.openaiApiKey,
     youtubeTranscriptMode: youtubeTranscriptMode ?? 'auto',
   })
   diagnostics.provider = providerResult.source
   diagnostics.attemptedProviders = providerResult.attemptedProviders
   diagnostics.textProvided = Boolean(providerResult.text && providerResult.text.length > 0)
+  if (providerResult.notes) {
+    diagnostics.notes = appendNote(diagnostics.notes, providerResult.notes)
+  }
 
   if (providerResult.source !== null || providerResult.text !== null) {
     await writeTranscriptCache({

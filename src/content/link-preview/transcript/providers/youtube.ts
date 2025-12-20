@@ -23,8 +23,18 @@ export const fetchTranscript = async (
   options: ProviderFetchOptions
 ): Promise<ProviderResult> => {
   const attemptedProviders: TranscriptSource[] = []
+  const notes: string[] = []
   const { html, url } = context
   const mode = options.youtubeTranscriptMode
+  const hasYtDlpCredentials = Boolean(options.openaiApiKey || options.falApiKey)
+  const canRunYtDlp = Boolean(options.ytDlpPath && hasYtDlpCredentials)
+
+  if (mode === 'yt-dlp' && !options.ytDlpPath) {
+    throw new Error('Missing YT_DLP_PATH for --youtube yt-dlp')
+  }
+  if (mode === 'yt-dlp' && !hasYtDlpCredentials) {
+    throw new Error('Missing OPENAI_API_KEY or FAL_KEY for --youtube yt-dlp')
+  }
 
   if (!html) {
     return { text: null, source: null, attemptedProviders }
@@ -74,24 +84,6 @@ export const fetchTranscript = async (
     }
   }
 
-  // Try yt-dlp (audio download + FAL AI transcription) if mode is 'auto' or 'yt-dlp'
-  if (mode === 'auto' || mode === 'yt-dlp') {
-    attemptedProviders.push('yt-dlp')
-    const ytdlpTranscript = await fetchTranscriptWithYtDlp(
-      options.ytDlpPath,
-      options.falApiKey,
-      url
-    )
-    if (ytdlpTranscript) {
-      return {
-        text: normalizeTranscriptText(ytdlpTranscript),
-        source: 'yt-dlp',
-        metadata: { provider: 'yt-dlp' },
-        attemptedProviders,
-      }
-    }
-  }
-
   // Try apify if mode is 'auto' or 'apify'
   if (mode === 'auto' || mode === 'apify') {
     attemptedProviders.push('apify')
@@ -110,11 +102,38 @@ export const fetchTranscript = async (
     }
   }
 
+  // Try yt-dlp (audio download + OpenAI/FAL transcription) if mode is 'auto' or 'yt-dlp'
+  if (mode === 'yt-dlp' || (mode === 'auto' && canRunYtDlp)) {
+    attemptedProviders.push('yt-dlp')
+    const ytdlpResult = await fetchTranscriptWithYtDlp({
+      ytDlpPath: options.ytDlpPath,
+      openaiApiKey: options.openaiApiKey,
+      falApiKey: options.falApiKey,
+      url,
+    })
+    if (ytdlpResult.notes.length > 0) {
+      notes.push(...ytdlpResult.notes)
+    }
+    if (ytdlpResult.text) {
+      return {
+        text: normalizeTranscriptText(ytdlpResult.text),
+        source: 'yt-dlp',
+        metadata: { provider: 'yt-dlp', transcriptionProvider: ytdlpResult.provider },
+        attemptedProviders,
+        notes: notes.length > 0 ? notes.join('; ') : null,
+      }
+    }
+    if (mode === 'yt-dlp' && ytdlpResult.error) {
+      throw ytdlpResult.error
+    }
+  }
+
   attemptedProviders.push('unavailable')
   return {
     text: null,
     source: 'unavailable',
     metadata: { provider: 'youtube', reason: 'no_transcript_available' },
     attemptedProviders,
+    notes: notes.length > 0 ? notes.join('; ') : null,
   }
 }

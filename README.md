@@ -11,6 +11,8 @@ It streams output by default on TTY and renders Markdown to ANSI (via `markdansi
 
 ## Install
 
+Requires Node 22+.
+
 - npx (no install):
 
 ```bash
@@ -125,12 +127,13 @@ Non-YouTube URLs go through a “fetch → extract” pipeline. When the direct 
 
 `--youtube auto` tries best-effort web transcript endpoints first. When captions aren't available, it falls back to:
 
-1. **yt-dlp + Whisper** (if `YT_DLP_PATH` and `FAL_KEY` are set): Downloads audio via yt-dlp, transcribes with FAL AI's Wizper (Whisper v3)
-2. **Apify** (if `APIFY_API_TOKEN` is set): Uses a scraping actor (`faVsWy9VTSNVIhWpR`)
+1. **Apify** (if `APIFY_API_TOKEN` is set): Uses a scraping actor (`faVsWy9VTSNVIhWpR`)
+2. **yt-dlp + Whisper** (if `YT_DLP_PATH` is set): Downloads audio via yt-dlp, transcribes with OpenAI Whisper if `OPENAI_API_KEY` is set, otherwise falls back to FAL (`FAL_KEY`)
 
 Environment variables for yt-dlp mode:
 - `YT_DLP_PATH` - path to yt-dlp binary
-- `FAL_KEY` - FAL AI API key
+- `OPENAI_API_KEY` - OpenAI Whisper transcription (preferred)
+- `FAL_KEY` - FAL AI Whisper fallback
 
 Apify costs money but tends to be more reliable when captions exist.
 

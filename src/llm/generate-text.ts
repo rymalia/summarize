@@ -127,15 +127,16 @@ function resolveOpenAiClientConfig({
   }
 
   const openrouterProviders = openrouter?.providers?.length ? openrouter.providers : null
-  const wrappedFetch: typeof fetch = isOpenRouter && openrouterProviders
-    ? (url, init) => {
-        const headers = new Headers(init?.headers)
-        headers.set('HTTP-Referer', 'https://github.com/steipete/summarize')
-        headers.set('X-Title', 'summarize')
-        headers.set('X-OpenRouter-Provider-Order', openrouterProviders.join(','))
-        return fetchImpl(url, { ...init, headers })
-      }
-    : fetchImpl
+  const wrappedFetch: typeof fetch =
+    isOpenRouter && openrouterProviders
+      ? (url, init) => {
+          const headers = new Headers(init?.headers)
+          headers.set('HTTP-Referer', 'https://github.com/steipete/summarize')
+          headers.set('X-Title', 'summarize')
+          headers.set('X-OpenRouter-Provider-Order', openrouterProviders.join(','))
+          return fetchImpl(url, { ...init, headers })
+        }
+      : fetchImpl
 
   const baseURL = baseUrl ?? (isOpenRouter ? 'https://openrouter.ai/api/v1' : undefined)
 

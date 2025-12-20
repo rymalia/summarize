@@ -18,6 +18,7 @@ export interface LinkPreviewClientOptions {
   apifyApiToken?: string | null
   ytDlpPath?: string | null
   falApiKey?: string | null
+  openaiApiKey?: string | null
   convertHtmlToMarkdown?: ConvertHtmlToMarkdown | null
   transcriptCache?: TranscriptCache | null
   readTweetWithBird?: LinkPreviewDeps['readTweetWithBird']
@@ -31,6 +32,7 @@ export function createLinkPreviewClient(options: LinkPreviewClientOptions = {}):
   const apifyApiToken = typeof options.apifyApiToken === 'string' ? options.apifyApiToken : null
   const ytDlpPath = typeof options.ytDlpPath === 'string' ? options.ytDlpPath : null
   const falApiKey = typeof options.falApiKey === 'string' ? options.falApiKey : null
+  const openaiApiKey = typeof options.openaiApiKey === 'string' ? options.openaiApiKey : null
   const convertHtmlToMarkdown: ConvertHtmlToMarkdown | null = options.convertHtmlToMarkdown ?? null
   const transcriptCache: TranscriptCache | null = options.transcriptCache ?? null
   const readTweetWithBird =
@@ -45,6 +47,7 @@ export function createLinkPreviewClient(options: LinkPreviewClientOptions = {}):
         apifyApiToken,
         ytDlpPath,
         falApiKey,
+        openaiApiKey,
         convertHtmlToMarkdown,
         transcriptCache,
         readTweetWithBird,

@@ -799,7 +799,10 @@ export async function runCli(
   const openRouterProvidersRaw =
     typeof env.OPENROUTER_PROVIDERS === 'string' ? env.OPENROUTER_PROVIDERS : null
   const openRouterProviders = openRouterProvidersRaw
-    ? openRouterProvidersRaw.split(',').map((p) => p.trim()).filter(Boolean)
+    ? openRouterProvidersRaw
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
     : null
   const openaiKeyRaw = typeof env.OPENAI_API_KEY === 'string' ? env.OPENAI_API_KEY : null
   const apiKey =
@@ -826,6 +829,7 @@ export async function runCli(
   const googleApiKey = googleKeyRaw?.trim() ?? null
   const anthropicApiKey = anthropicKeyRaw?.trim() ?? null
   const openrouterApiKey = openRouterKeyRaw?.trim() ?? null
+  const openaiTranscriptionKey = openaiKeyRaw?.trim() ?? null
   const googleConfigured = typeof googleApiKey === 'string' && googleApiKey.length > 0
   const xaiConfigured = typeof xaiApiKey === 'string' && xaiApiKey.length > 0
   const anthropicConfigured = typeof anthropicApiKey === 'string' && anthropicApiKey.length > 0
@@ -1770,6 +1774,7 @@ export async function runCli(
     apifyApiToken: apifyToken,
     ytDlpPath,
     falApiKey,
+    openaiApiKey: openaiTranscriptionKey,
     scrapeWithFirecrawl,
     convertHtmlToMarkdown,
     readTweetWithBird: readTweetWithBirdClient,

@@ -86,6 +86,7 @@ export interface LinkPreviewDeps {
   apifyApiToken: string | null
   ytDlpPath: string | null
   falApiKey: string | null
+  openaiApiKey: string | null
   convertHtmlToMarkdown: ConvertHtmlToMarkdown | null
   transcriptCache: TranscriptCache | null
   readTweetWithBird?: ReadTweetWithBird | null

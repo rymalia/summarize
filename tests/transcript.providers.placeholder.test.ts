@@ -27,6 +27,9 @@ describe('placeholder transcript providers', () => {
       fetch: noopFetch as unknown as typeof fetch,
       apifyApiToken: null,
       youtubeTranscriptMode: 'auto',
+      ytDlpPath: null,
+      falApiKey: null,
+      openaiApiKey: null,
     }
 
     const podcastResult = await podcast.fetchTranscript(

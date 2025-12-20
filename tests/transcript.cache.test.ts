@@ -94,9 +94,13 @@ describe('transcript cache integration', () => {
       {
         fetch: fetchMock as unknown as typeof fetch,
         apifyApiToken: null,
+        ytDlpPath: null,
+        falApiKey: null,
+        openaiApiKey: null,
         scrapeWithFirecrawl: null,
         convertHtmlToMarkdown: null,
         transcriptCache,
+        readTweetWithBird: null,
       },
       { youtubeTranscriptMode: 'web', cacheMode: 'default' }
     )

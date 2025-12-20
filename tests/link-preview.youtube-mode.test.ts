@@ -75,4 +75,28 @@ describe('link preview extraction (YouTube mode)', () => {
 
     expect(result.transcriptSource).toBe('unavailable')
   })
+
+  it('errors when --youtube yt-dlp without transcription keys', async () => {
+    const html =
+      '<!doctype html><html><head><title>Sample</title></head><body><main></main></body></html>'
+
+    const fetchMock = vi.fn<[RequestInfo | URL, RequestInit?], Promise<Response>>((input) => {
+      const url = typeof input === 'string' ? input : (input?.url ?? '')
+      if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) {
+        return Promise.resolve(htmlResponse(html))
+      }
+      return Promise.reject(new Error(`Unexpected fetch call: ${String(url)}`))
+    })
+
+    const client = createLinkPreviewClient({
+      fetch: fetchMock as unknown as typeof fetch,
+      ytDlpPath: '/usr/bin/yt-dlp',
+    })
+
+    await expect(
+      client.fetchLinkContent('https://www.youtube.com/watch?v=abcdefghijk', {
+        youtubeTranscript: 'yt-dlp',
+      })
+    ).rejects.toThrow(/Missing OPENAI_API_KEY or FAL_KEY/)
+  })
 })

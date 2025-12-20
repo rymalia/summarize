@@ -1,63 +1,68 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const api = vi.hoisted(() => ({
+  extractYoutubeiTranscriptConfig: vi.fn(),
+  fetchTranscriptFromTranscriptEndpoint: vi.fn(),
+}))
+const captions = vi.hoisted(() => ({
+  fetchTranscriptFromCaptionTracks: vi.fn(),
+}))
+const apify = vi.hoisted(() => ({
+  fetchTranscriptWithApify: vi.fn(),
+}))
+const ytdlp = vi.hoisted(() => ({
+  fetchTranscriptWithYtDlp: vi.fn(),
+}))
+
+vi.mock('../src/content/link-preview/transcript/providers/youtube/api.js', () => api)
+vi.mock('../src/content/link-preview/transcript/providers/youtube/captions.js', () => captions)
+vi.mock('../src/content/link-preview/transcript/providers/youtube/apify.js', () => apify)
+vi.mock('../src/content/link-preview/transcript/providers/youtube/yt-dlp.js', () => ytdlp)
 
 import { fetchTranscript } from '../src/content/link-preview/transcript/providers/youtube.js'
 
-describe('YouTube transcript provider module', () => {
-  it('returns null when HTML is missing or video id cannot be resolved', async () => {
-    const fetchMock = vi.fn(async () => new Response('nope', { status: 500 }))
+const baseOptions = {
+  fetch: vi.fn() as unknown as typeof fetch,
+  apifyApiToken: null,
+  youtubeTranscriptMode: 'auto' as const,
+  ytDlpPath: null,
+  falApiKey: null,
+  openaiApiKey: null,
+}
 
+describe('YouTube transcript provider module', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    api.extractYoutubeiTranscriptConfig.mockReturnValue(null)
+    api.fetchTranscriptFromTranscriptEndpoint.mockResolvedValue(null)
+    captions.fetchTranscriptFromCaptionTracks.mockResolvedValue(null)
+    apify.fetchTranscriptWithApify.mockResolvedValue(null)
+    ytdlp.fetchTranscriptWithYtDlp.mockResolvedValue({
+      text: null,
+      provider: null,
+      error: null,
+      notes: [],
+    })
+  })
+
+  it('returns null when HTML is missing or video id cannot be resolved', async () => {
     expect(
       await fetchTranscript(
         { url: 'https://www.youtube.com/watch?v=abcdefghijk', html: null, resourceKey: null },
-        {
-          fetch: fetchMock as unknown as typeof fetch,
-          apifyApiToken: null,
-          youtubeTranscriptMode: 'auto',
-        }
+        baseOptions
       )
     ).toEqual({ text: null, source: null, attemptedProviders: [] })
 
     expect(
       await fetchTranscript(
         { url: 'https://www.youtube.com/watch', html: '<html></html>', resourceKey: null },
-        {
-          fetch: fetchMock as unknown as typeof fetch,
-          apifyApiToken: null,
-          youtubeTranscriptMode: 'auto',
-        }
+        baseOptions
       )
     ).toEqual({ text: null, source: null, attemptedProviders: [] })
   })
 
-  it('uses apify-only mode and skips web transcript attempts', async () => {
-    const html = '<!doctype html><html><head><title>Sample</title></head><body></body></html>'
-
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input.url
-      if (url.includes('api.apify.com')) {
-        return Response.json([{ data: [{ start: '0', dur: '1', text: 'Hello from apify' }] }], {
-          status: 200,
-        })
-      }
-      throw new Error(`Unexpected fetch call: ${url}`)
-    })
-
-    const result = await fetchTranscript(
-      { url: 'https://www.youtube.com/watch?v=abcdefghijk', html, resourceKey: null },
-      {
-        fetch: fetchMock as unknown as typeof fetch,
-        apifyApiToken: 'TOKEN',
-        youtubeTranscriptMode: 'apify',
-      }
-    )
-
-    expect(result.text).toBe('Hello from apify')
-    expect(result.source).toBe('apify')
-    expect(result.attemptedProviders).toEqual(['apify'])
-  })
-
-  it('uses web-only mode and skips apify', async () => {
-    const fetchMock = vi.fn(async () => new Response('nope', { status: 500 }))
+  it('uses apify-only mode and skips web + yt-dlp', async () => {
+    apify.fetchTranscriptWithApify.mockResolvedValue('Hello from apify')
 
     const result = await fetchTranscript(
       {
@@ -66,7 +71,29 @@ describe('YouTube transcript provider module', () => {
         resourceKey: null,
       },
       {
-        fetch: fetchMock as unknown as typeof fetch,
+        ...baseOptions,
+        apifyApiToken: 'TOKEN',
+        youtubeTranscriptMode: 'apify',
+      }
+    )
+
+    expect(result.text).toBe('Hello from apify')
+    expect(result.source).toBe('apify')
+    expect(result.attemptedProviders).toEqual(['apify'])
+    expect(api.extractYoutubeiTranscriptConfig).not.toHaveBeenCalled()
+    expect(captions.fetchTranscriptFromCaptionTracks).not.toHaveBeenCalled()
+    expect(ytdlp.fetchTranscriptWithYtDlp).not.toHaveBeenCalled()
+  })
+
+  it('uses web-only mode and skips apify + yt-dlp', async () => {
+    const result = await fetchTranscript(
+      {
+        url: 'https://www.youtube.com/watch?v=abcdefghijk',
+        html: '<html></html>',
+        resourceKey: null,
+      },
+      {
+        ...baseOptions,
         apifyApiToken: 'TOKEN',
         youtubeTranscriptMode: 'web',
       }
@@ -74,5 +101,75 @@ describe('YouTube transcript provider module', () => {
 
     expect(result.source).toBe('unavailable')
     expect(result.attemptedProviders).toEqual(['captionTracks', 'unavailable'])
+    expect(apify.fetchTranscriptWithApify).not.toHaveBeenCalled()
+    expect(ytdlp.fetchTranscriptWithYtDlp).not.toHaveBeenCalled()
+  })
+
+  it('attempts providers in order for auto mode', async () => {
+    api.extractYoutubeiTranscriptConfig.mockReturnValue({
+      apiKey: 'KEY',
+      context: {},
+      params: 'PARAMS',
+    })
+
+    const result = await fetchTranscript(
+      {
+        url: 'https://www.youtube.com/watch?v=abcdefghijk',
+        html: '<html></html>',
+        resourceKey: null,
+      },
+      {
+        ...baseOptions,
+        youtubeTranscriptMode: 'auto',
+        ytDlpPath: '/usr/bin/yt-dlp',
+        openaiApiKey: 'OPENAI',
+      }
+    )
+
+    expect(result.attemptedProviders).toEqual([
+      'youtubei',
+      'captionTracks',
+      'apify',
+      'yt-dlp',
+      'unavailable',
+    ])
+  })
+
+  it('skips yt-dlp in auto mode when credentials are missing', async () => {
+    api.extractYoutubeiTranscriptConfig.mockReturnValue(null)
+
+    const result = await fetchTranscript(
+      {
+        url: 'https://www.youtube.com/watch?v=abcdefghijk',
+        html: '<html></html>',
+        resourceKey: null,
+      },
+      {
+        ...baseOptions,
+        youtubeTranscriptMode: 'auto',
+      }
+    )
+
+    expect(result.attemptedProviders).toEqual(['captionTracks', 'apify', 'unavailable'])
+    expect(ytdlp.fetchTranscriptWithYtDlp).not.toHaveBeenCalled()
+  })
+
+  it('errors in yt-dlp mode when transcription keys are missing', async () => {
+    await expect(
+      fetchTranscript(
+        {
+          url: 'https://www.youtube.com/watch?v=abcdefghijk',
+          html: '<html></html>',
+          resourceKey: null,
+        },
+        {
+          ...baseOptions,
+          youtubeTranscriptMode: 'yt-dlp',
+          ytDlpPath: '/usr/bin/yt-dlp',
+          falApiKey: null,
+          openaiApiKey: null,
+        }
+      )
+    ).rejects.toThrow('Missing OPENAI_API_KEY or FAL_KEY')
   })
 })

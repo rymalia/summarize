@@ -20,7 +20,8 @@ const MIN_MAX_OUTPUT_TOKENS = 16
 export function parseYoutubeMode(raw: string): YoutubeMode {
   const normalized = raw.trim().toLowerCase()
   if (normalized === 'autp') return 'auto'
-  if (normalized === 'auto' || normalized === 'web' || normalized === 'apify' || normalized === 'yt-dlp') return normalized
+  if (normalized === 'auto' || normalized === 'web' || normalized === 'apify') return normalized
+  if (normalized === 'yt-dlp') return 'yt-dlp'
   throw new Error(`Unsupported --youtube: ${raw}`)
 }
 

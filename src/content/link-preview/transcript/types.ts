@@ -15,11 +15,13 @@ export interface ProviderFetchOptions {
   youtubeTranscriptMode: YoutubeTranscriptMode
   ytDlpPath: string | null
   falApiKey: string | null
+  openaiApiKey: string | null
 }
 
 export interface ProviderResult extends TranscriptResolution {
   metadata?: Record<string, unknown>
   attemptedProviders: TranscriptSource[]
+  notes?: string | null
 }
 
 export interface ProviderModule {
