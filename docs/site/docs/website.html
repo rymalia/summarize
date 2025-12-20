@@ -41,15 +41,16 @@
         <article class="doc reveal">
           <p class="kicker">mode</p>
           <h1>Website mode</h1>
-          <p>Fetch HTML → extract “article-ish” content → normalize to clean text. If extraction looks blocked or too thin, retry via Firecrawl Markdown (optional).</p>
+          <p>Fetch HTML → extract “article-ish” content → normalize to clean text. If extraction looks blocked or too thin, retry via Firecrawl Markdown (optional). With <code>--format md</code>, the CLI prefers Firecrawl Markdown when configured and can also convert HTML → Markdown via <code>--markdown-mode</code> (LLM) or <code>uvx markitdown</code>.</p>
 
           <h2>Flags</h2>
           <ul>
             <li><code>--firecrawl off|auto|always</code></li>
             <li><code>--timeout 30s|2m|5000ms</code> (default <code>2m</code>)</li>
             <li><code>--extract</code> (print extracted content; no summary call)</li>
-            <li><code>--format md|text</code> (only with <code>--extract</code>; default <code>md</code>)</li>
-            <li><code>--markdown-mode off|auto|llm</code> (only with <code>--extract --format md</code>)</li>
+            <li><code>--format md|text</code> (default <code>text</code>)</li>
+            <li><code>--markdown-mode off|auto|llm</code> (only with <code>--format md</code>)</li>
+            <li><code>--preprocess off|auto|always</code> (default <code>auto</code>; controls markitdown usage)</li>
             <li><code>--json</code> (emit a single JSON object)</li>
             <li><code>--verbose</code> (progress + which extractor was used)</li>
             <li><code>--metrics off|on|detailed</code></li>

@@ -26,11 +26,13 @@ import {
   parseLengthArg,
   parseMarkdownMode,
   parseMaxOutputTokensArg,
+  parsePreprocessMode,
   parseMetricsMode,
   parseRenderMode,
   parseStreamMode,
   parseYoutubeMode,
 } from './flags.js'
+import { convertToMarkdownWithMarkitdown, type ExecFileFn } from './markitdown.js'
 import { generateTextWithModelId, streamTextWithModelId } from './llm/generate-text.js'
 import { resolveGoogleModelForUsage } from './llm/google-models.js'
 import { createHtmlToMarkdownConverter } from './llm/html-to-markdown.js'
@@ -41,7 +43,7 @@ import {
   resolveLiteLlmMaxOutputTokensForModelId,
   resolveLiteLlmPricingForModelId,
 } from './pricing/litellm.js'
-import { buildFileSummaryPrompt, buildLinkSummaryPrompt } from './prompts/index.js'
+import { buildFileSummaryPrompt, buildFileTextSummaryPrompt, buildLinkSummaryPrompt } from './prompts/index.js'
 import type { SummaryLength } from './shared/contracts.js'
 import { startOscProgress } from './tty/osc-progress.js'
 import { startSpinner } from './tty/spinner.js'
@@ -50,6 +52,7 @@ import { resolvePackageVersion } from './version.js'
 type RunEnv = {
   env: Record<string, string | undefined>
   fetch: typeof fetch
+  execFile?: ExecFileFn
   stdout: NodeJS.WritableStream
   stderr: NodeJS.WritableStream
 }
@@ -94,10 +97,23 @@ function isExecutable(filePath: string): boolean {
 
 function hasBirdCli(env: Record<string, string | undefined>): boolean {
   const candidates: string[] = []
-  const pathEnv = env.PATH ?? process.env.PATH ?? ''
+  const pathEnv = env.PATH ?? ''
   for (const entry of pathEnv.split(path.delimiter)) {
     if (!entry) continue
     candidates.push(path.join(entry, 'bird'))
+  }
+  return candidates.some((candidate) => isExecutable(candidate))
+}
+
+function hasUvxCli(env: Record<string, string | undefined>): boolean {
+  if (typeof env.UVX_PATH === 'string' && env.UVX_PATH.trim().length > 0) {
+    return true
+  }
+  const candidates: string[] = []
+  const pathEnv = env.PATH ?? ''
+  for (const entry of pathEnv.split(path.delimiter)) {
+    if (!entry) continue
+    candidates.push(path.join(entry, 'uvx'))
   }
   return candidates.some((candidate) => isExecutable(candidate))
 }
@@ -223,18 +239,26 @@ function buildProgram() {
     )
     .option(
       '--firecrawl <mode>',
-      'Firecrawl usage: off, auto (fallback), always (try Firecrawl first). Note: in --extract --format md website mode, defaults to always when FIRECRAWL_API_KEY is set.',
+      'Firecrawl usage: off, auto (fallback), always (try Firecrawl first). Note: in --format md website mode, defaults to always when FIRECRAWL_API_KEY is set (unless --firecrawl is set explicitly).',
       'auto'
     )
     .option(
       '--format <format>',
-      'Extraction output format: md|text. Only affects --extract for URLs. (default: md)',
-      undefined
+      'Website/file content format: md|text. For websites: controls the extraction format. For files: controls whether we try to preprocess to Markdown for model compatibility. (default: text)',
+      'text'
+    )
+    .addOption(
+      new Option(
+        '--preprocess <mode>',
+        'Preprocess inputs for model compatibility: off, auto (fallback), always.'
+      )
+        .choices(['off', 'auto', 'always'])
+        .default('auto')
     )
     .addOption(
       new Option(
         '--markdown-mode <mode>',
-        'HTML→Markdown conversion: off, auto (prefer Firecrawl when configured, then LLM when configured), llm (force LLM). Only affects --extract --format md for non-YouTube URLs.'
+        'HTML→Markdown conversion: off, auto (prefer Firecrawl when configured, then LLM when configured, then markitdown when available), llm (force LLM). Only affects --format md for non-YouTube URLs.'
       ).default('auto')
     )
     .addOption(
@@ -441,6 +465,26 @@ function getTextContentFromAttachment(
   return { content: '', bytes: 0 }
 }
 
+function getFileBytesFromAttachment(
+  attachment: Awaited<ReturnType<typeof loadLocalAsset>>['attachment']
+): Uint8Array | null {
+  if (attachment.part.type !== 'file') return null
+  const data = (attachment.part as { data?: unknown }).data
+  return data instanceof Uint8Array ? data : null
+}
+
+function shouldMarkitdownConvertMediaType(mediaType: string): boolean {
+  const mt = mediaType.toLowerCase()
+  if (mt === 'application/pdf') return true
+  if (mt === 'application/rtf') return true
+  if (mt === 'text/html' || mt === 'application/xhtml+xml') return true
+  if (mt === 'application/msword') return true
+  if (mt.startsWith('application/vnd.openxmlformats-officedocument.')) return true
+  if (mt === 'application/vnd.ms-excel') return true
+  if (mt === 'application/vnd.ms-powerpoint') return true
+  return false
+}
+
 function assertProviderSupportsAttachment({
   provider,
   modelId,
@@ -546,9 +590,9 @@ function attachRichHelp(
     () => `
 ${heading('Examples')}
   ${cmd('summarize "https://example.com"')}
-  ${cmd('summarize "https://example.com" --extract')} ${dim('# extracted markdown (prefers Firecrawl when configured)')}
-  ${cmd('summarize "https://example.com" --extract --format text')} ${dim('# extracted plain text')}
-  ${cmd('summarize "https://example.com" --extract --markdown-mode llm')} ${dim('# extracted markdown via LLM')}
+  ${cmd('summarize "https://example.com" --extract')} ${dim('# extracted plain text')}
+  ${cmd('summarize "https://example.com" --extract --format md')} ${dim('# extracted markdown (prefers Firecrawl when configured)')}
+  ${cmd('summarize "https://example.com" --extract --format md --markdown-mode llm')} ${dim('# extracted markdown via LLM')}
   ${cmd('summarize "https://www.youtube.com/watch?v=I845O57ZSy4&t=11s" --extract --youtube web')}
   ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5.2')}
   ${cmd('OPENROUTER_API_KEY=... summarize "https://example.com" --model openai/openai/gpt-oss-20b')}
@@ -741,11 +785,12 @@ function writeFinishLine({
 
 export async function runCli(
   argv: string[],
-  { env, fetch, stdout, stderr }: RunEnv
+  { env, fetch, execFile: execFileOverride, stdout, stderr }: RunEnv
 ): Promise<void> {
   ;(globalThis as unknown as { AI_SDK_LOG_WARNINGS?: boolean }).AI_SDK_LOG_WARNINGS = false
 
   const normalizedArgv = argv.filter((arg) => arg !== '--')
+  const execFileImpl = execFileOverride ?? execFile
   const version = resolvePackageVersion()
   const program = buildProgram()
   program.configureOutput({
@@ -799,11 +844,8 @@ export async function runCli(
   const metricsMode = parseMetricsMode(program.opts().metrics as string)
   const metricsEnabled = metricsMode !== 'off'
   const metricsDetailed = metricsMode === 'detailed'
-  const markdownMode = parseMarkdownMode(
-    (program.opts().markdownMode as string | undefined) ??
-      (program.opts().markdown as string | undefined) ??
-      'auto'
-  )
+  const preprocessMode = parsePreprocessMode(program.opts().preprocess as string)
+  const format = parseExtractFormat(program.opts().format as string)
 
   const shouldComputeReport = metricsEnabled
 
@@ -821,6 +863,14 @@ export async function runCli(
       arg === '--markdown' ||
       arg.startsWith('--markdown=')
   )
+  const markdownMode =
+    format === 'markdown'
+      ? parseMarkdownMode(
+          (program.opts().markdownMode as string | undefined) ??
+            (program.opts().markdown as string | undefined) ??
+            'auto'
+        )
+      : 'off'
   const requestedFirecrawlMode = parseFirecrawlMode(program.opts().firecrawl as string)
   const modelArg =
     typeof program.opts().model === 'string' ? (program.opts().model as string) : null
@@ -871,15 +921,11 @@ export async function runCli(
   const openrouterConfigured = typeof openrouterApiKey === 'string' && openrouterApiKey.length > 0
   const openrouterOptions = openRouterProviders ? { providers: openRouterProviders } : undefined
 
-  const extractFormat = (() => {
-    if (!extractMode) return null
-    const raw = typeof program.opts().format === 'string' ? (program.opts().format as string) : ''
-    if (raw.trim().length > 0) return parseExtractFormat(raw)
-    return markdownMode === 'off' ? 'text' : 'markdown'
-  })()
-
-  if (!extractMode && (formatExplicitlySet || markdownModeExplicitlySet)) {
-    throw new Error('--format/--markdown-mode are only supported with --extract')
+  if (markdownModeExplicitlySet && format !== 'markdown') {
+    throw new Error('--markdown-mode is only supported with --format md')
+  }
+  if (markdownModeExplicitlySet && inputTarget.kind !== 'url') {
+    throw new Error('--markdown-mode is only supported for website URLs')
   }
 
   const llmCalls: LlmCall[] = []
@@ -1071,12 +1117,6 @@ export async function runCli(
       )
     }
 
-    assertProviderSupportsAttachment({
-      provider: parsedModel.provider,
-      modelId: parsedModel.canonical,
-      attachment: { part: attachment.part, mediaType: attachment.mediaType },
-    })
-
     const modelResolution = await resolveModelIdForLlmCall({
       parsedModel,
       apiKeys: { googleApiKey: apiKeysForLlm.googleApiKey },
@@ -1099,16 +1139,113 @@ export async function runCli(
         `Text file too large (${formatBytes(textContent.bytes)}). Limit is ${formatBytes(MAX_TEXT_BYTES_DEFAULT)}.`
       )
     }
+
+    const fileBytes = getFileBytesFromAttachment(attachment)
+    const canPreprocessWithMarkitdown =
+      format === 'markdown' &&
+      preprocessMode !== 'off' &&
+      hasUvxCli(env) &&
+      attachment.part.type === 'file' &&
+      fileBytes !== null &&
+      shouldMarkitdownConvertMediaType(attachment.mediaType)
+
     const summaryLengthTarget =
       lengthArg.kind === 'preset' ? lengthArg.preset : { maxCharacters: lengthArg.maxCharacters }
-    const promptText = buildFileSummaryPrompt({
-      filename: attachment.filename,
-      mediaType: attachment.mediaType,
-      summaryLength: summaryLengthTarget,
-      contentLength: textContent?.content.length ?? null,
-    })
 
-    const promptPayload = buildAssetPromptPayload({ promptText, attachment, textContent })
+    let promptText = ''
+
+    const buildAttachmentPromptPayload = () => {
+      promptText = buildFileSummaryPrompt({
+        filename: attachment.filename,
+        mediaType: attachment.mediaType,
+        summaryLength: summaryLengthTarget,
+        contentLength: textContent?.content.length ?? null,
+      })
+      return buildAssetPromptPayload({ promptText, attachment, textContent })
+    }
+
+    const buildMarkitdownPromptPayload = (markdown: string) => {
+      promptText = buildFileTextSummaryPrompt({
+        filename: attachment.filename,
+        originalMediaType: attachment.mediaType,
+        contentMediaType: 'text/markdown',
+        summaryLength: summaryLengthTarget,
+        contentLength: markdown.length,
+      })
+      return `${promptText}\n\n---\n\n${markdown}`.trim()
+    }
+
+    let preprocessedMarkdown: string | null = null
+    let usingPreprocessedMarkdown = false
+
+    if (preprocessMode === 'always' && canPreprocessWithMarkitdown) {
+      try {
+        preprocessedMarkdown = await convertToMarkdownWithMarkitdown({
+          bytes: fileBytes!,
+          filenameHint: attachment.filename,
+          mediaTypeHint: attachment.mediaType,
+          uvxCommand: env.UVX_PATH,
+          timeoutMs,
+          env,
+          execFileImpl,
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        throw new Error(
+          `Failed to preprocess ${attachment.mediaType} with markitdown: ${message} (disable with --preprocess off).`
+        )
+      }
+      if (Buffer.byteLength(preprocessedMarkdown, 'utf8') > MAX_TEXT_BYTES_DEFAULT) {
+        throw new Error(
+          `Preprocessed Markdown too large (${formatBytes(Buffer.byteLength(preprocessedMarkdown, 'utf8'))}). Limit is ${formatBytes(MAX_TEXT_BYTES_DEFAULT)}.`
+        )
+      }
+      usingPreprocessedMarkdown = true
+    }
+
+    let promptPayload: string | Array<ModelMessage> = usingPreprocessedMarkdown
+      ? buildMarkitdownPromptPayload(preprocessedMarkdown!)
+      : buildAttachmentPromptPayload()
+
+    if (!usingPreprocessedMarkdown) {
+      try {
+        assertProviderSupportsAttachment({
+          provider: parsedModel.provider,
+          modelId: parsedModel.canonical,
+          attachment: { part: attachment.part, mediaType: attachment.mediaType },
+        })
+      } catch (error) {
+        if (!canPreprocessWithMarkitdown) {
+          throw error
+        }
+        try {
+          preprocessedMarkdown = await convertToMarkdownWithMarkitdown({
+            bytes: fileBytes!,
+            filenameHint: attachment.filename,
+            mediaTypeHint: attachment.mediaType,
+            uvxCommand: env.UVX_PATH,
+            timeoutMs,
+            env,
+            execFileImpl,
+          })
+        } catch (markitdownError) {
+          if (preprocessMode === 'auto') {
+            throw error
+          }
+          const message = markitdownError instanceof Error ? markitdownError.message : String(markitdownError)
+          throw new Error(
+            `Failed to preprocess ${attachment.mediaType} with markitdown: ${message} (disable with --preprocess off).`
+          )
+        }
+        if (Buffer.byteLength(preprocessedMarkdown, 'utf8') > MAX_TEXT_BYTES_DEFAULT) {
+          throw new Error(
+            `Preprocessed Markdown too large (${formatBytes(Buffer.byteLength(preprocessedMarkdown, 'utf8'))}). Limit is ${formatBytes(MAX_TEXT_BYTES_DEFAULT)}.`
+          )
+        }
+        usingPreprocessedMarkdown = true
+        promptPayload = buildMarkitdownPromptPayload(preprocessedMarkdown)
+      }
+    }
     const maxInputTokensForCall = await resolveMaxInputTokensForCall(parsedModelEffective.canonical)
     if (
       typeof maxInputTokensForCall === 'number' &&
@@ -1546,10 +1683,13 @@ export async function runCli(
     throw new Error('Only HTTP and HTTPS URLs can be summarized')
   }
 
+  const wantsMarkdown = format === 'markdown' && !isYoutubeUrl
+  if (wantsMarkdown && markdownMode === 'off') {
+    throw new Error('--format md conflicts with --markdown-mode off (use --format text)')
+  }
+
   const firecrawlMode = (() => {
-    const wantsMarkdown = extractMode && extractFormat === 'markdown'
     if (
-      extractMode &&
       wantsMarkdown &&
       !isYoutubeUrl &&
       !firecrawlExplicitlySet &&
@@ -1563,12 +1703,8 @@ export async function runCli(
     throw new Error('--firecrawl always requires FIRECRAWL_API_KEY')
   }
 
-  const effectiveMarkdownMode = extractMode && extractFormat === 'markdown' ? markdownMode : 'off'
-  const markdownRequested = extractMode && extractFormat === 'markdown' && effectiveMarkdownMode !== 'off'
-
-  if (extractMode && extractFormat === 'markdown' && markdownMode === 'off') {
-    throw new Error('--format md conflicts with --markdown-mode off (use --format text)')
-  }
+  const markdownRequested = wantsMarkdown
+  const effectiveMarkdownMode = markdownRequested ? markdownMode : 'off'
   const hasKeyForModel =
     parsedModelForLlm.provider === 'xai'
       ? xaiConfigured
@@ -1598,7 +1734,7 @@ export async function runCli(
     verbose,
     `config url=${url} timeoutMs=${timeoutMs} youtube=${youtubeMode} firecrawl=${firecrawlMode} length=${
       lengthArg.kind === 'preset' ? lengthArg.preset : `${lengthArg.maxCharacters} chars`
-    } maxOutputTokens=${formatOptionalNumber(maxOutputTokensArg)} json=${json} extract=${extractMode} format=${extractFormat ?? 'n/a'} markdownMode=${effectiveMarkdownMode} model=${model} stream=${effectiveStreamMode} render=${effectiveRenderMode}`,
+    } maxOutputTokens=${formatOptionalNumber(maxOutputTokensArg)} json=${json} extract=${extractMode} format=${format} preprocess=${preprocessMode} markdownMode=${markdownMode} model=${model} stream=${effectiveStreamMode} render=${effectiveRenderMode}`,
     verboseColor
   )
   writeVerbose(
@@ -1627,7 +1763,7 @@ export async function runCli(
       ? createFirecrawlScraper({ apiKey: firecrawlApiKey, fetchImpl: trackedFetch })
       : null
 
-  const convertHtmlToMarkdown =
+  const llmHtmlToMarkdown =
     markdownRequested && (effectiveMarkdownMode === 'llm' || markdownProvider !== 'none')
       ? createHtmlToMarkdownConverter({
           modelId: model,
@@ -1643,6 +1779,50 @@ export async function runCli(
           },
         })
       : null
+
+  const markitdownHtmlToMarkdown =
+    markdownRequested && preprocessMode !== 'off' && hasUvxCli(env)
+      ? async (args: { url: string; html: string; title: string | null; siteName: string | null; timeoutMs: number }) => {
+          void args.url
+          void args.title
+          void args.siteName
+          return convertToMarkdownWithMarkitdown({
+            bytes: new TextEncoder().encode(args.html),
+            filenameHint: 'page.html',
+            mediaTypeHint: 'text/html',
+            uvxCommand: env.UVX_PATH,
+            timeoutMs: args.timeoutMs,
+            env,
+            execFileImpl,
+          })
+        }
+      : null
+
+  const convertHtmlToMarkdown = markdownRequested
+    ? async (args: { url: string; html: string; title: string | null; siteName: string | null; timeoutMs: number }) => {
+        if (effectiveMarkdownMode === 'llm') {
+          if (!llmHtmlToMarkdown) {
+            throw new Error('No HTML→Markdown converter configured')
+          }
+          return llmHtmlToMarkdown(args)
+        }
+
+        if (llmHtmlToMarkdown) {
+          try {
+            return await llmHtmlToMarkdown(args)
+          } catch (error) {
+            if (!markitdownHtmlToMarkdown) throw error
+            return await markitdownHtmlToMarkdown(args)
+          }
+        }
+
+        if (markitdownHtmlToMarkdown) {
+          return await markitdownHtmlToMarkdown(args)
+        }
+
+        throw new Error('No HTML→Markdown converter configured')
+      }
+    : null
   const readTweetWithBirdClient = hasBirdCli(env)
     ? ({ url, timeoutMs }: { url: string; timeoutMs: number }) =>
         readTweetWithBird({ url, timeoutMs, env })
@@ -1961,7 +2141,7 @@ export async function runCli(
             timeoutMs,
             youtube: youtubeMode,
             firecrawl: firecrawlMode,
-            format: extractFormat ?? 'text',
+            format,
             markdown: effectiveMarkdownMode,
             length:
               lengthArg.kind === 'preset'
@@ -2040,6 +2220,7 @@ export async function runCli(
             timeoutMs,
             youtube: youtubeMode,
             firecrawl: firecrawlMode,
+            format,
             markdown: effectiveMarkdownMode,
             length:
               lengthArg.kind === 'preset'
@@ -2353,7 +2534,7 @@ export async function runCli(
           timeoutMs,
           youtube: youtubeMode,
           firecrawl: firecrawlMode,
-          format: 'text',
+          format,
           markdown: effectiveMarkdownMode,
           length:
             lengthArg.kind === 'preset'

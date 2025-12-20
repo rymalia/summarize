@@ -4,6 +4,7 @@ export type YoutubeMode = 'auto' | 'web' | 'apify' | 'yt-dlp'
 export type FirecrawlMode = 'off' | 'auto' | 'always'
 export type MarkdownMode = 'off' | 'auto' | 'llm'
 export type ExtractFormat = 'text' | 'markdown'
+export type PreprocessMode = 'off' | 'auto' | 'always'
 export type StreamMode = 'auto' | 'on' | 'off'
 export type RenderMode = 'auto' | 'md' | 'md-live' | 'plain'
 export type MetricsMode = 'off' | 'on' | 'detailed'
@@ -43,6 +44,15 @@ export function parseExtractFormat(raw: string): ExtractFormat {
   if (normalized === 'text' || normalized === 'txt' || normalized === 'plain') return 'text'
   if (normalized === 'md' || normalized === 'markdown') return 'markdown'
   throw new Error(`Unsupported --format: ${raw}`)
+}
+
+export function parsePreprocessMode(raw: string): PreprocessMode {
+  const normalized = raw.trim().toLowerCase()
+  if (normalized === 'off' || normalized === 'auto' || normalized === 'always') {
+    return normalized as PreprocessMode
+  }
+  if (normalized === 'on') return 'always'
+  throw new Error(`Unsupported --preprocess: ${raw}`)
 }
 
 export function parseStreamMode(raw: string): StreamMode {

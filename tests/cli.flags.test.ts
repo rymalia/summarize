@@ -7,6 +7,7 @@ import {
   parseLengthArg,
   parseMarkdownMode,
   parseMaxOutputTokensArg,
+  parsePreprocessMode,
   parseMetricsMode,
   parseRenderMode,
   parseStreamMode,
@@ -51,6 +52,14 @@ describe('cli flag parsing', () => {
     expect(parseExtractFormat('text')).toBe('text')
     expect(parseExtractFormat('plain')).toBe('text')
     expect(() => parseExtractFormat('nope')).toThrow(/Unsupported --format/)
+  })
+
+  it('parses --preprocess', () => {
+    expect(parsePreprocessMode('off')).toBe('off')
+    expect(parsePreprocessMode('auto')).toBe('auto')
+    expect(parsePreprocessMode('always')).toBe('always')
+    expect(parsePreprocessMode('on')).toBe('always')
+    expect(() => parsePreprocessMode('nope')).toThrow(/Unsupported --preprocess/)
   })
 
   it('parses --stream', () => {

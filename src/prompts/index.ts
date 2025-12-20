@@ -1,5 +1,5 @@
 export type { SummaryLength } from '../shared/contracts.js'
-export { buildFileSummaryPrompt } from './file.js'
+export { buildFileSummaryPrompt, buildFileTextSummaryPrompt } from './file.js'
 export {
   buildLinkSummaryPrompt,
   estimateMaxCompletionTokensForCharacters,

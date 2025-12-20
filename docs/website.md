@@ -7,15 +7,17 @@ Use this for non-YouTube URLs.
 - Fetches the page HTML.
 - Extracts “article-ish” content and normalizes it into clean text.
 - If extraction looks blocked or too thin, it can retry via Firecrawl (Markdown).
-- In `--extract --format md` mode, the CLI prefers Firecrawl Markdown by default when `FIRECRAWL_API_KEY` is configured.
-- In `--extract --format md` mode, `--markdown-mode auto|llm` can also convert HTML → Markdown via an LLM using the configured `--model` (no provider fallback).
+- With `--format md`, the CLI prefers Firecrawl Markdown by default when `FIRECRAWL_API_KEY` is configured.
+- With `--format md`, `--markdown-mode auto|llm` can also convert HTML → Markdown via an LLM using the configured `--model` (no provider fallback).
+- With `--format md`, `--markdown-mode auto` may fall back to `uvx markitdown` when available (disable with `--preprocess off`).
 
 ## Flags
 
 - `--firecrawl off|auto|always`
-- `--extract --format md|text` (default: `md`)
-- `--markdown-mode off|auto|llm` (default: `auto`; only affects `--extract --format md` for non-YouTube URLs)
-- Plain-text mode: use `--extract --format text`.
+- `--format md|text` (default: `text`)
+- `--markdown-mode off|auto|llm` (default: `auto`; only affects `--format md` for non-YouTube URLs)
+- `--preprocess off|auto|always` (default: `auto`; controls markitdown usage; `always` only affects file inputs)
+- Plain-text mode: use `--format text`.
 - `--timeout 30s|30|2m|5000ms` (default: `2m`)
 - `--extract` (print extracted content; no summary LLM call)
 - `--json` (emit a single JSON object)

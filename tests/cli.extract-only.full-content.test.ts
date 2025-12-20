@@ -9,17 +9,20 @@ describe('cli --extract', () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.url
       void init
+      if (url === 'https://api.openai.com/v1/chat/completions') {
+        throw new Error('Unexpected OpenAI call in --extract mode')
+      }
+      if (url === 'https://api.firecrawl.dev/v1/scrape') {
+        return new Response(
+          JSON.stringify({ success: true, data: { markdown: `# Example\n\n${body}`, html: null } }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } }
+        )
+      }
       if (url === 'https://example.com') {
         const html =
           '<!doctype html><html><head><title>Example</title></head>' +
           `<body><article>${body}</article></body></html>`
         return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html' } })
-      }
-      if (url === 'https://api.openai.com/v1/chat/completions') {
-        throw new Error('Unexpected OpenAI call in --extract mode')
-      }
-      if (url === 'https://api.firecrawl.dev/v1/scrape') {
-        throw new Error('Unexpected Firecrawl call in --extract-only mode')
       }
       throw new Error(`Unexpected fetch call: ${url}`)
     })
@@ -32,7 +35,7 @@ describe('cli --extract', () => {
       },
     })
 
-    await runCli(['--extract', '--timeout', '2s', 'https://example.com'], {
+    await runCli(['--extract', '--format', 'md', '--timeout', '2s', 'https://example.com'], {
       env: { OPENAI_API_KEY: 'test', FIRECRAWL_API_KEY: 'test' },
       fetch: fetchMock as unknown as typeof fetch,
       stdout,

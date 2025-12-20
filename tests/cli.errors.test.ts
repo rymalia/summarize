@@ -50,7 +50,7 @@ describe('cli error handling', () => {
 
   it('errors when --markdown llm is set without any LLM keys', async () => {
     await expect(
-      runCli(['--markdown-mode', 'llm', '--extract', 'https://example.com'], {
+      runCli(['--format', 'md', '--markdown-mode', 'llm', '--extract', 'https://example.com'], {
         env: {},
         fetch: vi.fn(
           async () => new Response('<html></html>', { status: 200 })
@@ -76,7 +76,7 @@ describe('cli error handling', () => {
       },
     })
 
-    await runCli(['--markdown-mode', 'auto', '--extract', 'https://example.com'], {
+    await runCli(['--format', 'md', '--markdown-mode', 'auto', '--extract', 'https://example.com'], {
       env: {},
       fetch: fetchMock as unknown as typeof fetch,
       stdout,
@@ -86,15 +86,17 @@ describe('cli error handling', () => {
     expect(stdoutText.length).toBeGreaterThan(0)
   })
 
-  it('errors when --format is used without --extract', async () => {
+  it('errors when --markdown-mode is used without --format md', async () => {
     await expect(
-      runCli(['--format', 'text', 'https://example.com'], {
+      runCli(['--markdown-mode', 'auto', '--extract', 'https://example.com'], {
         env: {},
-        fetch: vi.fn() as unknown as typeof fetch,
+        fetch: vi.fn(
+          async () => new Response('<html></html>', { status: 200 })
+        ) as unknown as typeof fetch,
         stdout: noopStream(),
         stderr: noopStream(),
       })
-    ).rejects.toThrow('--format/--markdown-mode are only supported with --extract')
+    ).rejects.toThrow('--markdown-mode is only supported with --format md')
   })
 
   it('errors when --format md conflicts with --markdown-mode off', async () => {

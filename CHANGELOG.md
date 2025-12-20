@@ -6,6 +6,7 @@
 
 - Add URL extraction mode via `--extract` (deprecated alias: `--extract-only`) with `--format md|text`.
 - Rename HTML→Markdown conversion flag to `--markdown-mode` (deprecated alias: `--markdown`).
+- Add `--preprocess off|auto|always` and a `uvx markitdown` fallback for Markdown extraction and unsupported file attachments (when `--format md` is used).
 
 ## 0.3.0 - 2025-12-20
 ### Changes
