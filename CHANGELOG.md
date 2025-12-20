@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.2.0 - Unreleased
+## 0.2.0 - 2025-12-20
 
 ### Changes
 
@@ -29,6 +29,7 @@
 - Add coverage for streaming timeout fallback.
 - Add live coverage for Wikipedia URLs with parentheses.
 - Add coverage for tweet summaries that bypass the LLM when short.
+- Add coverage for content budget paths and TOKENTALLY cache dir overrides.
 
 ### Docs
 
@@ -45,6 +46,7 @@
 - Preserve balanced parentheses/brackets in URL paths (e.g. Wikipedia titles).
 - Avoid Firecrawl fallback when block keywords only appear in scripts/styles.
 - Add a Bird install tip when Twitter/X fetch fails without bird installed.
+- Graceful error when tweet extraction fails after bird + Nitter fallback.
 
 ## 0.1.1 - 2025-12-19
 
