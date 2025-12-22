@@ -240,11 +240,6 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
     throw new Error(`Invalid config file ${path}: expected an object at the top level`)
   }
 
-  if (typeof parsed.model === 'string') {
-    throw new Error(
-      `Invalid config file ${path}: "model" must be an object (e.g. { "id": "openai/gpt-5.2" } or { "mode": "auto" }).`
-    )
-  }
   if (typeof parsed.auto !== 'undefined') {
     throw new Error(
       `Invalid config file ${path}: legacy top-level "auto" is not supported (use "model": { "mode": "auto", "rules": [...] }).`
@@ -254,6 +249,21 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
   const model = (() => {
     const raw = parsed.model
     if (typeof raw === 'undefined') return undefined
+
+    // Shorthand:
+    // - "auto" -> { mode: "auto" }
+    // - "<provider>/<model>" or "openrouter/<provider>/<model>" -> { id: "..." }
+    if (typeof raw === 'string') {
+      const value = raw.trim()
+      if (value.length === 0) {
+        throw new Error(`Invalid config file ${path}: "model" must not be empty.`)
+      }
+      if (value.toLowerCase() === 'auto') {
+        return { mode: 'auto' } satisfies ModelConfig
+      }
+      return { id: value } satisfies ModelConfig
+    }
+
     if (!isRecord(raw)) {
       throw new Error(`Invalid config file ${path}: "model" must be an object.`)
     }

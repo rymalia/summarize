@@ -39,13 +39,13 @@ describe('config error handling', () => {
     expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/expected an object/)
   })
 
-  it('throws when model is a string (legacy)', () => {
+  it('throws when model is empty', () => {
     const root = mkdtempSync(join(tmpdir(), 'summarize-config-'))
     const configPath = join(root, '.summarize', 'config.json')
     mkdirSync(join(root, '.summarize'), { recursive: true })
-    writeFileSync(configPath, JSON.stringify({ model: 'openai/gpt-5.2' }), 'utf8')
+    writeFileSync(configPath, JSON.stringify({ model: '   ' }), 'utf8')
 
-    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/"model" must be an object/i)
+    expect(() => loadSummarizeConfig({ env: { HOME: root } })).toThrow(/"model" must not be empty/i)
   })
 
   it('throws when top-level auto is present (legacy)', () => {

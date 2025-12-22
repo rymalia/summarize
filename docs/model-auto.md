@@ -88,3 +88,11 @@ Example:
   "media": { "videoMode": "auto" }
 }
 ```
+
+Minimal shorthand:
+
+```json
+{
+  "model": "auto"
+}
+```

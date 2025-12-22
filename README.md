@@ -169,6 +169,14 @@ Supported keys today:
 }
 ```
 
+Shorthand (equivalent):
+
+```json
+{
+  "model": "openai/gpt-5.2"
+}
+```
+
 Also supported:
 
 - `model: { "mode": "auto" }` (automatic model selection + fallback; see `docs/model-auto.md`)

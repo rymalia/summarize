@@ -27,11 +27,27 @@ For `model`:
 }
 ```
 
+Shorthand (equivalent):
+
+```json
+{
+  "model": "google/gemini-3-flash-preview"
+}
+```
+
 `model` can also be auto:
 
 ```json
 {
   "model": { "mode": "auto" }
+}
+```
+
+Shorthand (equivalent):
+
+```json
+{
+  "model": "auto"
 }
 ```
 
