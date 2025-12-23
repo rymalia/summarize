@@ -277,9 +277,21 @@ function prependCliCandidates({
     const id = `cli/${provider}/${model}`
     if (!cliCandidates.includes(id)) cliCandidates.push(id)
   }
-  add('claude', cli?.claude?.model)
-  add('gemini', cli?.gemini?.model)
-  add('codex', cli?.codex?.model)
+
+  const enabledOrder: CliProvider[] =
+    Array.isArray(cli?.enabled) && cli.enabled.length > 0
+      ? cli.enabled
+      : (['gemini', 'claude', 'codex'] satisfies CliProvider[])
+
+  for (const provider of enabledOrder) {
+    const modelOverride =
+      provider === 'gemini'
+        ? cli?.gemini?.model
+        : provider === 'codex'
+          ? cli?.codex?.model
+          : cli?.claude?.model
+    add(provider, modelOverride)
+  }
   if (cliCandidates.length === 0) return candidates
   return [...cliCandidates, ...candidates]
 }
