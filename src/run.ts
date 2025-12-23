@@ -1198,6 +1198,7 @@ export async function runCli(
     const runsRaw = readArgValue('--runs')
     const smartRaw = readArgValue('--smart')
     const minParamsRaw = readArgValue('--min-params')
+    const maxAgeDaysRaw = readArgValue('--max-age-days')
     const runs = runsRaw ? Number(runsRaw) : 2
     const smart = smartRaw ? Number(smartRaw) : 3
     const minParams = (() => {
@@ -1207,11 +1208,16 @@ export async function runCli(
       const value = Number(normalized)
       return value
     })()
+    const maxAgeDays = (() => {
+      if (!maxAgeDaysRaw) return 180
+      const value = Number(maxAgeDaysRaw.trim())
+      return value
+    })()
 
     if (help) {
       stdout.write(
         [
-          'Usage: summarizer refresh-free [--runs 2] [--smart 3] [--min-params 27b] [--verbose]',
+          'Usage: summarize refresh-free [--runs 2] [--smart 3] [--min-params 27b] [--max-age-days 180] [--verbose]',
           '',
           'Writes ~/.summarize/config.json (models.free) with working OpenRouter :free candidates.',
         ].join('\n') + '\n'
@@ -1223,6 +1229,8 @@ export async function runCli(
     if (!Number.isFinite(smart) || smart < 0) throw new Error('--smart must be >= 0')
     if (!Number.isFinite(minParams) || minParams < 0)
       throw new Error('--min-params must be >= 0 (e.g. 27b)')
+    if (!Number.isFinite(maxAgeDays) || maxAgeDays < 0)
+      throw new Error('--max-age-days must be >= 0')
 
     await refreshFree({
       env,
@@ -1234,6 +1242,7 @@ export async function runCli(
         runs,
         smart,
         minParamB: minParams,
+        maxAgeDays,
         maxCandidates: 10,
         concurrency: 4,
         timeoutMs: 10_000,

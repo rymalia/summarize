@@ -14,6 +14,7 @@ type GenerateFreeOptions = {
   concurrency: number
   timeoutMs: number
   minParamB: number
+  maxAgeDays: number
 }
 
 type RateLimitKind = 'perMin' | 'perDay'
@@ -39,6 +40,13 @@ function formatMs(ms: number): string {
   if (!Number.isFinite(ms)) return `${ms}`
   if (ms < 1000) return `${Math.round(ms)}ms`
   return `${Math.round(ms / 100) / 10}s`
+}
+
+function formatTokenK(value: number): string {
+  if (!Number.isFinite(value)) return `${value}`
+  if (value < 1024) return `${Math.round(value)}`
+  const k = Math.round(value / 1024)
+  return `${k}k`
 }
 
 function inferParamBFromIdOrName(text: string): number | null {
@@ -151,6 +159,7 @@ type OpenRouterModelEntry = {
   supportedParametersCount: number
   modality: string | null
   inferredParamB: number | null
+  createdAtMs: number | null
 }
 
 async function mapWithConcurrency<T, R>(
@@ -212,6 +221,7 @@ export async function refreshFree({
     concurrency: 4,
     timeoutMs: 10_000,
     minParamB: 27,
+    maxAgeDays: 180,
     ...options,
   }
   const EXTRA_RUNS = Math.max(0, Math.floor(resolved.runs))
@@ -221,6 +231,8 @@ export async function refreshFree({
   const CONCURRENCY = Math.max(1, Math.floor(resolved.concurrency))
   const TIMEOUT_MS = Math.max(1, Math.floor(resolved.timeoutMs))
   const MIN_PARAM_B = Math.max(0, Math.floor(resolved.minParamB))
+  const MAX_AGE_DAYS = Math.max(0, Math.floor(resolved.maxAgeDays))
+  const applyMaxAgeFilter = MAX_AGE_DAYS > 0
 
   stderr.write(`${cmdName}: fetching OpenRouter models…\n`)
   const response = await fetchImpl('https://openrouter.ai/api/v1/models', {
@@ -270,6 +282,13 @@ export async function refreshFree({
         return raw.length > 0 ? raw : null
       })()
 
+      const createdAtMs = (() => {
+        const created = obj.created
+        if (typeof created !== 'number' || !Number.isFinite(created) || created <= 0) return null
+        // OpenRouter uses unix timestamp seconds.
+        return Math.round(created * 1000)
+      })()
+
       return {
         id,
         contextLength,
@@ -277,26 +296,55 @@ export async function refreshFree({
         supportedParametersCount,
         modality,
         inferredParamB: inferParamBFromIdOrName(`${id} ${name}`),
+        createdAtMs,
       } satisfies OpenRouterModelEntry
     })
     .filter((v): v is OpenRouterModelEntry => Boolean(v))
 
   const freeModelsAll = catalogModels.filter((m) => m.id.endsWith(':free'))
-  const freeModels = freeModelsAll.filter((m) => {
+  const freeModelsAgeFiltered = freeModelsAll.filter((m) => {
+    if (!applyMaxAgeFilter) return true
+    if (m.createdAtMs === null) return false
+    const ageMs = Date.now() - m.createdAtMs
+    return ageMs >= 0 && ageMs <= MAX_AGE_DAYS * 24 * 60 * 60 * 1000
+  })
+
+  const freeModels = freeModelsAgeFiltered.filter((m) => {
     if (m.inferredParamB === null) return true
     return m.inferredParamB >= MIN_PARAM_B
   })
   if (freeModels.length === 0) {
+    if (applyMaxAgeFilter) {
+      throw new Error(`OpenRouter /models returned no :free models from the last ${MAX_AGE_DAYS} days`)
+    }
     throw new Error('OpenRouter /models returned no :free models')
   }
 
-  const filteredCount = freeModelsAll.length - freeModels.length
-  if (filteredCount > 0) {
+  const ageFilteredCount = freeModelsAll.length - freeModelsAgeFiltered.length
+  if (ageFilteredCount > 0) {
     stderr.write(
-      `${cmdName}: filtered ${filteredCount}/${freeModelsAll.length} small models (<${MIN_PARAM_B}B)\n`
+      `${cmdName}: filtered ${ageFilteredCount}/${freeModelsAll.length} old models (>${MAX_AGE_DAYS}d)\n`
     )
     if (verbose) {
       const filteredIds = freeModelsAll
+        .filter((m) => {
+          if (m.createdAtMs === null) return true
+          const ageMs = Date.now() - m.createdAtMs
+          return !(ageMs >= 0 && ageMs <= MAX_AGE_DAYS * 24 * 60 * 60 * 1000)
+        })
+        .map((m) => m.id)
+        .sort((a, b) => a.localeCompare(b))
+      for (const id of filteredIds) stderr.write(`${dim(`skip ${id}`)}\n`)
+    }
+  }
+
+  const filteredCount = freeModelsAgeFiltered.length - freeModels.length
+  if (filteredCount > 0) {
+    stderr.write(
+      `${cmdName}: filtered ${filteredCount}/${freeModelsAgeFiltered.length} small models (<${MIN_PARAM_B}B)\n`
+    )
+    if (verbose) {
+      const filteredIds = freeModelsAgeFiltered
         .filter((m) => m.inferredParamB !== null && m.inferredParamB < MIN_PARAM_B)
         .map((m) => m.id)
         .sort((a, b) => a.localeCompare(b))
@@ -307,6 +355,9 @@ export async function refreshFree({
   const smartSorted = freeModels
     .slice()
     .sort((a, b) => {
+      const aCreated = a.createdAtMs ?? -1
+      const bCreated = b.createdAtMs ?? -1
+      if (aCreated !== bCreated) return bCreated - aCreated
       const aContext = a.contextLength ?? -1
       const bContext = b.contextLength ?? -1
       if (aContext !== bContext) return bContext - aContext
@@ -700,10 +751,13 @@ export async function refreshFree({
     const r = refinedById.get(modelId)
     if (!r) continue
     const avg = r.successCount > 0 ? r.totalLatencyMs / r.successCount : r.medianLatencyMs
-    const ctx = typeof r.contextLength === 'number' ? `ctx=${r.contextLength}` : null
+    const ctx =
+      typeof r.contextLength === 'number' ? `ctx=${formatTokenK(r.contextLength)}` : null
     const out =
-      typeof r.maxCompletionTokens === 'number' ? `out=${r.maxCompletionTokens}` : null
-    const modality = r.modality ? `modality=${r.modality}` : null
+      typeof r.maxCompletionTokens === 'number'
+        ? `out=${formatTokenK(r.maxCompletionTokens)}`
+        : null
+    const modality = r.modality ? r.modality : null
     const params = typeof r.inferredParamB === 'number' ? `~${r.inferredParamB}B` : null
     const meta = [params, ctx, out, modality].filter(Boolean).join(' ')
     stderr.write(
