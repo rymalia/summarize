@@ -133,16 +133,13 @@ describe('--model cli/... progress', () => {
     stderr.isTTY = true
     stderr.columns = 120
 
-    await runCli(
-      ['--cli', 'Claude', '--timeout', '2s', 'https://example.com'],
-      {
-        env: { PATH: binDir, TERM: 'xterm-256color' },
-        fetch: fetchMock as unknown as typeof fetch,
-        execFile: execFileImpl,
-        stdout,
-        stderr,
-      }
-    )
+    await runCli(['--cli', 'Claude', '--timeout', '2s', 'https://example.com'], {
+      env: { PATH: binDir, TERM: 'xterm-256color' },
+      fetch: fetchMock as unknown as typeof fetch,
+      execFile: execFileImpl,
+      stdout,
+      stderr,
+    })
 
     expect(stdoutText).toContain('ok')
   })
