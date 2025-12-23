@@ -265,6 +265,7 @@ Flags:
 - `--runs 2` (default): extra timing runs per selected model (total runs = 1 + runs)
 - `--smart 3` (default): how many “smart-first” picks (rest filled by fastest)
 - `--min-params 27b` (default): ignore models with inferred size smaller than N billion parameters
+- `--set-default`: also sets `"model": "free"` in `~/.summarize/config.json`
 
 Example:
 

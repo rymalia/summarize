@@ -92,3 +92,4 @@ Options:
 
 - `--runs 2` (default): extra timing runs per selected model (total runs = 1 + runs)
 - `--smart 3` (default): number of “smart-first” picks (rest filled by fastest)
+- `--set-default`: also sets `"model": "free"` in `~/.summarize/config.json`

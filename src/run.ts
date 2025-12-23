@@ -1179,6 +1179,7 @@ export async function runCli(
   const normalizedArgv = argv.filter((arg) => arg !== '--')
   if (normalizedArgv[0]?.toLowerCase() === 'refresh-free') {
     const verbose = normalizedArgv.includes('--verbose') || normalizedArgv.includes('--debug')
+    const setDefault = normalizedArgv.includes('--set-default')
     const help =
       normalizedArgv.includes('--help') ||
       normalizedArgv.includes('-h') ||
@@ -1216,9 +1217,10 @@ export async function runCli(
     if (help) {
       stdout.write(
         `${[
-          'Usage: summarize refresh-free [--runs 2] [--smart 3] [--min-params 27b] [--max-age-days 180] [--verbose]',
+          'Usage: summarize refresh-free [--runs 2] [--smart 3] [--min-params 27b] [--max-age-days 180] [--set-default] [--verbose]',
           '',
           'Writes ~/.summarize/config.json (models.free) with working OpenRouter :free candidates.',
+          'With --set-default: also sets `model` to "free".',
         ].join('\n')}\n`
       )
       return
@@ -1242,6 +1244,7 @@ export async function runCli(
         smart,
         minParamB: minParams,
         maxAgeDays,
+        setDefault,
         maxCandidates: 10,
         concurrency: 4,
         timeoutMs: 10_000,

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Writable } from 'node:stream'
@@ -288,6 +288,44 @@ describe('refresh-free', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('sets config model=free with --set-default', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'summarize-refresh-free-'))
+    mkdirSync(join(root, '.summarize'), { recursive: true })
+
+    const configPath = join(root, '.summarize', 'config.json')
+    writeFileSync(
+      configPath,
+      JSON.stringify({ model: 'auto', models: { keep: { id: 'openai/gpt-5.2' } } }, null, 2),
+      'utf8'
+    )
+
+    const stdout = collectStream()
+    const stderr = collectStream()
+
+    const created = Math.floor(Date.now() / 1000)
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [{ id: 'acme/big-27b:free', created }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+
+    await runCli(['refresh-free', '--runs', '0', '--min-params', '0b', '--set-default'], {
+      env: { HOME: root, OPENROUTER_API_KEY: 'test' },
+      fetch: fetchMock as unknown as typeof fetch,
+      stdout: stdout.stream,
+      stderr: stderr.stream,
+    })
+
+    const config = JSON.parse(readFileSync(configPath, 'utf8')) as {
+      model?: string
+      models?: Record<string, unknown>
+    }
+    expect(config.model).toBe('free')
+    expect(config.models?.keep).toBeDefined()
+    expect(config.models?.free).toBeDefined()
   })
 
   it('prints metadata (params, ctx, out, modality) in Selected section', async () => {

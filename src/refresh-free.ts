@@ -15,6 +15,7 @@ type GenerateFreeOptions = {
   timeoutMs: number
   minParamB: number
   maxAgeDays: number
+  setDefault: boolean
 }
 
 type RateLimitKind = 'perMin' | 'perDay'
@@ -222,6 +223,7 @@ export async function refreshFree({
     timeoutMs: 10_000,
     minParamB: 27,
     maxAgeDays: 180,
+    setDefault: false,
     ...options,
   }
   const EXTRA_RUNS = Math.max(0, Math.floor(resolved.runs))
@@ -743,6 +745,9 @@ export async function refreshFree({
 
   configModels.free = { rules: [{ candidates: selected }] }
   root.models = configModels
+  if (resolved.setDefault) {
+    root.model = 'free'
+  }
 
   await mkdir(dirname(configPath), { recursive: true })
   const next = `${JSON.stringify(root, null, 2)}\n`
