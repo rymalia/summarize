@@ -13,7 +13,7 @@
 - Auto mode uses CLI models only when `cli.enabled` is set; order follows the list (recommended: Gemini → Claude → Codex).
 - `cli.enabled` is an allowlist for CLI usage.
 - Remove support for `cli.disabled` and `cli.<provider>.enabled`.
-- OpenRouter: stop sending provider-order headers.
+- OpenRouter: stop sending extra routing headers.
 - Default summary length is now `long`.
 - Document CLI ordering + disable options in README and CLI/auto docs.
 - `--model free`: when OpenRouter rejects routing with “No allowed providers”, print the exact provider names to allow.
@@ -73,7 +73,6 @@
 - Run yt-dlp after web + Apify in `--youtube auto`, and error early for missing keys in `--youtube yt-dlp`.
 - Require Node 22+.
 - Respect `OPENAI_BASE_URL` when set, even with OpenRouter keys.
-- Apply OpenRouter provider ordering headers to HTML→Markdown conversion.
 - Add OpenRouter configuration tests. Thanks @dougvk for the initial OpenRouter support.
 - Build and ship a Bun bytecode arm64 binary for Homebrew.
 

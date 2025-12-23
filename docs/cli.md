@@ -16,17 +16,18 @@ If `--cli` is provided without a provider, auto selection is used with CLI enabl
 Auto mode does **not** use CLIs unless you set `cli.enabled` in config.
 
 Why: CLI adds ~4s latency per attempt and higher variance.
+Recommendation: enable only Gemini unless you have a reason to add others.
 
 Gemini CLI performance: summarize sets `GEMINI_CLI_NO_RELAUNCH=true` for Gemini CLI runs to avoid a costly self-relaunch (can be overridden by setting it yourself).
 
 When enabled, auto prepends CLI attempts in the order listed in `cli.enabled`
-(recommended order: `["gemini","claude","codex"]`).
+(recommended: `["gemini"]`).
 
 Enable CLI attempts:
 
 ```json
 {
-  "cli": { "enabled": ["claude", "gemini", "codex"] }
+  "cli": { "enabled": ["gemini"] }
 }
 ```
 

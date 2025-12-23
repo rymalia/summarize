@@ -49,6 +49,7 @@ installed, auto mode can use local CLI models when `cli.enabled` is set (see `do
   - Hard cap for output tokens (optional).
   - If omitted, no max token parameter is sent (provider default).
   - Minimum numeric value: 16.
+  - Recommendation: prefer `--length` unless you need a hard cap (some providers count “reasoning” into the cap).
 - `--retries <count>`
   - LLM retry attempts on timeout (default: 1).
 - `--json` (includes prompt + summary in one JSON object)

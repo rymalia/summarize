@@ -112,7 +112,7 @@ Notes:
 ```json
 {
   "cli": {
-    "enabled": ["claude", "gemini", "codex"],
+    "enabled": ["gemini"],
     "codex": { "model": "gpt-5.2" },
     "claude": { "binary": "/usr/local/bin/claude", "extraArgs": ["--verbose"] }
   }
@@ -122,5 +122,6 @@ Notes:
 Notes:
 
 - `cli.enabled` is an allowlist (auto uses CLIs only when set; explicit `--cli` / `--model cli/...` must be included).
+- Recommendation: keep `cli.enabled` to `["gemini"]` unless you have a reason to add others (extra latency/variance).
 - `cli.<provider>.binary` overrides CLI binary discovery.
 - `cli.<provider>.extraArgs` appends extra CLI args.

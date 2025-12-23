@@ -80,7 +80,7 @@ Use “gateway-style” ids: `<provider>/<model>`.
 Examples:
 
 - `openai/gpt-5-mini`
-- `anthropic/claude-opus-4-5`
+- `anthropic/claude-sonnet-4-5`
 - `xai/grok-4-fast-non-reasoning`
 - `google/gemini-3-flash-preview`
 - `openrouter/openai/gpt-5-mini` (force OpenRouter)
@@ -100,7 +100,8 @@ npx -y @steipete/summarize "https://example.com" --length 20k
 - Character targets: `1500`, `20k`, `20000`
 - Optional hard cap: `--max-output-tokens <count>` (e.g. `2000`, `2k`)
   - Provider/model APIs still enforce their own maximum output limits.
-  - OpenRouter: not sent as an API `max_tokens` cap (some providers count “reasoning” into the cap and can return empty content). Used only for planning/selection.
+  - If omitted, no max token parameter is sent (provider default).
+  - Prefer `--length` unless you need a hard cap (some providers count “reasoning” into the cap).
 - Minimums: `--length` numeric values must be ≥ 50 chars; `--max-output-tokens` must be ≥ 16.
 
 ## Limits
@@ -120,7 +121,7 @@ npx -y @steipete/summarize <input> [flags]
 - `--timeout <duration>`: `30s`, `2m`, `5000ms` (default `2m`)
 - `--retries <count>`: LLM retry attempts on timeout (default `1`)
 - `--length short|medium|long|xl|xxl|<chars>`
-- `--max-output-tokens <count>`: hard cap for LLM output tokens (optional; ignored for OpenRouter calls)
+- `--max-output-tokens <count>`: hard cap for LLM output tokens (optional; only sent when set)
 - `--cli [provider]`: use a CLI provider (case-insensitive; equivalent to `--model cli/<provider>`). If omitted, uses auto selection with CLI enabled.
 - `--stream auto|on|off`: stream LLM output (`auto` = TTY only; disabled in `--json` mode)
 - `--render auto|md-live|md|plain`: Markdown rendering (`auto` = best default for TTY)
@@ -141,14 +142,14 @@ Why: CLI adds ~4s latency per attempt and higher variance.
 Shortcut: `--cli` (with no provider) uses auto selection with CLI enabled.
 
 When enabled, auto prepends CLI attempts in the order listed in `cli.enabled`
-(recommended order: `["gemini","claude","codex"]`), then tries the native provider candidates
+(recommended: `["gemini"]`), then tries the native provider candidates
 (with OpenRouter fallbacks when configured).
 
 Enable CLI attempts:
 
 ```json
 {
-  "cli": { "enabled": ["claude", "gemini", "codex"] }
+  "cli": { "enabled": ["gemini"] }
 }
 ```
 
@@ -248,11 +249,8 @@ Example:
 OPENROUTER_API_KEY=sk-or-... summarize "https://example.com" --model openrouter/meta-llama/llama-3.1-8b-instruct:free
 ```
 
-With provider ordering (falls back through providers in order):
-
-```bash
-OPENROUTER_API_KEY=sk-or-... summarize "https://example.com"
-```
+If your OpenRouter account enforces an allowed-provider list, make sure at least one provider
+is allowed for the selected model. (`--model free` prints the exact providers to allow when routing fails.)
 
 Legacy: `OPENAI_BASE_URL=https://openrouter.ai/api/v1` (and either `OPENAI_API_KEY` or `OPENROUTER_API_KEY`) also works.
 
