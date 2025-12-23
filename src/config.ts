@@ -431,7 +431,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
     const root = parsed as Record<string, unknown>
     if (typeof root.bags !== 'undefined') {
       throw new Error(
-        `Invalid config file ${path}: "bags" is no longer supported. Use "models" instead.`
+        `Invalid config file ${path}: legacy key "bags" is no longer supported. Use "models" instead.`
       )
     }
     const raw = root.models
