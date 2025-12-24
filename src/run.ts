@@ -483,11 +483,6 @@ function buildProgram() {
       'Timeout for content fetching and LLM request: 30 (seconds), 30s, 2m, 5000ms',
       '2m'
     )
-    .option(
-      '--language, --lang <language>',
-      'Output language (default: auto). Examples: auto, en, de, english, german, spanish.',
-      undefined
-    )
     .option('--retries <count>', 'LLM retry attempts on timeout (default: 1).', '1')
     .option(
       '--model <model>',
@@ -1106,7 +1101,8 @@ function materializeInlineMarkdownLinks(markdown: string): string {
         const safeLabel = String(label ?? '').trim()
         const safeUrl = String(url ?? '').trim()
         if (!safeLabel || !safeUrl) return _full
-        return `${safeLabel} (${safeUrl})`
+        // Keep the raw URL visible and terminal-linkable (avoid trailing ')' issues).
+        return `${safeLabel}: ${safeUrl}`
       })
     )
   }
