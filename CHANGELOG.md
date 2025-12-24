@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 - Unreleased
+
+- TBD
+
 ## 0.5.0 - 2025-12-24
 
 ### Features
