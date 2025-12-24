@@ -86,7 +86,6 @@ export const resolveTranscriptForLink = async (
     openaiApiKey: deps.openaiApiKey,
     onProgress: deps.onProgress ?? null,
     youtubeTranscriptMode: youtubeTranscriptMode ?? 'auto',
-    onProgress: deps.onProgress ?? null,
   })
 
   deps.onProgress?.({
