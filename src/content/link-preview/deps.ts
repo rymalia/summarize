@@ -14,6 +14,20 @@ export type LinkPreviewProgressEvent =
       downloadedBytes: number
       totalBytes: number | null
     }
+  | {
+      kind: 'transcript-start'
+      url: string
+      service: 'youtube' | 'podcast' | 'generic'
+      hint: string | null
+    }
+  | {
+      kind: 'transcript-done'
+      url: string
+      ok: boolean
+      service: 'youtube' | 'podcast' | 'generic'
+      source: TranscriptSource | null
+      hint: string | null
+    }
   | { kind: 'firecrawl-start'; url: string; reason: string }
   | {
       kind: 'firecrawl-done'

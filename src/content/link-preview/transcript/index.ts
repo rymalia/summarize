@@ -70,6 +70,13 @@ export const resolveTranscriptForLink = async (
     }
   }
 
+  deps.onProgress?.({
+    kind: 'transcript-start',
+    url: normalizedUrl,
+    service: provider.id,
+    hint: provider.id,
+  })
+
   const providerResult = await executeProvider(provider, baseContext, {
     fetch: deps.fetch,
     scrapeWithFirecrawl: deps.scrapeWithFirecrawl,
@@ -79,6 +86,16 @@ export const resolveTranscriptForLink = async (
     openaiApiKey: deps.openaiApiKey,
     youtubeTranscriptMode: youtubeTranscriptMode ?? 'auto',
   })
+
+  deps.onProgress?.({
+    kind: 'transcript-done',
+    url: normalizedUrl,
+    ok: Boolean(providerResult.text && providerResult.text.length > 0),
+    service: provider.id,
+    source: providerResult.source,
+    hint: providerResult.source ? `${provider.id}/${providerResult.source}` : provider.id,
+  })
+
   diagnostics.provider = providerResult.source
   diagnostics.attemptedProviders = providerResult.attemptedProviders
   diagnostics.textProvided = Boolean(providerResult.text && providerResult.text.length > 0)

@@ -61,6 +61,13 @@ import { refreshFree } from './refresh-free.js'
 import type { SummaryLength } from './shared/contracts.js'
 import { startOscProgress } from './tty/osc-progress.js'
 import { startSpinner } from './tty/spinner.js'
+import {
+  formatBytes,
+  formatCompactCount,
+  formatDurationSecondsSmart,
+  formatElapsedMs,
+} from './tty/format.js'
+import { createWebsiteProgress } from './tty/website-progress.js'
 import { resolvePackageVersion } from './version.js'
 
 type RunEnv = {
@@ -985,32 +992,6 @@ function formatOptionalNumber(value: number | null | undefined): string {
   return 'none'
 }
 
-function formatElapsedMs(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) return 'unknown'
-  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`
-  const minutes = Math.floor(ms / 60_000)
-  const seconds = Math.floor((ms % 60_000) / 1000)
-  return `${minutes}m${seconds.toString().padStart(2, '0')}s`
-}
-
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes < 0) return 'unknown'
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB'] as const
-  let value = bytes / 1024
-  let unitIndex = 0
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex += 1
-  }
-  return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unitIndex]}`
-}
-
-function formatCount(value: number): string {
-  if (!Number.isFinite(value)) return 'unknown'
-  return value.toLocaleString('en-US')
-}
-
 function sumNumbersOrNull(values: Array<number | null>): number | null {
   let sum = 0
   let any = false
@@ -1095,7 +1076,9 @@ function writeFinishLine({
 
   const hasAnyTokens = promptTokens !== null || completionTokens !== null || totalTokens !== null
   const tokensPart = hasAnyTokens
-    ? `${promptTokens?.toLocaleString() ?? 'unknown'}/${completionTokens?.toLocaleString() ?? 'unknown'}/${totalTokens?.toLocaleString() ?? 'unknown'} (in/out/Σ)`
+    ? `${promptTokens != null ? formatCompactCount(promptTokens) : 'unknown'}/${
+        completionTokens != null ? formatCompactCount(completionTokens) : 'unknown'
+      }/${totalTokens != null ? formatCompactCount(totalTokens) : 'unknown'} (in/out/Σ)`
     : null
 
   const summaryParts: Array<string | null> = [
@@ -1131,15 +1114,15 @@ function writeFinishLine({
       line2Segments.push(`len ${lenParts.join(' ')}`)
     }
     if (totalCalls !== 1) {
-      line2Segments.push(`calls=${totalCalls.toLocaleString()}`)
+      line2Segments.push(`calls=${formatCompactCount(totalCalls)}`)
     }
     if (report.services.firecrawl.requests > 0 || report.services.apify.requests > 0) {
       const svcParts: string[] = []
       if (report.services.firecrawl.requests > 0) {
-        svcParts.push(`firecrawl=${report.services.firecrawl.requests.toLocaleString()}`)
+        svcParts.push(`firecrawl=${formatCompactCount(report.services.firecrawl.requests)}`)
       }
       if (report.services.apify.requests > 0) {
-        svcParts.push(`apify=${report.services.apify.requests.toLocaleString()}`)
+        svcParts.push(`apify=${formatCompactCount(report.services.apify.requests)}`)
       }
       line2Segments.push(`svc ${svcParts.join(' ')}`)
     }
@@ -1151,34 +1134,6 @@ function writeFinishLine({
       stderr.write(`${ansi('0;90', line2Segments.join(' | '), color)}\n`)
     }
   }
-}
-
-function formatCompactCount(value: number): string {
-  if (!Number.isFinite(value)) return 'unknown'
-  const abs = Math.abs(value)
-  const format = (n: number, suffix: string) => {
-    const decimals = n >= 10 ? 0 : 1
-    return `${n.toFixed(decimals)}${suffix}`
-  }
-  if (abs >= 1_000_000_000) return format(value / 1_000_000_000, 'B')
-  if (abs >= 1_000_000) return format(value / 1_000_000, 'M')
-  if (abs >= 10_000) return format(value / 1_000, 'k')
-  if (abs >= 1_000) return `${(value / 1_000).toFixed(1)}k`
-  return String(Math.floor(value))
-}
-
-function formatDurationSecondsSmart(value: number): string {
-  if (!Number.isFinite(value)) return 'unknown'
-  const totalSeconds = Math.max(0, Math.round(value))
-  const hours = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
-  const seconds = totalSeconds % 60
-
-  const parts: string[] = []
-  if (hours > 0) parts.push(`${hours}h`)
-  if (minutes > 0 || hours > 0) parts.push(`${minutes}m`)
-  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`)
-  return parts.join(' ')
 }
 
 function buildBasicLengthPartsForExtracted(extracted: {
@@ -1975,7 +1930,7 @@ export async function runCli(
       const tokenCount = countTokens(prompt)
       if (tokenCount > maxInputTokensForCall) {
         throw new Error(
-          `Input token count (${formatCount(tokenCount)}) exceeds model input limit (${formatCount(maxInputTokensForCall)}). Tokenized with GPT tokenizer; prompt included.`
+          `Input token count (${formatCompactCount(tokenCount)}) exceeds model input limit (${formatCompactCount(maxInputTokensForCall)}). Tokenized with GPT tokenizer; prompt included.`
         )
       }
     }
@@ -3106,177 +3061,7 @@ export async function runCli(
     stream: stderr,
   })
 
-  const websiteProgress = (() => {
-    if (!progressEnabled) return null
-
-    const state: {
-      phase: 'fetching' | 'firecrawl' | 'bird' | 'nitter' | 'idle'
-      htmlDownloadedBytes: number
-      htmlTotalBytes: number | null
-      fetchStartedAtMs: number | null
-      lastSpinnerUpdateAtMs: number
-    } = {
-      phase: 'idle',
-      htmlDownloadedBytes: 0,
-      htmlTotalBytes: null,
-      fetchStartedAtMs: null,
-      lastSpinnerUpdateAtMs: 0,
-    }
-
-    let ticker: ReturnType<typeof setInterval> | null = null
-
-    const updateSpinner = (text: string, options?: { force?: boolean }) => {
-      const now = Date.now()
-      if (!options?.force && now - state.lastSpinnerUpdateAtMs < 100) return
-      state.lastSpinnerUpdateAtMs = now
-      spinner.setText(text)
-    }
-
-    const formatFirecrawlReason = (reason: string) => {
-      const lower = reason.toLowerCase()
-      if (lower.includes('forced')) return 'forced'
-      if (lower.includes('html fetch failed')) return 'fallback: HTML fetch failed'
-      if (lower.includes('blocked') || lower.includes('thin')) return 'fallback: blocked/thin HTML'
-      return reason
-    }
-
-    const renderFetchLine = () => {
-      const downloaded = formatBytes(state.htmlDownloadedBytes)
-      const total =
-        typeof state.htmlTotalBytes === 'number' ? `/${formatBytes(state.htmlTotalBytes)}` : ''
-      const elapsedMs =
-        typeof state.fetchStartedAtMs === 'number' ? Date.now() - state.fetchStartedAtMs : 0
-      const elapsed = formatElapsedMs(elapsedMs)
-      if (state.htmlDownloadedBytes === 0 && !state.htmlTotalBytes) {
-        return `Fetching website (connecting, ${elapsed})…`
-      }
-      const rate =
-        elapsedMs > 0 && state.htmlDownloadedBytes > 0
-          ? `, ${formatBytes(state.htmlDownloadedBytes / (elapsedMs / 1000))}/s`
-          : ''
-      return `Fetching website (${downloaded}${total}, ${elapsed}${rate})…`
-    }
-
-    const startTicker = () => {
-      if (ticker) return
-      ticker = setInterval(() => {
-        if (state.phase !== 'fetching') return
-        updateSpinner(renderFetchLine())
-      }, 1000)
-    }
-
-    const stopTicker = () => {
-      if (!ticker) return
-      clearInterval(ticker)
-      ticker = null
-    }
-
-    return {
-      getHtmlDownloadedBytes: () => state.htmlDownloadedBytes,
-      stop: stopTicker,
-      onProgress: (
-        event:
-          | { kind: 'fetch-html-start'; url: string }
-          | {
-              kind: 'fetch-html-progress'
-              url: string
-              downloadedBytes: number
-              totalBytes: number | null
-            }
-          | {
-              kind: 'fetch-html-done'
-              url: string
-              downloadedBytes: number
-              totalBytes: number | null
-            }
-          | { kind: 'firecrawl-start'; url: string; reason: string }
-          | {
-              kind: 'firecrawl-done'
-              url: string
-              ok: boolean
-              markdownBytes: number | null
-              htmlBytes: number | null
-            }
-          | { kind: 'bird-start'; url: string }
-          | { kind: 'bird-done'; url: string; ok: boolean; textBytes: number | null }
-          | { kind: 'nitter-start'; url: string }
-          | { kind: 'nitter-done'; url: string; ok: boolean; textBytes: number | null }
-      ) => {
-        if (event.kind === 'fetch-html-start') {
-          state.phase = 'fetching'
-          state.htmlDownloadedBytes = 0
-          state.htmlTotalBytes = null
-          state.fetchStartedAtMs = Date.now()
-          startTicker()
-          updateSpinner('Fetching website (connecting)…')
-          return
-        }
-
-        if (event.kind === 'fetch-html-progress' || event.kind === 'fetch-html-done') {
-          state.phase = 'fetching'
-          state.htmlDownloadedBytes = event.downloadedBytes
-          state.htmlTotalBytes = event.totalBytes
-          updateSpinner(renderFetchLine())
-          return
-        }
-
-        if (event.kind === 'bird-start') {
-          state.phase = 'bird'
-          stopTicker()
-          updateSpinner('Bird: reading tweet…', { force: true })
-          return
-        }
-
-        if (event.kind === 'bird-done') {
-          state.phase = 'bird'
-          stopTicker()
-          if (event.ok && typeof event.textBytes === 'number') {
-            updateSpinner(`Bird: got ${formatBytes(event.textBytes)}…`, { force: true })
-            return
-          }
-          updateSpinner('Bird: failed; fallback…', { force: true })
-          return
-        }
-
-        if (event.kind === 'nitter-start') {
-          state.phase = 'nitter'
-          stopTicker()
-          updateSpinner('Nitter: fetching…', { force: true })
-          return
-        }
-
-        if (event.kind === 'nitter-done') {
-          state.phase = 'nitter'
-          stopTicker()
-          if (event.ok && typeof event.textBytes === 'number') {
-            updateSpinner(`Nitter: got ${formatBytes(event.textBytes)}…`, { force: true })
-            return
-          }
-          updateSpinner('Nitter: failed; fallback…', { force: true })
-          return
-        }
-
-        if (event.kind === 'firecrawl-start') {
-          state.phase = 'firecrawl'
-          stopTicker()
-          const reason = event.reason ? formatFirecrawlReason(event.reason) : ''
-          const suffix = reason ? ` (${reason})` : ''
-          updateSpinner(`Firecrawl: scraping${suffix}…`, { force: true })
-          return
-        }
-
-        if (event.kind === 'firecrawl-done') {
-          state.phase = 'firecrawl'
-          stopTicker()
-          if (event.ok && typeof event.markdownBytes === 'number') {
-            updateSpinner(`Firecrawl: got ${formatBytes(event.markdownBytes)}…`, { force: true })
-            return
-          }
-          updateSpinner('Firecrawl: no content; fallback…', { force: true })
-        }
-      },
-    }
-  })()
+  const websiteProgress = createWebsiteProgress({ enabled: progressEnabled, spinner })
 
   const client = createLinkPreviewClient({
     apifyApiToken: apifyToken,
