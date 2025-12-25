@@ -11,6 +11,7 @@ import { normalizeForPrompt } from './cleaner.js'
 import { fetchHtmlDocument, fetchWithFirecrawl } from './fetcher.js'
 import { extractMetadataFromFirecrawl, extractMetadataFromHtml } from './parsers.js'
 import { extractReadabilityFromHtml, toReadabilityHtml } from './readability.js'
+import { extractJsonLdContent } from './jsonld.js'
 import type { ExtractedLinkContent, FetchLinkContentOptions, MarkdownMode } from './types.js'
 import {
   appendNote,
@@ -34,6 +35,7 @@ const TWITTER_BLOCKED_TEXT_PATTERN =
   /something went wrong|try again|privacy related extensions|please disable them and try again/i
 const MIN_HTML_CONTENT_CHARACTERS = 200
 const MIN_READABILITY_CONTENT_CHARACTERS = 200
+const MIN_METADATA_DESCRIPTION_CHARACTERS = 120
 const READABILITY_RELATIVE_THRESHOLD = 0.6
 const MIN_HTML_DOCUMENT_CHARACTERS_FOR_FALLBACK = 5000
 const TWITTER_HOSTS = new Set(['x.com', 'twitter.com', 'mobile.twitter.com'])
@@ -86,6 +88,56 @@ function stripLeadingTitle(content: string, title: string | null | undefined): s
   const remainderOriginal = trimmedContent.slice(normalizedTitle.length)
   const remainder = remainderOriginal.replace(LEADING_CONTROL_PATTERN, '')
   return remainder
+}
+
+function isPodcastLikeJsonLdType(type: string | null | undefined): boolean {
+  if (!type) return false
+  const normalized = type.toLowerCase()
+  if (normalized.includes('podcast')) return true
+  return (
+    normalized === 'audioobject' ||
+    normalized === 'episode' ||
+    normalized === 'radioepisode' ||
+    normalized === 'musicrecording'
+  )
+}
+
+const PODCAST_HOST_SUFFIXES = [
+  'spotify.com',
+  'podcasts.apple.com',
+  'podchaser.com',
+  'podbean.com',
+  'buzzsprout.com',
+  'spreaker.com',
+  'simplecast.com',
+  'rss.com',
+  'libsyn.com',
+  'omny.fm',
+  'acast.com',
+  'transistor.fm',
+  'captivate.fm',
+  'soundcloud.com',
+  'ivoox.com',
+  'iheart.com',
+  'megaphone.fm',
+  'pca.st',
+  'player.fm',
+  'castbox.fm',
+]
+
+function isPodcastHost(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, '')
+    if (host.startsWith('music.amazon.') && parsed.pathname.includes('/podcasts/')) {
+      return true
+    }
+    return PODCAST_HOST_SUFFIXES.some((suffix) =>
+      host === suffix || host.endsWith(`.${suffix}`)
+    )
+  } catch {
+    return false
+  }
 }
 
 function shouldFallbackToFirecrawl(html: string): boolean {
@@ -543,11 +595,33 @@ async function buildResultFromFirecrawl({
     return null
   }
 
+  const jsonLd = payload.html ? extractJsonLdContent(payload.html) : null
+  const isPodcastJsonLd = isPodcastLikeJsonLdType(jsonLd?.type)
+
   const transcriptResolution = await resolveTranscriptForLink(url, payload.html ?? null, deps, {
     youtubeTranscriptMode,
     cacheMode,
   })
-  const baseContent = selectBaseContent(normalizedMarkdown, transcriptResolution.text)
+  const htmlMetadata = payload.html
+    ? extractMetadataFromHtml(payload.html, url)
+    : { title: null, description: null, siteName: null }
+  const metadata = extractMetadataFromFirecrawl(payload.metadata ?? null)
+
+  const title = pickFirstText([jsonLd?.title, metadata.title, htmlMetadata.title])
+  const description = pickFirstText([jsonLd?.description, metadata.description, htmlMetadata.description])
+  const siteName = pickFirstText([metadata.siteName, htmlMetadata.siteName, safeHostname(url)])
+
+  const descriptionCandidate = description ? normalizeForPrompt(description) : ''
+  const preferDescription =
+    descriptionCandidate.length >= MIN_METADATA_DESCRIPTION_CHARACTERS &&
+    (
+      isPodcastJsonLd ||
+      isPodcastHost(url) ||
+      normalizedMarkdown.length < MIN_HTML_CONTENT_CHARACTERS ||
+      descriptionCandidate.length >= normalizedMarkdown.length * READABILITY_RELATIVE_THRESHOLD
+    )
+  const baseCandidate = preferDescription ? descriptionCandidate : normalizedMarkdown
+  const baseContent = selectBaseContent(baseCandidate, transcriptResolution.text)
   if (baseContent.length === 0) {
     firecrawlDiagnostics.notes = appendNote(
       firecrawlDiagnostics.notes,
@@ -555,15 +629,6 @@ async function buildResultFromFirecrawl({
     )
     return null
   }
-
-  const htmlMetadata = payload.html
-    ? extractMetadataFromHtml(payload.html, url)
-    : { title: null, description: null, siteName: null }
-  const metadata = extractMetadataFromFirecrawl(payload.metadata ?? null)
-
-  const title = pickFirstText([metadata.title, htmlMetadata.title])
-  const description = pickFirstText([metadata.description, htmlMetadata.description])
-  const siteName = pickFirstText([metadata.siteName, htmlMetadata.siteName, safeHostname(url)])
 
   firecrawlDiagnostics.used = true
 
@@ -631,6 +696,10 @@ async function buildResultFromHtmlDocument({
   }
 
   const { title, description, siteName } = extractMetadataFromHtml(html, url)
+  const jsonLd = extractJsonLdContent(html)
+  const mergedTitle = pickFirstText([jsonLd?.title, title])
+  const mergedDescription = pickFirstText([jsonLd?.description, description])
+  const isPodcastJsonLd = isPodcastLikeJsonLdType(jsonLd?.type)
   const rawContent = extractArticleContent(html)
   const normalized = normalizeForPrompt(rawContent)
 
@@ -642,6 +711,23 @@ async function buildResultFromHtmlDocument({
     (normalized.length < MIN_HTML_CONTENT_CHARACTERS ||
       readabilityText.length >= normalized.length * READABILITY_RELATIVE_THRESHOLD)
   const effectiveNormalized = preferReadability ? readabilityText : normalized
+  const descriptionCandidate = mergedDescription
+    ? normalizeForPrompt(mergedDescription)
+    : ''
+  const preferDescription =
+    descriptionCandidate.length >= MIN_METADATA_DESCRIPTION_CHARACTERS &&
+    (
+      isPodcastJsonLd ||
+      isPodcastHost(url) ||
+      (!preferReadability &&
+        (
+          effectiveNormalized.length < MIN_HTML_CONTENT_CHARACTERS ||
+          descriptionCandidate.length >= effectiveNormalized.length * READABILITY_RELATIVE_THRESHOLD
+        ))
+    )
+  const effectiveNormalizedWithDescription = preferDescription
+    ? descriptionCandidate
+    : effectiveNormalized
   const transcriptResolution = await resolveTranscriptForLink(url, html, deps, {
     youtubeTranscriptMode,
     cacheMode,
@@ -651,11 +737,11 @@ async function buildResultFromHtmlDocument({
     transcriptResolution.text === null ? extractYouTubeShortDescription(html) : null
   const baseCandidate = youtubeDescription
     ? normalizeForPrompt(youtubeDescription)
-    : effectiveNormalized
+    : effectiveNormalizedWithDescription
 
   let baseContent = selectBaseContent(baseCandidate, transcriptResolution.text)
   if (baseContent === normalized) {
-    baseContent = stripLeadingTitle(baseContent, title)
+    baseContent = stripLeadingTitle(baseContent, mergedTitle ?? title)
   }
 
   const transcriptDiagnostics = ensureTranscriptDiagnostics(
@@ -693,7 +779,7 @@ async function buildResultFromHtmlDocument({
       const markdown = await deps.convertHtmlToMarkdown({
         url,
         html: sanitizedHtml,
-        title,
+        title: mergedTitle ?? title,
         siteName,
         timeoutMs,
       })
@@ -736,8 +822,8 @@ async function buildResultFromHtmlDocument({
     url,
     baseContent,
     maxCharacters,
-    title,
-    description,
+    title: mergedTitle ?? title,
+    description: mergedDescription ?? description,
     siteName,
     transcriptResolution,
     video,
