@@ -165,8 +165,14 @@ async function transcribeWithWhisperCppFile({
     if (!canUseDirectly && canTranscode) {
       // whisper-cli supports only a few audio formats. We transcode via ffmpeg when possible to
       // keep “any media file” working locally too.
-      await runFfmpegTranscodeToMp3({ inputPath: filePath, outputPath: effectivePath.path })
-      notes.push('whisper.cpp: transcoded media to MP3 via ffmpeg')
+      try {
+        await runFfmpegTranscodeToMp3({ inputPath: filePath, outputPath: effectivePath.path })
+        notes.push('whisper.cpp: transcoded media to MP3 via ffmpeg')
+      } catch (error) {
+        await runFfmpegTranscodeToMp3Lenient({ inputPath: filePath, outputPath: effectivePath.path })
+        notes.push('whisper.cpp: transcoded media to MP3 via ffmpeg (lenient)')
+        notes.push(`whisper.cpp: strict transcode failed: ${wrapError('ffmpeg', error).message}`)
+      }
       onProgress?.({
         partIndex: null,
         parts: null,
@@ -456,7 +462,11 @@ async function transcodeBytesToMp3(bytes: Uint8Array): Promise<Uint8Array> {
   const outputPath = join(tmpdir(), `summarize-whisper-output-${randomUUID()}.mp3`)
   try {
     await fs.writeFile(inputPath, bytes)
-    await runFfmpegTranscodeToMp3({ inputPath, outputPath })
+    try {
+      await runFfmpegTranscodeToMp3({ inputPath, outputPath })
+    } catch (error) {
+      await runFfmpegTranscodeToMp3Lenient({ inputPath, outputPath })
+    }
     return new Uint8Array(await fs.readFile(outputPath))
   } finally {
     await fs.unlink(inputPath).catch(() => {})
@@ -866,8 +876,11 @@ async function runFfmpegTranscodeToMp3({
   inputPath: string
   outputPath: string
 }): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const args = [
+  await runFfmpegTranscode({
+    inputPath,
+    outputPath,
+    mode: 'strict',
+    args: [
       '-hide_banner',
       '-loglevel',
       'error',
@@ -881,7 +894,59 @@ async function runFfmpegTranscodeToMp3({
       '-b:a',
       '64k',
       outputPath,
-    ]
+    ],
+  })
+}
+
+async function runFfmpegTranscodeToMp3Lenient({
+  inputPath,
+  outputPath,
+}: {
+  inputPath: string
+  outputPath: string
+}): Promise<void> {
+  await runFfmpegTranscode({
+    inputPath,
+    outputPath,
+    mode: 'lenient',
+    args: [
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-err_detect',
+      'ignore_err',
+      '-fflags',
+      '+genpts',
+      '-i',
+      inputPath,
+      '-vn',
+      '-sn',
+      '-dn',
+      '-map',
+      '0:a:0?',
+      '-ac',
+      '1',
+      '-ar',
+      '16000',
+      '-b:a',
+      '64k',
+      outputPath,
+    ],
+  })
+}
+
+async function runFfmpegTranscode({
+  inputPath,
+  outputPath,
+  mode,
+  args,
+}: {
+  inputPath: string
+  outputPath: string
+  mode: 'strict' | 'lenient'
+  args: string[]
+}): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
     const proc = spawn('ffmpeg', args, { stdio: ['ignore', 'ignore', 'pipe'] })
     let stderr = ''
     proc.stderr?.setEncoding('utf8')
@@ -897,7 +962,9 @@ async function runFfmpegTranscodeToMp3({
       }
       const detail = stderr.trim()
       reject(
-        new Error(`ffmpeg transcode failed (${code ?? 'unknown'}): ${detail || 'unknown error'}`)
+        new Error(
+          `ffmpeg ${mode} transcode failed (${code ?? 'unknown'}): ${detail || 'unknown error'}`
+        )
       )
     })
   })
