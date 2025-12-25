@@ -160,6 +160,16 @@ Use `summarize --help` or `summarize help` for the full help text.
 - `--verbose`: debug/diagnostics on stderr
 - `--metrics off|on|detailed`: metrics output (default `on`; `detailed` adds a compact 2nd-line breakdown on stderr)
 
+## Verified podcast pages (2025-12-25)
+
+Ran: `summarize --extract --json --timeout 60s <url>`
+
+- https://feeds.npr.org/500005/podcast.xml
+- https://www.podbean.com/media/share/dir-6wa7k-29a23114
+- https://music.amazon.de/podcasts/61e4318e-659a-46b8-9380-c268b487dc68/episodes/07a8b875-a1d2-4d00-96ea-0bd986c2c7bd/die-j%C3%A4gerin-s2f2-nur-verlierer
+- https://www.podchaser.com/podcasts/aviation-weeks-check-6-podcast-26817/episodes/check-6-revisits-rtxs-pratt-wh-276449881
+- https://www.jrepodcast.com/episode/joe-rogan-experience-2429-tom-segura/
+
 ## Translation paths
 
 `--language/--lang` controls the *output language* of the summary (and other LLM-generated text). Default is `auto` (match source language).
