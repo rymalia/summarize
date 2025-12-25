@@ -1,17 +1,26 @@
-import { createFirecrawlScraper } from '../../../firecrawl.js'
-import { createLinkPreviewClient } from '../../../content/index.js'
 import { loadRemoteAsset } from '../../../content/asset.js'
+import { createLinkPreviewClient } from '../../../content/index.js'
+import { createFirecrawlScraper } from '../../../firecrawl.js'
 import { createOscProgressController } from '../../../tty/osc-progress.js'
 import { startSpinner } from '../../../tty/spinner.js'
 import { createWebsiteProgress } from '../../../tty/website-progress.js'
-import { estimateWhisperTranscriptionCostUsd, formatOptionalNumber, formatOptionalString, formatUSD } from '../../format.js'
-import { writeVerbose } from '../../logging.js'
+import { assertAssetMediaTypeSupported } from '../../attachments.js'
+import { readTweetWithBird } from '../../bird.js'
 import { UVX_TIP } from '../../constants.js'
 import { hasBirdCli, hasUvxCli } from '../../env.js'
-import { readTweetWithBird } from '../../bird.js'
-import { assertAssetMediaTypeSupported } from '../../attachments.js'
+import {
+  estimateWhisperTranscriptionCostUsd,
+  formatOptionalNumber,
+  formatOptionalString,
+  formatUSD,
+} from '../../format.js'
+import { writeVerbose } from '../../logging.js'
+import {
+  deriveExtractionUi,
+  fetchLinkContentWithBirdTip,
+  logExtractionDiagnostics,
+} from './extract.js'
 import { createMarkdownConverters } from './markdown.js'
-import { deriveExtractionUi, fetchLinkContentWithBirdTip, logExtractionDiagnostics } from './extract.js'
 import { buildUrlPrompt, outputExtractedUrl, summarizeExtractedUrl } from './summary.js'
 import type { UrlFlowContext } from './types.js'
 
@@ -37,7 +46,9 @@ export async function runUrlFlow({
     ctx.stderr,
     ctx.verbose,
     `config url=${url} timeoutMs=${ctx.timeoutMs} youtube=${ctx.youtubeMode} firecrawl=${ctx.firecrawlMode} length=${
-      ctx.lengthArg.kind === 'preset' ? ctx.lengthArg.preset : `${ctx.lengthArg.maxCharacters} chars`
+      ctx.lengthArg.kind === 'preset'
+        ? ctx.lengthArg.preset
+        : `${ctx.lengthArg.maxCharacters} chars`
     } maxOutputTokens=${formatOptionalNumber(ctx.maxOutputTokensArg)} retries=${ctx.retries} json=${ctx.json} extract=${ctx.extractMode} format=${ctx.format} preprocess=${ctx.preprocessMode} markdownMode=${ctx.markdownMode} model=${ctx.requestedModelLabel} videoMode=${ctx.videoMode} stream=${ctx.streamingEnabled ? 'on' : 'off'} render=${ctx.effectiveRenderMode}`,
     ctx.verboseColor
   )
@@ -195,7 +206,8 @@ export async function runUrlFlow({
           wantsVideoUnderstanding &&
           ctx.apiStatus.googleConfigured &&
           (ctx.requestedModel.kind === 'auto' ||
-            (ctx.fixedModelSpec?.transport === 'native' && ctx.fixedModelSpec.provider === 'google'))
+            (ctx.fixedModelSpec?.transport === 'native' &&
+              ctx.fixedModelSpec.provider === 'google'))
 
         if (canVideoUnderstand) {
           if (ctx.progressEnabled) spinner.setText('Downloading video…')

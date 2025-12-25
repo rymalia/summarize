@@ -10,13 +10,11 @@ export type InputResolution = {
 }
 
 export function resolveRunInput({
-  normalizedArgv,
   program,
   cliFlagPresent,
   cliProviderArgRaw,
   stdout,
 }: {
-  normalizedArgv: string[]
   program: Command
   cliFlagPresent: boolean
   cliProviderArgRaw: string | null

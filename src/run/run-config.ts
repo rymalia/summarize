@@ -1,7 +1,7 @@
-import type { SummarizeConfig, CliProvider } from '../config.js'
+import type { CliProvider, SummarizeConfig } from '../config.js'
 import { loadSummarizeConfig } from '../config.js'
-import { parseOutputLanguage, type OutputLanguage } from '../language.js'
 import { parseVideoMode } from '../flags.js'
+import { type OutputLanguage, parseOutputLanguage } from '../language.js'
 import { parseBooleanEnv } from './env.js'
 
 export type ConfigState = {

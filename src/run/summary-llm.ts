@@ -1,7 +1,7 @@
 import type { ModelMessage } from 'ai'
 import { generateTextWithModelId } from '../llm/generate-text.js'
 import { resolveGoogleModelForUsage } from '../llm/google-models.js'
-import { parseGatewayStyleModelId } from '../llm/model-id.js'
+import type { parseGatewayStyleModelId } from '../llm/model-id.js'
 
 export async function resolveModelIdForLlmCall({
   parsedModel,

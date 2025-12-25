@@ -11,7 +11,11 @@ export function resolveDesiredOutputTokens({
 }): number | null {
   if (typeof maxOutputTokensArg === 'number') return maxOutputTokensArg
   const targetChars = resolveTargetCharacters(lengthArg, SUMMARY_LENGTH_MAX_CHARACTERS)
-  if (!Number.isFinite(targetChars) || targetChars <= 0 || targetChars === Number.POSITIVE_INFINITY) {
+  if (
+    !Number.isFinite(targetChars) ||
+    targetChars <= 0 ||
+    targetChars === Number.POSITIVE_INFINITY
+  ) {
     return null
   }
   // Rough heuristic (chars → tokens). Used for auto selection + cost estimation.

@@ -1,10 +1,10 @@
 import { createHtmlToMarkdownConverter } from '../../../llm/html-to-markdown.js'
 import { parseGatewayStyleModelId } from '../../../llm/model-id.js'
 import { convertToMarkdownWithMarkitdown } from '../../../markitdown.js'
-import { createRetryLogger } from '../../logging.js'
 import { hasUvxCli } from '../../env.js'
-import type { UrlFlowContext } from './types.js'
+import { createRetryLogger } from '../../logging.js'
 import type { ModelAttempt } from '../../types.js'
+import type { UrlFlowContext } from './types.js'
 
 export type MarkdownModel = {
   llmModelId: string
@@ -20,13 +20,15 @@ export type MarkdownConverters = {
   effectiveMarkdownMode: 'off' | 'auto' | 'llm' | 'readability'
   markdownProvider: 'none' | 'xai' | 'openai' | 'google' | 'anthropic' | 'zai'
   markdownModel: MarkdownModel | null
-  convertHtmlToMarkdown: ((args: {
-    url: string
-    html: string
-    title: string | null
-    siteName: string | null
-    timeoutMs: number
-  }) => Promise<string>) | null
+  convertHtmlToMarkdown:
+    | ((args: {
+        url: string
+        html: string
+        title: string | null
+        siteName: string | null
+        timeoutMs: number
+      }) => Promise<string>)
+    | null
 }
 
 export function createMarkdownConverters(

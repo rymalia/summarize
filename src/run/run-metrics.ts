@@ -13,9 +13,7 @@ export type RunMetrics = {
   trackedFetch: typeof fetch
   buildReport: () => Promise<RunMetricsReport>
   estimateCostUsd: () => Promise<number | null>
-  getLiteLlmCatalog: () => Promise<
-    Awaited<ReturnType<typeof loadLiteLlmCatalog>>['catalog']
-  >
+  getLiteLlmCatalog: () => Promise<Awaited<ReturnType<typeof loadLiteLlmCatalog>>['catalog']>
   resolveMaxOutputTokensForCall: (modelId: string) => Promise<number | null>
   resolveMaxInputTokensForCall: (modelId: string) => Promise<number | null>
   setTranscriptionCost: (costUsd: number | null, label: string | null) => void

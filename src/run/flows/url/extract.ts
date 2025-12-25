@@ -1,9 +1,9 @@
-import { formatBytes } from '../../../tty/format.js'
 import type { ExtractedLinkContent, FetchLinkContentOptions } from '../../../content/index.js'
+import { formatBytes } from '../../../tty/format.js'
+import { withBirdTip } from '../../bird.js'
 import { buildSummaryFinishLabel } from '../../finish-line.js'
 import { formatOptionalNumber, formatOptionalString } from '../../format.js'
 import { writeVerbose } from '../../logging.js'
-import { withBirdTip } from '../../bird.js'
 
 export type UrlExtractionUi = {
   contentSizeLabel: string
@@ -18,7 +18,12 @@ export async function fetchLinkContentWithBirdTip({
   options,
   env,
 }: {
-  client: { fetchLinkContent: (url: string, options?: FetchLinkContentOptions) => Promise<ExtractedLinkContent> }
+  client: {
+    fetchLinkContent: (
+      url: string,
+      options?: FetchLinkContentOptions
+    ) => Promise<ExtractedLinkContent>
+  }
   url: string
   options: FetchLinkContentOptions
   env: Record<string, string | undefined>
@@ -52,9 +57,7 @@ export function deriveExtractionUi(extracted: ExtractedLinkContent): UrlExtracti
   if (extracted.diagnostics.strategy === 'nitter') footerParts.push('nitter')
   if (extracted.diagnostics.firecrawl.used) footerParts.push('firecrawl')
   if (extracted.diagnostics.markdown.used) {
-    footerParts.push(
-      extracted.diagnostics.markdown.provider === 'llm' ? 'html→md llm' : 'markdown'
-    )
+    footerParts.push(extracted.diagnostics.markdown.provider === 'llm' ? 'html→md llm' : 'markdown')
   }
   if (extracted.diagnostics.transcript.textProvided) {
     footerParts.push(`transcript ${extracted.diagnostics.transcript.provider ?? 'unknown'}`)

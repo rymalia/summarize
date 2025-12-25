@@ -63,7 +63,10 @@ export function resolveCliAvailability({
   return availability
 }
 
-export function parseCliUserModelId(modelId: string): { provider: CliProvider; model: string | null } {
+export function parseCliUserModelId(modelId: string): {
+  provider: CliProvider
+  model: string | null
+} {
   const parts = modelId
     .trim()
     .split('/')

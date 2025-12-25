@@ -1,17 +1,21 @@
 import type { ModelMessage } from 'ai'
 import { countTokens } from 'gpt-tokenizer'
 import { createLiveRenderer, render as renderMarkdownAnsi } from 'markdansi'
-import { formatCompactCount } from '../tty/format.js'
-import { parseGatewayStyleModelId } from '../llm/model-id.js'
-import { streamTextWithModelId } from '../llm/generate-text.js'
-import { isCliDisabled, runCliModel } from '../llm/cli.js'
-import { createRetryLogger, writeVerbose } from './logging.js'
-import { mergeStreamingChunk, isGoogleStreamingUnsupportedError, isStreamingTimeoutError } from './streaming.js'
-import { isRichTty, markdownRenderWidth, supportsColor, terminalHeight } from './terminal.js'
-import { prepareMarkdownForTerminal } from './markdown.js'
-import type { ModelAttempt, ModelMeta } from './types.js'
 import type { CliProvider } from '../config.js'
+import { isCliDisabled, runCliModel } from '../llm/cli.js'
+import { streamTextWithModelId } from '../llm/generate-text.js'
+import { parseGatewayStyleModelId } from '../llm/model-id.js'
+import { formatCompactCount } from '../tty/format.js'
+import { createRetryLogger, writeVerbose } from './logging.js'
+import { prepareMarkdownForTerminal } from './markdown.js'
+import {
+  isGoogleStreamingUnsupportedError,
+  isStreamingTimeoutError,
+  mergeStreamingChunk,
+} from './streaming.js'
 import { resolveModelIdForLlmCall, summarizeWithModelId } from './summary-llm.js'
+import { isRichTty, markdownRenderWidth, supportsColor, terminalHeight } from './terminal.js'
+import type { ModelAttempt, ModelMeta } from './types.js'
 
 export type SummaryEngineDeps = {
   env: Record<string, string | undefined>
@@ -370,30 +374,28 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       let streamed = ''
       let liveOverflowed = false
       const liveRenderer = shouldLiveRenderSummary
-        ? createLiveRenderer(
-            {
-              write: (chunk) => {
-                deps.clearProgressForStdout()
-                deps.stdout.write(chunk)
-              },
-              width: markdownRenderWidth(deps.stdout, deps.env),
-              renderFrame: (markdown) =>
-                renderMarkdownAnsi(prepareMarkdownForTerminal(markdown), {
-                  width: markdownRenderWidth(deps.stdout, deps.env),
-                  wrap: true,
-                  color: supportsColor(deps.stdout, deps.envForRun),
-                  hyperlinks: true,
-                }),
-              // markdansi supports tailRows/maxRows at runtime; typings lag behind.
-              tailRows: Math.max(12, terminalHeight(deps.stdout, deps.env) - 2),
-              maxRows: terminalHeight(deps.stdout, deps.env),
-              clearOnOverflow: true,
-              clearScrollbackOnOverflow: false,
-              onOverflow: () => {
-                liveOverflowed = true
-              },
-            } as Parameters<typeof createLiveRenderer>[0]
-          )
+        ? createLiveRenderer({
+            write: (chunk) => {
+              deps.clearProgressForStdout()
+              deps.stdout.write(chunk)
+            },
+            width: markdownRenderWidth(deps.stdout, deps.env),
+            renderFrame: (markdown) =>
+              renderMarkdownAnsi(prepareMarkdownForTerminal(markdown), {
+                width: markdownRenderWidth(deps.stdout, deps.env),
+                wrap: true,
+                color: supportsColor(deps.stdout, deps.envForRun),
+                hyperlinks: true,
+              }),
+            // markdansi supports tailRows/maxRows at runtime; typings lag behind.
+            tailRows: Math.max(12, terminalHeight(deps.stdout, deps.env) - 2),
+            maxRows: terminalHeight(deps.stdout, deps.env),
+            clearOnOverflow: true,
+            clearScrollbackOnOverflow: false,
+            onOverflow: () => {
+              liveOverflowed = true
+            },
+          } as Parameters<typeof createLiveRenderer>[0])
         : null
       let lastFrameAtMs = 0
       try {

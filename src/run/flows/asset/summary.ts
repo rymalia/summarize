@@ -1,31 +1,31 @@
 import path from 'node:path'
 import { countTokens } from 'gpt-tokenizer'
 import { render as renderMarkdownAnsi } from 'markdansi'
-import { buildPathSummaryPrompt } from '../../../prompts/index.js'
+import type { CliProvider, SummarizeConfig } from '../../../config.js'
+import type { LlmCall, RunMetricsReport } from '../../../costs.js'
+import type { OutputLanguage } from '../../../language.js'
+import { formatOutputLanguageForJson } from '../../../language.js'
 import { parseGatewayStyleModelId } from '../../../llm/model-id.js'
-import { buildAutoModelAttempts } from '../../../model-auto.js'
 import type { ExecFileFn } from '../../../markitdown.js'
+import { buildAutoModelAttempts } from '../../../model-auto.js'
+import type { FixedModelSpec, RequestedModel } from '../../../model-spec.js'
+import { buildPathSummaryPrompt } from '../../../prompts/index.js'
+import type { SummaryLength } from '../../../shared/contracts.js'
 import {
+  type AssetAttachment,
   ensureCliAttachmentPath,
   isTextLikeMediaType,
   isUnsupportedAttachmentError,
-  type AssetAttachment,
 } from '../../attachments.js'
 import { parseCliUserModelId } from '../../env.js'
-import { buildOpenRouterNoAllowedProvidersMessage } from '../../openrouter.js'
+import { writeFinishLine } from '../../finish-line.js'
+import { writeVerbose } from '../../logging.js'
 import { prepareMarkdownForTerminal } from '../../markdown.js'
 import { runModelAttempts } from '../../model-attempts.js'
-import { markdownRenderWidth, supportsColor, isRichTty } from '../../terminal.js'
-import { writeVerbose } from '../../logging.js'
-import { writeFinishLine } from '../../finish-line.js'
-import type { CliProvider, SummarizeConfig } from '../../../config.js'
-import type { OutputLanguage } from '../../../language.js'
-import { formatOutputLanguageForJson } from '../../../language.js'
-import type { FixedModelSpec, RequestedModel } from '../../../model-spec.js'
-import type { ModelAttempt } from '../../types.js'
+import { buildOpenRouterNoAllowedProvidersMessage } from '../../openrouter.js'
 import type { createSummaryEngine } from '../../summary-engine.js'
-import type { SummaryLength } from '../../../shared/contracts.js'
-import type { LlmCall, RunMetricsReport } from '../../../costs.js'
+import { isRichTty, markdownRenderWidth, supportsColor } from '../../terminal.js'
+import type { ModelAttempt } from '../../types.js'
 import { prepareAssetPrompt } from './preprocess.js'
 
 export type AssetSummaryContext = {
@@ -65,7 +65,9 @@ export type AssetSummaryContext = {
   trackedFetch: typeof fetch
   writeViaFooter: (parts: string[]) => void
   clearProgressForStdout: () => void
-  getLiteLlmCatalog: () => Promise<Awaited<ReturnType<typeof import('../../../pricing/litellm.js').loadLiteLlmCatalog>>['catalog']>
+  getLiteLlmCatalog: () => Promise<
+    Awaited<ReturnType<typeof import('../../../pricing/litellm.js').loadLiteLlmCatalog>>['catalog']
+  >
   buildReport: () => Promise<RunMetricsReport>
   estimateCostUsd: () => Promise<number | null>
   llmCalls: LlmCall[]
@@ -136,7 +138,8 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
         cliAvailability: ctx.cliAvailability,
       })
       const mapped: ModelAttempt[] = all.map((attempt) => {
-        if (attempt.transport !== 'cli') return ctx.summaryEngine.applyZaiOverrides(attempt as ModelAttempt)
+        if (attempt.transport !== 'cli')
+          return ctx.summaryEngine.applyZaiOverrides(attempt as ModelAttempt)
         const parsed = parseCliUserModelId(attempt.userModelId)
         return { ...attempt, cliProvider: parsed.provider, cliModel: parsed.model }
       })
@@ -197,7 +200,8 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
   const cliContext = await (async () => {
     if (!attempts.some((a) => a.transport === 'cli')) return null
     if (typeof promptPayload === 'string') return null
-    const needsPathPrompt = args.attachment.part.type === 'image' || args.attachment.part.type === 'file'
+    const needsPathPrompt =
+      args.attachment.part.type === 'image' || args.attachment.part.type === 'file'
     if (!needsPathPrompt) return null
     const filePath = await ensureCliAttachmentPath({
       sourceKind: args.sourceKind,

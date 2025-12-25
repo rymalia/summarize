@@ -116,9 +116,7 @@ export async function fetchSpotifyEmbedHtml({
     const text = (payload?.html ?? payload?.markdown ?? '').trim()
     if (!text) {
       throw new Error(
-        `Spotify embed fetch failed and Firecrawl returned empty content (${(
-          error instanceof Error ? error.message : String(error)
-        )})`
+        `Spotify embed fetch failed and Firecrawl returned empty content (${error instanceof Error ? error.message : String(error)})`
       )
     }
     if (looksLikeBlockedHtml(text)) {

@@ -14,25 +14,25 @@ import {
   parseStreamMode,
   parseYoutubeMode,
 } from '../flags.js'
+import type { ExecFileFn } from '../markitdown.js'
 import type { FixedModelSpec } from '../model-spec.js'
 import { formatVersionLine } from '../version.js'
+import { handleHelpRequest, handleRefreshFreeRequest } from './cli-preflight.js'
 import { parseCliProviderArg } from './env.js'
-import { attachRichHelp, buildProgram } from './help.js'
-import { ansi, isRichTty, supportsColor } from './terminal.js'
-import { createProgressGate } from './progress.js'
-import { createSummaryEngine } from './summary-engine.js'
 import { handleFileInput, handleUrlAsset } from './flows/asset/input.js'
 import { summarizeAsset as summarizeAssetFlow } from './flows/asset/summary.js'
 import { runUrlFlow } from './flows/url/flow.js'
-import { handleHelpRequest, handleRefreshFreeRequest } from './cli-preflight.js'
+import { attachRichHelp, buildProgram } from './help.js'
+import { createProgressGate } from './progress.js'
 import { resolveConfigState } from './run-config.js'
 import { resolveEnvState } from './run-env.js'
+import { resolveRunInput } from './run-input.js'
 import { createRunMetrics } from './run-metrics.js'
 import { resolveModelSelection } from './run-models.js'
-import { resolveRunInput } from './run-input.js'
-import { resolveStreamSettings } from './run-stream.js'
 import { resolveDesiredOutputTokens } from './run-output.js'
-import type { ExecFileFn } from '../markitdown.js'
+import { resolveStreamSettings } from './run-stream.js'
+import { createSummaryEngine } from './summary-engine.js'
+import { ansi, isRichTty, supportsColor } from './terminal.js'
 
 type RunEnv = {
   env: Record<string, string | undefined>
@@ -96,7 +96,6 @@ export async function runCli(
   const cliFlagPresent = normalizedArgv.some((arg) => arg === '--cli' || arg.startsWith('--cli='))
   let cliProviderArgRaw = typeof program.opts().cli === 'string' ? program.opts().cli : null
   const inputResolution = resolveRunInput({
-    normalizedArgv,
     program,
     cliFlagPresent,
     cliProviderArgRaw,

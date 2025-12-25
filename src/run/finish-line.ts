@@ -1,10 +1,6 @@
-import {
-  formatCompactCount,
-  formatDurationSecondsSmart,
-  formatElapsedMs,
-} from '../tty/format.js'
-import { ansi } from './terminal.js'
+import { formatCompactCount, formatDurationSecondsSmart, formatElapsedMs } from '../tty/format.js'
 import { formatUSD, sumNumbersOrNull } from './format.js'
+import { ansi } from './terminal.js'
 
 export type ExtractDiagnosticsForFinishLine = {
   strategy: 'bird' | 'firecrawl' | 'html' | 'nitter'
@@ -44,7 +40,9 @@ export function formatModelLabelForDisplay(model: string): string {
   return trimmed
 }
 
-function inferMediaKindLabelForFinishLine(extracted: ExtractedForLengths): 'audio' | 'video' | null {
+function inferMediaKindLabelForFinishLine(
+  extracted: ExtractedForLengths
+): 'audio' | 'video' | null {
   if (extracted.siteName === 'YouTube' || /youtube\.com|youtu\.be/i.test(extracted.url)) {
     return 'video'
   }
@@ -174,8 +172,15 @@ export function writeFinishLine({
   elapsedMs: number
   label?: string | null
   model: string | null
-  report: { llm: Array<{ promptTokens: number | null; completionTokens: number | null; totalTokens: number | null; calls: number }>;
-    services: { firecrawl: { requests: number }; apify: { requests: number } } }
+  report: {
+    llm: Array<{
+      promptTokens: number | null
+      completionTokens: number | null
+      totalTokens: number | null
+      calls: number
+    }>
+    services: { firecrawl: { requests: number }; apify: { requests: number } }
+  }
   costUsd: number | null
   detailed: boolean
   extraParts?: string[] | null
@@ -272,8 +277,7 @@ export function buildExtractFinishLabel(args: {
     const firecrawlUsed =
       strategy === 'firecrawl' || Boolean(args.extracted.diagnostics.firecrawl?.used)
     if (firecrawlUsed) return `${base} via firecrawl`
-    if (strategy === 'html' && args.markdownMode === 'readability')
-      return `${base} via readability`
+    if (strategy === 'html' && args.markdownMode === 'readability') return `${base} via readability`
 
     const mdUsed = Boolean(args.extracted.diagnostics.markdown?.used)
     const mdProvider = args.extracted.diagnostics.markdown.provider

@@ -1,19 +1,23 @@
 import { countTokens } from 'gpt-tokenizer'
 import { render as renderMarkdownAnsi } from 'markdansi'
-import { buildLinkSummaryPrompt } from '../../../prompts/index.js'
+import type { ExtractedLinkContent } from '../../../content/index.js'
 import { formatOutputLanguageForJson } from '../../../language.js'
 import { buildAutoModelAttempts } from '../../../model-auto.js'
-import { buildOpenRouterNoAllowedProvidersMessage } from '../../openrouter.js'
+import { buildLinkSummaryPrompt } from '../../../prompts/index.js'
 import { parseCliUserModelId } from '../../env.js'
-import { runModelAttempts } from '../../model-attempts.js'
+import {
+  buildExtractFinishLabel,
+  buildLengthPartsForFinishLine,
+  writeFinishLine,
+} from '../../finish-line.js'
 import { writeVerbose } from '../../logging.js'
 import { prepareMarkdownForTerminal } from '../../markdown.js'
-import { markdownRenderWidth, supportsColor, isRichTty } from '../../terminal.js'
-import { buildExtractFinishLabel, buildLengthPartsForFinishLine, writeFinishLine } from '../../finish-line.js'
-import type { ExtractedLinkContent } from '../../../content/index.js'
+import { runModelAttempts } from '../../model-attempts.js'
+import { buildOpenRouterNoAllowedProvidersMessage } from '../../openrouter.js'
+import { isRichTty, markdownRenderWidth, supportsColor } from '../../terminal.js'
 import type { ModelAttempt } from '../../types.js'
-import type { UrlFlowContext } from './types.js'
 import type { UrlExtractionUi } from './extract.js'
+import type { UrlFlowContext } from './types.js'
 
 export function buildUrlPrompt({
   extracted,
@@ -237,7 +241,8 @@ export async function summarizeExtractedUrl({
         }
       }
       return list.map((attempt) => {
-        if (attempt.transport !== 'cli') return ctx.summaryEngine.applyZaiOverrides(attempt as ModelAttempt)
+        if (attempt.transport !== 'cli')
+          return ctx.summaryEngine.applyZaiOverrides(attempt as ModelAttempt)
         const parsed = parseCliUserModelId(attempt.userModelId)
         return { ...attempt, cliProvider: parsed.provider, cliModel: parsed.model }
       })
@@ -392,7 +397,12 @@ export async function summarizeExtractedUrl({
       ctx.writeViaFooter([...extractionUi.footerParts, 'no model'])
     }
     if (lastError instanceof Error && ctx.verbose) {
-      writeVerbose(ctx.stderr, ctx.verbose, `auto failed all models: ${lastError.message}`, ctx.verboseColor)
+      writeVerbose(
+        ctx.stderr,
+        ctx.verbose,
+        `auto failed all models: ${lastError.message}`,
+        ctx.verboseColor
+      )
     }
     return
   }

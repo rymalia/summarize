@@ -96,8 +96,7 @@ export async function handleRefreshFreeRequest({
   if (!Number.isFinite(smart) || smart < 0) throw new Error('--smart must be >= 0')
   if (!Number.isFinite(minParams) || minParams < 0)
     throw new Error('--min-params must be >= 0 (e.g. 27b)')
-  if (!Number.isFinite(maxAgeDays) || maxAgeDays < 0)
-    throw new Error('--max-age-days must be >= 0')
+  if (!Number.isFinite(maxAgeDays) || maxAgeDays < 0) throw new Error('--max-age-days must be >= 0')
 
   await refreshFree({
     env: envForRun,

@@ -1,25 +1,22 @@
 import type { ModelMessage } from 'ai'
-import { convertToMarkdownWithMarkitdown } from '../../../markitdown.js'
-import {
-  buildFileSummaryPrompt,
-  buildFileTextSummaryPrompt,
-} from '../../../prompts/index.js'
+import type { OutputLanguage } from '../../../language.js'
 import { parseGatewayStyleModelId } from '../../../llm/model-id.js'
+import { convertToMarkdownWithMarkitdown } from '../../../markitdown.js'
+import type { FixedModelSpec } from '../../../model-spec.js'
+import { buildFileSummaryPrompt, buildFileTextSummaryPrompt } from '../../../prompts/index.js'
+import type { SummaryLength } from '../../../shared/contracts.js'
 import { formatBytes } from '../../../tty/format.js'
 import {
+  type AssetAttachment,
   assertProviderSupportsAttachment,
   buildAssetPromptPayload,
   getFileBytesFromAttachment,
   getTextContentFromAttachment,
   shouldMarkitdownConvertMediaType,
-  type AssetAttachment,
 } from '../../attachments.js'
 import { MAX_TEXT_BYTES_DEFAULT } from '../../constants.js'
 import { hasUvxCli } from '../../env.js'
 import { withUvxTip } from '../../tips.js'
-import type { FixedModelSpec } from '../../../model-spec.js'
-import type { OutputLanguage } from '../../../language.js'
-import type { SummaryLength } from '../../../shared/contracts.js'
 
 export type AssetPreprocessContext = {
   env: Record<string, string | undefined>

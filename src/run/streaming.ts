@@ -12,7 +12,10 @@ function commonPrefixLength(a: string, b: string, limit = 4096): number {
 }
 
 // Streaming APIs sometimes resend partial output; stitch using prefix/overlap heuristics.
-export function mergeStreamingChunk(previous: string, chunk: string): { next: string; appended: string } {
+export function mergeStreamingChunk(
+  previous: string,
+  chunk: string
+): { next: string; appended: string } {
   if (!chunk) return { next: previous, appended: '' }
   const prev = normalizeStreamText(previous)
   const nextChunk = normalizeStreamText(chunk)

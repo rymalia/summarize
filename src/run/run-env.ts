@@ -1,4 +1,4 @@
-import type { SummarizeConfig, CliProvider } from '../config.js'
+import type { CliProvider, SummarizeConfig } from '../config.js'
 import { resolveCliAvailability, resolveExecutableInPath } from './env.js'
 
 export type EnvState = {
@@ -95,8 +95,7 @@ export function resolveEnvState({
   const openaiTranscriptionKey = openaiKeyRaw?.trim() ?? null
   const googleConfigured = typeof googleApiKey === 'string' && googleApiKey.length > 0
   const anthropicConfigured = typeof anthropicApiKey === 'string' && anthropicApiKey.length > 0
-  const openrouterConfigured =
-    typeof openrouterApiKey === 'string' && openrouterApiKey.length > 0
+  const openrouterConfigured = typeof openrouterApiKey === 'string' && openrouterApiKey.length > 0
   const cliAvailability = resolveCliAvailability({ env, config: configForCli })
   const envForAuto = openrouterApiKey ? { ...env, OPENROUTER_API_KEY: openrouterApiKey } : env
 

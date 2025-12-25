@@ -1,8 +1,13 @@
 import fs from 'node:fs/promises'
-import { classifyUrl, loadLocalAsset, loadRemoteAsset, type InputTarget } from '../../../content/asset.js'
+import {
+  classifyUrl,
+  type InputTarget,
+  loadLocalAsset,
+  loadRemoteAsset,
+} from '../../../content/asset.js'
+import { formatBytes } from '../../../tty/format.js'
 import { startOscProgress } from '../../../tty/osc-progress.js'
 import { startSpinner } from '../../../tty/spinner.js'
-import { formatBytes } from '../../../tty/format.js'
 import { assertAssetMediaTypeSupported } from '../../attachments.js'
 import type { SummarizeAssetArgs } from './summary.js'
 
