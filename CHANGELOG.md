@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- Streaming: pad live max-rows and use tail redraw to avoid scrollback duplication while streaming Markdown.
+
+### Changed
+
+- Dev: pin `markdansi` to the local repo to pick up tail redraw support.
+
 ## 0.6.1 - 2025-12-25
 
 ### Changes

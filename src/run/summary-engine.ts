@@ -373,6 +373,9 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
       getLastStreamError = streamResult.lastError
       let streamed = ''
       let liveOverflowed = false
+      const terminalRows = terminalHeight(deps.stdout, deps.env)
+      const maxLiveRows = Math.max(3, terminalRows - 1)
+      const tailLiveRows = Math.max(1, Math.min(maxLiveRows - 1, Math.max(6, terminalRows - 2)))
       const liveRenderer = shouldLiveRenderSummary
         ? createLiveRenderer({
             write: (chunk) => {
@@ -388,9 +391,9 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
                 hyperlinks: true,
               }),
             // markdansi supports tailRows/maxRows at runtime; typings lag behind.
-            tailRows: Math.max(12, terminalHeight(deps.stdout, deps.env) - 2),
-            maxRows: terminalHeight(deps.stdout, deps.env),
-            clearOnOverflow: true,
+            tailRows: tailLiveRows,
+            maxRows: maxLiveRows,
+            clearOnOverflow: false,
             clearScrollbackOnOverflow: false,
             onOverflow: () => {
               liveOverflowed = true
