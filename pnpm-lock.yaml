@@ -73,8 +73,8 @@ importers:
         specifier: ^21.1.1
         version: 21.1.1
       markdansi:
-        specifier: file:../markdansi
-        version: file:../markdansi
+        specifier: github:steipete/Markdansi#ce2268316b6f3aacf0cef1c563847e995e8c4760
+        version: https://codeload.github.com/steipete/Markdansi/tar.gz/ce2268316b6f3aacf0cef1c563847e995e8c4760
       mime:
         specifier: ^4.1.0
         version: 4.1.0
@@ -1018,8 +1018,9 @@ packages:
     resolution: {integrity: sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==}
     engines: {node: '>=10'}
 
-  markdansi@file:../markdansi:
-    resolution: {directory: ../markdansi, type: directory}
+  markdansi@https://codeload.github.com/steipete/Markdansi/tar.gz/ce2268316b6f3aacf0cef1c563847e995e8c4760:
+    resolution: {tarball: https://codeload.github.com/steipete/Markdansi/tar.gz/ce2268316b6f3aacf0cef1c563847e995e8c4760}
+    version: 0.1.8
     engines: {node: '>=22'}
     hasBin: true
 
@@ -2305,7 +2306,7 @@ snapshots:
     dependencies:
       semver: 7.7.3
 
-  markdansi@file:../markdansi:
+  markdansi@https://codeload.github.com/steipete/Markdansi/tar.gz/ce2268316b6f3aacf0cef1c563847e995e8c4760:
     dependencies:
       chalk: 5.6.2
       mdast-util-from-markdown: 2.0.2
