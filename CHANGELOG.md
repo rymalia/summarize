@@ -8,6 +8,7 @@
 - Streaming: lock live render width and tighten tail rows to reduce duplicate lines while scrolling.
 - Streaming: re-render full summary on completion so tail mode doesn’t truncate output.
 - Streaming: append when frames are prefix-only so scrollback grows during stable streaming.
+- Twitter/X: rotate Nitter hosts and skip Anubis PoW pages during tweet fallback.
 
 ### Changed
 

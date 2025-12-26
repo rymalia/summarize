@@ -8,6 +8,7 @@ const NITTER_HOSTS = [
 ]
 const TWITTER_BLOCKED_TEXT_PATTERN =
   /something went wrong|try again|privacy related extensions|please disable them and try again/i
+const ANUBIS_TOKENS = ['anubis', 'proof-of-work', 'proof of work', 'hashcash', 'jshelter']
 
 export function isTwitterStatusUrl(url: string): boolean {
   try {
@@ -55,4 +56,11 @@ export function toNitterUrls(url: string): string[] {
 export function isBlockedTwitterContent(content: string): boolean {
   if (!content) return false
   return TWITTER_BLOCKED_TEXT_PATTERN.test(content)
+}
+
+export function isAnubisHtml(html: string): boolean {
+  if (!html) return false
+  const lower = html.toLowerCase()
+  if (!lower.includes('anubis')) return false
+  return ANUBIS_TOKENS.some((token) => lower.includes(token))
 }

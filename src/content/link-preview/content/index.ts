@@ -9,7 +9,12 @@ import { buildResultFromFirecrawl, shouldFallbackToFirecrawl } from './firecrawl
 import { buildResultFromHtmlDocument } from './html.js'
 import { extractApplePodcastIds, extractSpotifyEpisodeId } from './podcast-utils.js'
 import { extractReadabilityFromHtml } from './readability.js'
-import { isBlockedTwitterContent, isTwitterStatusUrl, toNitterUrls } from './twitter-utils.js'
+import {
+  isAnubisHtml,
+  isBlockedTwitterContent,
+  isTwitterStatusUrl,
+  toNitterUrls,
+} from './twitter-utils.js'
 import type { ExtractedLinkContent, FetchLinkContentOptions, MarkdownMode } from './types.js'
 import {
   appendNote,
@@ -288,6 +293,11 @@ export async function fetchLinkContent(
         const nitterHtml = await fetchHtmlDocument(deps.fetch, nitterUrl, { timeoutMs })
         if (!nitterHtml.trim()) {
           nitterError = new Error(`Nitter returned empty body from ${new URL(nitterUrl).host}`)
+          deps.onProgress?.({ kind: 'nitter-done', url: nitterUrl, ok: false, textBytes: null })
+          continue
+        }
+        if (isAnubisHtml(nitterHtml)) {
+          nitterError = new Error(`Nitter returned Anubis challenge from ${new URL(nitterUrl).host}`)
           deps.onProgress?.({ kind: 'nitter-done', url: nitterUrl, ok: false, textBytes: null })
           continue
         }
