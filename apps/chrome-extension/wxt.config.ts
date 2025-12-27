@@ -4,7 +4,7 @@ export default defineConfig({
   srcDir: 'src',
   manifest: {
     name: 'Summarize',
-    description: 'Summarize the current tab in a side panel (local daemon).',
+    description: 'Summarize what you see. Articles, threads, YouTube, podcasts — anything.',
     version: '0.1.0',
     icons: {
       16: 'assets/icon-16.png',
