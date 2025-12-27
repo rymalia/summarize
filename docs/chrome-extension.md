@@ -77,9 +77,11 @@ The daemon decides the best pipeline:
 
 - Settings:
   - Model preset: `auto` | `free` | custom string (e.g. `openai/gpt-5-mini`, `openrouter/...`).
+  - Length: `short|medium|long|xl|xxl` (or a character target like `20k`).
+  - Language: `auto` (match source) or a tag like `en`, `de`, `pt-BR` (or free-form like “German”).
   - Auto summarize: on/off.
   - Typography: font family (dropdown + custom), font size (slider).
-- Extension includes current settings in request; daemon treats it like CLI flags (model override only).
+- Extension includes current settings in request; daemon treats them like CLI flags (`--model`, `--length`, `--language`).
 
 ## Token Pairing / Setup Mode
 

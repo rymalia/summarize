@@ -9,6 +9,7 @@
 ### Features
 
 - Chrome: add a real **Side Panel** extension (MV3) that summarizes the **current tab** and renders streamed Markdown.
+- Chrome Side Panel: add `--length` + `--language` settings (presets + custom) forwarded to the daemon.
 - Daemon: add `summarize daemon …` (LaunchAgent-backed localhost server on `127.0.0.1:8787`) for extension ↔ CLI integration.
   - Token pairing (shared secret)
   - Streaming over SSE
