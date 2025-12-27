@@ -39,10 +39,17 @@ Dev (repo checkout):
 ## Data Flow
 
 1) User opens side panel (click extension icon).
-2) Background notices panel connected.
-3) On nav/tab change (and auto enabled): background asks content script to extract `{ url, title, text }`.
+2) Panel sends a “ready” message to the background (plus periodic “ping” heartbeats while open).
+3) On nav/tab change (and auto enabled): background asks the content script to extract `{ url, title, text }`.
 4) Background `POST`s payload to daemon `/v1/summarize` with `Authorization: Bearer <token>`.
 5) Panel opens `/v1/summarize/<id>/events` (SSE) and renders streamed Markdown.
+
+## URL Mode (YouTube / Video Pages)
+
+Some pages (e.g. YouTube videos) require daemon-side processing (transcripts, yt-dlp, Whisper).
+
+- For normal articles: background sends extracted **text** (`mode: "page"`).
+- For video pages: background sends the **URL only** (`mode: "url"`) and lets the daemon handle extraction/transcripts.
 
 ## SPA Navigation
 
@@ -86,11 +93,19 @@ Problem: daemon must be secured; extension must discover and pair with it.
   - Requires auth; returns `{ ok: true }`
 - `POST /v1/summarize`
   - Headers: `Authorization: Bearer <token>`
-  - Body: `{ url, title, text, truncated, model?: string }`
+  - Body:
+    - `url: string` (required)
+    - `title: string | null`
+    - `model?: string` (e.g. `auto`, `free`, `openai/gpt-5-mini`, ...)
+    - `mode?: "page" | "url"` (default: `"page"`)
+    - `maxCharacters?: number | null` (URL mode only; caps extraction before summarization)
+    - `text?: string` (required for `mode: "page"`)
+    - `truncated?: boolean` (page mode only; indicates text was shortened)
   - 200 JSON: `{ ok: true, id }`
 - `GET /v1/summarize/:id/events` (SSE)
   - `event: chunk` `data: { text }`
   - `event: meta` `data: { model }`
+  - `event: status` `data: { text }` (progress messages before output starts)
   - `event: metrics` `data: { elapsedMs, summary, details, summaryDetailed, detailsDetailed }`
   - `event: done` `data: {}`
   - `event: error` `data: { message }`
