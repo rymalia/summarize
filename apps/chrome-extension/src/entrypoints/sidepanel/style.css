@@ -2,43 +2,25 @@
   color-scheme: light dark;
   accent-color: auto;
 
-  --bg0: #080a0f;
-  --bg1: #0e1220;
-  --bg2: #06070b;
-  --panel: rgba(16, 19, 34, 0.9);
-  --surface: rgba(8, 10, 15, 0.55);
-  --border: rgba(255, 255, 255, 0.09);
-  --text: #eef0ff;
-  --muted: rgba(238, 240, 255, 0.68);
-  --accent: #f3c67a;
+  --bg0: Canvas;
+  --bg1: Canvas;
+  --bg2: Canvas;
+  --panel: Canvas;
+  --surface: Canvas;
+  --border: ButtonBorder;
+  --text: CanvasText;
+  --muted: GrayText;
+  --accent: AccentColor;
   --ui-focus: Highlight;
   --ui-link: LinkText;
 
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-  --btn-bg: rgba(10, 12, 20, 0.7);
-  --btn-border: rgba(255, 255, 255, 0.12);
-  --field-bg: rgba(10, 12, 20, 0.35);
+  --shadow: none;
+  --btn-bg: ButtonFace;
+  --btn-border: ButtonBorder;
+  --field-bg: Field;
 
   --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
   --font-size: 14px;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg0: #f7f7fb;
-    --bg1: #ffffff;
-    --bg2: #eef1f7;
-    --panel: rgba(255, 255, 255, 0.9);
-    --surface: rgba(255, 255, 255, 0.65);
-    --border: rgba(12, 18, 40, 0.12);
-    --text: #0d1220;
-    --muted: rgba(13, 18, 32, 0.84);
-    --accent: #c07d18;
-    --shadow: 0 12px 32px rgba(6, 10, 25, 0.12);
-    --btn-bg: rgba(255, 255, 255, 0.86);
-    --btn-border: rgba(12, 18, 40, 0.14);
-    --field-bg: rgba(255, 255, 255, 0.86);
-  }
 }
 
 * {
@@ -51,11 +33,7 @@ body {
 }
 
 html {
-  background:
-    radial-gradient(900px 520px at 18% -10%, rgba(255, 255, 255, 0.06), transparent 55%),
-    radial-gradient(900px 520px at 92% 10%, rgba(243, 198, 122, 0.14), transparent 55%),
-    linear-gradient(180deg, var(--bg1) 0%, var(--bg0) 60%, var(--bg2) 100%);
-  background-attachment: fixed;
+  background: Canvas;
 }
 
 body {
@@ -64,7 +42,7 @@ body {
   font-family: var(--font-body);
   font-size: var(--font-size);
   min-height: 100vh;
-  background: transparent;
+  background: Canvas;
 }
 
 header {
