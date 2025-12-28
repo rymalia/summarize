@@ -356,7 +356,7 @@ body {
 main {
   max-width: 880px;
   margin: 0 auto;
-  padding: 24px 18px 40px;
+  padding: 14px 18px 24px;
 }
 
 .top {
@@ -364,7 +364,7 @@ main {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 0 16px;
+  margin: 0 0 10px;
 }
 
 .buildInfo {
@@ -381,8 +381,8 @@ h1 {
 
 form {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 8px;
+  padding: 10px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--panel);
@@ -403,7 +403,7 @@ details.advanced {
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
-  padding: 10px 12px;
+  padding: 6px 10px;
 }
 
 details.advanced > summary {
@@ -433,8 +433,8 @@ details.advanced[open] > summary::after {
 
 .advancedGrid {
   display: grid;
-  gap: 14px;
-  margin-top: 12px;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 #pickersRoot {
@@ -443,7 +443,7 @@ details.advanced[open] > summary::after {
 
 label {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
 label > span {
@@ -468,7 +468,7 @@ select {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 10px 10px;
+  padding: 6px 10px;
   border-radius: 12px;
   outline: none;
   font-family: var(--mono);
@@ -499,7 +499,7 @@ select {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 10px 30px 10px 10px;
+  padding: 6px 28px 6px 10px;
   border-radius: 12px;
   display: inline-flex;
   align-items: center;
@@ -682,26 +682,26 @@ select:focus {
 }
 
 textarea {
-  min-height: 120px;
+  min-height: 72px;
   resize: vertical;
 }
 
 .combo {
   display: grid;
-  gap: 8px;
+  gap: 5px;
 }
 
 .row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   color: var(--text);
 }
 
 .buttons {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 button {
@@ -709,7 +709,7 @@ button {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  padding: 10px 12px;
+  padding: 7px 12px;
   border-radius: 12px;
   font-weight: 800;
   cursor: pointer;
