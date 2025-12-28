@@ -3,6 +3,9 @@ import { defaultSettings, loadSettings, saveSettings } from '../../lib/settings'
 import { applyTheme, type ColorMode, type ColorScheme } from '../../lib/theme'
 import { mountOptionsPickers } from './pickers'
 
+declare const __SUMMARIZE_GIT_HASH__: string
+declare const __SUMMARIZE_VERSION__: string
+
 function byId<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id)
   if (!el) throw new Error(`Missing #${id}`)
@@ -23,9 +26,24 @@ const maxCharsEl = byId<HTMLInputElement>('maxChars')
 const pickersRoot = byId<HTMLDivElement>('pickersRoot')
 const fontFamilyEl = byId<HTMLInputElement>('fontFamily')
 const fontSizeEl = byId<HTMLInputElement>('fontSize')
+const buildInfoEl = document.getElementById('buildInfo')
 
 const setStatus = (text: string) => {
   statusEl.textContent = text
+}
+
+const setBuildInfo = () => {
+  if (!buildInfoEl) return
+  const version =
+    typeof __SUMMARIZE_VERSION__ === 'string' && __SUMMARIZE_VERSION__
+      ? __SUMMARIZE_VERSION__
+      : chrome?.runtime?.getManifest?.().version
+  const hash = typeof __SUMMARIZE_GIT_HASH__ === 'string' ? __SUMMARIZE_GIT_HASH__ : ''
+  const parts: string[] = []
+  if (version) parts.push(`v${version}`)
+  if (hash && hash !== 'unknown') parts.push(hash)
+  buildInfoEl.textContent = parts.join(' · ')
+  buildInfoEl.toggleAttribute('hidden', parts.length === 0)
 }
 
 function setDefaultModelPresets() {
@@ -231,4 +249,5 @@ formEl.addEventListener('submit', (e) => {
   })()
 })
 
+setBuildInfo()
 void load()

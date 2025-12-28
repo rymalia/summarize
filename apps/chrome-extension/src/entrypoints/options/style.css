@@ -367,6 +367,12 @@ main {
   margin: 0 0 16px;
 }
 
+.buildInfo {
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--mono);
+}
+
 h1 {
   margin: 0;
   font-size: 18px;

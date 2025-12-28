@@ -1,8 +1,34 @@
+import { execSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { defineConfig } from 'wxt'
+
+const extensionVersion = (() => {
+  try {
+    const raw = readFileSync(new URL('../../package.json', import.meta.url), 'utf8')
+    const parsed = JSON.parse(raw) as { version?: unknown }
+    return typeof parsed.version === 'string' ? parsed.version : '0.0.0'
+  } catch {
+    return '0.0.0'
+  }
+})()
+
+const gitHash = (() => {
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] })
+      .toString()
+      .trim()
+  } catch {
+    return 'unknown'
+  }
+})()
 
 export default defineConfig({
   srcDir: 'src',
   vite: () => ({
+    define: {
+      __SUMMARIZE_VERSION__: JSON.stringify(extensionVersion),
+      __SUMMARIZE_GIT_HASH__: JSON.stringify(gitHash),
+    },
     resolve: {
       alias: {
         react: 'preact/compat',
@@ -16,7 +42,7 @@ export default defineConfig({
     name: 'Summarize',
     description: 'Summarize what you see. Articles, threads, YouTube, podcasts — anything.',
     homepage_url: 'https://summarize.sh',
-    version: '0.1.0',
+    version: extensionVersion,
     icons: {
       16: 'assets/icon-16.png',
       32: 'assets/icon-32.png',
