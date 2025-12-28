@@ -270,6 +270,7 @@ export async function runDaemonServer({
         const languageRaw = typeof obj.language === 'string' ? obj.language.trim() : ''
         const promptRaw = typeof obj.prompt === 'string' ? obj.prompt : ''
         const promptOverride = promptRaw.trim() || null
+        const noCache = Boolean(obj.noCache)
         const modeRaw = typeof obj.mode === 'string' ? obj.mode.trim().toLowerCase() : ''
         const mode: DaemonRequestedMode =
           modeRaw === 'url' ? 'url' : modeRaw === 'page' ? 'page' : 'auto'
@@ -328,6 +329,10 @@ export async function runDaemonServer({
             const normalizedModelOverride =
               modelOverride && modelOverride.toLowerCase() !== 'auto' ? modelOverride : null
 
+            const requestCache = noCache
+              ? { ...cacheState, mode: 'bypass', store: null }
+              : cacheState
+
             const runWithMode = async (resolved: 'url' | 'page') => {
               return resolved === 'url'
                 ? await streamSummaryForUrl({
@@ -339,7 +344,7 @@ export async function runDaemonServer({
                     languageRaw,
                     input: { url: pageUrl, title, maxCharacters },
                     sink,
-                    cache: cacheState,
+                    cache: requestCache,
                   })
                 : await streamSummaryForVisiblePage({
                     env,
@@ -350,7 +355,7 @@ export async function runDaemonServer({
                     languageRaw,
                     input: { url: pageUrl, title, text: textContent, truncated },
                     sink,
-                    cache: cacheState,
+                    cache: requestCache,
                   })
             }
 
