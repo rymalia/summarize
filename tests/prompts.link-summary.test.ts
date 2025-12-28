@@ -84,7 +84,10 @@ describe('buildLinkSummaryPrompt', () => {
     )
     expect(prompt).toContain('append a brief subsection titled "What sharers are saying"')
     expect(prompt).toContain(
-      'Use plain paragraphs separated by single blank lines. No headings or bullet lists.'
+      'Use Markdown paragraphs separated by single blank lines. Headings and bullet lists are allowed when helpful.'
+    )
+    expect(prompt).toContain(
+      'Prefer Markdown structure (short headings or bullet lists) when it improves scanability'
     )
   })
 
