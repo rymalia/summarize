@@ -1,4 +1,4 @@
-import { normalizeProps, useMachine } from '@zag-js/react'
+import { normalizeProps, useMachine } from '@zag-js/preact'
 import * as select from '@zag-js/select'
 import { useEffect, useMemo, useRef } from 'preact/hooks'
 
