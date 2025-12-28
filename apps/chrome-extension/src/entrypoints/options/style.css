@@ -388,6 +388,12 @@ form {
   background: var(--panel);
 }
 
+.pageFooter {
+  margin-top: 10px;
+  text-align: center;
+  padding: 6px 10px;
+}
+
 .section {
   display: grid;
   gap: 8px;
