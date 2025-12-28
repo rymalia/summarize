@@ -593,8 +593,13 @@ function updateControls(state: UiState) {
       onLengthChange: pickerHandlers.onLengthChange,
     })
   }
-  if (currentSource && state.tab.url && state.tab.url !== currentSource.url && !streaming) {
-    currentSource = null
+  if (currentSource && !streaming) {
+    if (state.tab.url && state.tab.url !== currentSource.url) {
+      currentSource = null
+    } else if (state.tab.title && state.tab.title !== currentSource.title) {
+      currentSource = { ...currentSource, title: state.tab.title }
+      setBaseTitle(state.tab.title)
+    }
   }
   if (!currentSource) {
     lastMeta = { inputSummary: null, model: null, modelLabel: null }

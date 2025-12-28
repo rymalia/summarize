@@ -18,6 +18,32 @@ type ExtensionHarness = {
   userDataDir: string
 }
 
+type UiState = {
+  panelOpen: boolean
+  daemon: { ok: boolean; authed: boolean; error?: string }
+  tab: { url: string | null; title: string | null }
+  settings: { autoSummarize: boolean; model: string; length: string; tokenPresent: boolean }
+  status: string
+}
+
+const defaultUiState: UiState = {
+  panelOpen: true,
+  daemon: { ok: true, authed: true },
+  tab: { url: null, title: null },
+  settings: { autoSummarize: true, model: 'auto', length: 'xl', tokenPresent: true },
+  status: '',
+}
+
+function buildUiState(overrides: Partial<UiState>): UiState {
+  return {
+    ...defaultUiState,
+    ...overrides,
+    daemon: { ...defaultUiState.daemon, ...overrides.daemon },
+    tab: { ...defaultUiState.tab, ...overrides.tab },
+    settings: { ...defaultUiState.settings, ...overrides.settings },
+  }
+}
+
 function filterAllowed(errors: string[]) {
   return errors.filter((message) => !consoleErrorAllowlist.some((pattern) => pattern.test(message)))
 }
@@ -72,6 +98,30 @@ async function launchExtension(): Promise<ExtensionHarness> {
     consoleErrors: [],
     userDataDir,
   }
+}
+
+async function sendBgMessage(harness: ExtensionHarness, message: object) {
+  const background =
+    harness.context.serviceWorkers()[0] ??
+    (await harness.context.waitForEvent('serviceworker', { timeout: 15_000 }))
+  await background.evaluate((payload) => {
+    chrome.runtime.sendMessage(payload)
+  }, message)
+}
+
+async function sendPanelMessage(page: Page, message: object) {
+  await page.evaluate((payload) => {
+    chrome.runtime.sendMessage(payload)
+  }, message)
+}
+
+async function seedSettings(harness: ExtensionHarness, settings: Record<string, unknown>) {
+  const background =
+    harness.context.serviceWorkers()[0] ??
+    (await harness.context.waitForEvent('serviceworker', { timeout: 15_000 }))
+  await background.evaluate((payload) => {
+    chrome.storage.local.set({ settings: payload })
+  }, settings)
 }
 
 async function openExtensionPage(
@@ -182,6 +232,116 @@ test('sidepanel custom length input accepts typing', async () => {
     await expect(customInput).toHaveValue('20k')
     await expect(customInput).toBeFocused()
 
+    assertNoErrors(harness)
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir)
+  }
+})
+
+test('sidepanel updates title after stream when tab title changes', async () => {
+  const harness = await launchExtension()
+
+  try {
+    const page = await openExtensionPage(harness, 'sidepanel.html', '#title')
+    const sseBody = [
+      'event: meta',
+      'data: {"model":"test"}',
+      '',
+      'event: chunk',
+      'data: {"text":"Hello world"}',
+      '',
+      'event: done',
+      'data: {}',
+      '',
+    ].join('\n')
+
+    await page.route('http://127.0.0.1:8787/v1/summarize/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' },
+        body: sseBody,
+      })
+    })
+
+    await sendBgMessage(harness, {
+      type: 'run:start',
+      run: {
+        id: 'run-1',
+        url: 'https://example.com/video',
+        title: 'Original Title',
+        model: 'auto',
+        reason: 'manual',
+      },
+    })
+
+    await expect(page.locator('#title')).toHaveText('Original Title')
+    await expect(page.locator('#render')).toContainText('Hello world')
+
+    await sendBgMessage(harness, {
+      type: 'ui:state',
+      state: buildUiState({
+        tab: { url: 'https://example.com/video', title: 'Updated Title' },
+        status: '',
+      }),
+    })
+
+    await expect(page.locator('#title')).toHaveText('Updated Title')
+    assertNoErrors(harness)
+  } finally {
+    await closeExtension(harness.context, harness.userDataDir)
+  }
+})
+
+test('auto summarize reruns after panel reopen', async () => {
+  const harness = await launchExtension()
+
+  try {
+    let summarizeCalls = 0
+    await harness.context.route('http://127.0.0.1:8787/v1/summarize', async (route) => {
+      summarizeCalls += 1
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ok: true, id: `run-${summarizeCalls}` }),
+      })
+    })
+
+    const sseBody = [
+      'event: chunk',
+      'data: {"text":"First chunk"}',
+      '',
+      'event: done',
+      'data: {}',
+      '',
+    ].join('\n')
+    await harness.context.route(
+      /http:\/\/127\.0\.0\.1:8787\/v1\/summarize\/[^/]+\/events/,
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          headers: { 'content-type': 'text/event-stream' },
+          body: sseBody,
+        })
+      }
+    )
+
+    await seedSettings(harness, { token: 'test-token', autoSummarize: true })
+
+    const contentPage = await harness.context.newPage()
+    await contentPage.goto('https://example.com', { waitUntil: 'domcontentloaded' })
+    await contentPage.bringToFront()
+
+    const panel = await openExtensionPage(harness, 'sidepanel.html', '#title')
+    await contentPage.bringToFront()
+    await sendPanelMessage(panel, { type: 'panel:ready' })
+
+    await expect.poll(() => summarizeCalls).toBe(1)
+
+    await sendPanelMessage(panel, { type: 'panel:closed' })
+    await contentPage.bringToFront()
+    await sendPanelMessage(panel, { type: 'panel:ready' })
+
+    await expect.poll(() => summarizeCalls).toBe(2)
     assertNoErrors(harness)
   } finally {
     await closeExtension(harness.context, harness.userDataDir)

@@ -327,6 +327,10 @@ export default defineBackground(() => {
     switch (type) {
       case 'panel:ready':
         panelLastPingAt = Date.now()
+        lastSummarizedUrl = null
+        inflightUrl = null
+        runController?.abort()
+        runController = null
         void emitState('')
         void summarizeActiveTab('panel-open')
         break
@@ -335,6 +339,7 @@ export default defineBackground(() => {
         panelLastPingAt = 0
         runController?.abort()
         runController = null
+        lastSummarizedUrl = null
         inflightUrl = null
         break
       case 'panel:summarize':
@@ -393,6 +398,9 @@ export default defineBackground(() => {
   })
 
   chrome.tabs.onUpdated.addListener((_tabId, changeInfo) => {
+    if (typeof changeInfo.title === 'string' || typeof changeInfo.url === 'string') {
+      void emitState('')
+    }
     if (changeInfo.status === 'complete') {
       void emitState('')
       void summarizeActiveTab('tab-updated')
