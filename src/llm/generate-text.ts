@@ -351,7 +351,9 @@ export async function generateTextWithModelId({
 
   const isOpenaiGpt5 = parsed.provider === 'openai' && /^gpt-5([-.].+)?$/i.test(parsed.model)
   const effectiveTemperature =
-    typeof temperature === 'number' && !(isOpenaiGpt5 && temperature === 0) ? temperature : undefined
+    typeof temperature === 'number' && !(isOpenaiGpt5 && temperature === 0)
+      ? temperature
+      : undefined
 
   const maxRetries = Math.max(0, retries)
   let attempt = 0
