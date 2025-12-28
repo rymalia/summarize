@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
+import type { CacheState } from '../cache.js'
 import { loadSummarizeConfig } from '../config.js'
 import { createCacheStateFromConfig, refreshCacheStoreIfMissing } from '../run/cache-state.js'
 import { formatModelLabelForDisplay } from '../run/finish-line.js'
@@ -329,8 +330,8 @@ export async function runDaemonServer({
             const normalizedModelOverride =
               modelOverride && modelOverride.toLowerCase() !== 'auto' ? modelOverride : null
 
-            const requestCache = noCache
-              ? { ...cacheState, mode: 'bypass', store: null }
+            const requestCache: CacheState = noCache
+              ? { ...cacheState, mode: 'bypass' as const, store: null }
               : cacheState
 
             const runWithMode = async (resolved: 'url' | 'page') => {
