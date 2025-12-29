@@ -14,7 +14,6 @@ import type { ChatMessage, PanelPhase, PanelState, RunStart, UiState } from './t
 type PanelToBg =
   | { type: 'panel:ready' }
   | { type: 'panel:summarize'; refresh?: boolean }
-  | { type: 'panel:startChat' }
   | { type: 'panel:chat'; messages: Array<{ role: 'user' | 'assistant'; content: string }> }
   | { type: 'panel:ping' }
   | { type: 'panel:closed' }
@@ -22,12 +21,6 @@ type PanelToBg =
   | { type: 'panel:setAuto'; value: boolean }
   | { type: 'panel:setLength'; value: string }
   | { type: 'panel:openOptions' }
-
-type ChatReadyPayload = {
-  url: string
-  title: string | null
-  transcript: string
-}
 
 type ChatStartPayload = {
   id: string
@@ -39,7 +32,6 @@ type BgToPanel =
   | { type: 'ui:status'; status: string }
   | { type: 'run:start'; run: RunStart }
   | { type: 'run:error'; message: string }
-  | { type: 'chat:ready'; payload: ChatReadyPayload }
   | { type: 'chat:start'; payload: ChatStartPayload }
 
 function byId<T extends HTMLElement>(id: string): T {
@@ -61,7 +53,6 @@ const metricsHomeEl = byId<HTMLDivElement>('metricsHome')
 const chatMetricsSlotEl = byId<HTMLDivElement>('chatMetricsSlot')
 
 const summarizeBtn = byId<HTMLButtonElement>('summarize')
-const chatBtn = byId<HTMLButtonElement>('chat')
 const drawerToggleBtn = byId<HTMLButtonElement>('drawerToggle')
 const refreshBtn = byId<HTMLButtonElement>('refresh')
 const advancedBtn = byId<HTMLButtonElement>('advanced')
@@ -75,7 +66,6 @@ const chatContainerEl = byId<HTMLElement>('chatContainer')
 const chatMessagesEl = byId<HTMLDivElement>('chatMessages')
 const chatInputEl = byId<HTMLTextAreaElement>('chatInput')
 const chatSendBtn = byId<HTMLButtonElement>('chatSend')
-const chatBackBtn = byId<HTMLButtonElement>('chatBack')
 const chatContextStatusEl = byId<HTMLDivElement>('chatContextStatus')
 
 const md = new MarkdownIt({
@@ -91,10 +81,8 @@ const panelState: PanelState = {
   summaryFromCache: null,
   phase: 'idle',
   error: null,
-  inChatMode: false,
   chatMessages: [],
   chatStreaming: false,
-  chatTranscript: null,
 }
 let drawerAnimation: Animation | null = null
 let autoValue = false
@@ -190,9 +178,6 @@ function resetSummaryView() {
   renderEl.innerHTML = ''
   clearMetricsForMode('summary')
   panelState.summaryFromCache = null
-  if (panelState.inChatMode) {
-    exitChatMode()
-  }
   resetChatState()
 }
 
@@ -211,6 +196,12 @@ window.addEventListener('unhandledrejection', (event) => {
 })
 
 function renderMarkdown(markdown: string) {
+  if (chatEnabledValue) {
+    upsertSummaryMessage(markdown)
+    renderEl.innerHTML = ''
+    renderEl.classList.add('hidden')
+    return
+  }
   try {
     renderEl.innerHTML = md.render(markdown)
   } catch (err) {
@@ -546,12 +537,9 @@ function syncHoverToggle() {
 }
 
 function applyChatEnabled() {
-  chatBtn.toggleAttribute('hidden', !chatEnabledValue)
+  chatContainerEl.toggleAttribute('hidden', !chatEnabledValue)
+  renderEl.classList.toggle('hidden', chatEnabledValue)
   if (!chatEnabledValue) {
-    chatContainerEl.classList.add('hidden')
-    if (panelState.inChatMode) {
-      exitChatMode()
-    }
     clearMetricsForMode('chat')
     resetChatState()
   }
@@ -562,7 +550,8 @@ function getChatHistoryKey(tabId: number) {
 }
 
 function compactChatHistory(messages: ChatMessage[]): ChatMessage[] {
-  const filtered = messages.filter((msg) => msg.content.trim().length > 0)
+  const summary = messages.find((msg) => msg.kind === 'summary') ?? null
+  const filtered = messages.filter((msg) => msg.kind !== 'summary' && msg.content.trim().length > 0)
   const trimmed: ChatMessage[] = []
   let totalChars = 0
   for (let i = filtered.length - 1; i >= 0; i -= 1) {
@@ -573,22 +562,39 @@ function compactChatHistory(messages: ChatMessage[]): ChatMessage[] {
     trimmed.push(msg)
     totalChars += len
   }
-  return trimmed.reverse()
+  const result = trimmed.reverse()
+  return summary ? [summary, ...result] : result
 }
 
 function computeChatContextUsage(messages: ChatMessage[]) {
-  const totalChars = messages.reduce((sum, msg) => sum + msg.content.length, 0)
+  const relevant = messages.filter(
+    (msg) => msg.kind !== 'summary' && msg.content.trim().length > 0
+  )
+  const totalChars = relevant.reduce((sum, msg) => sum + msg.content.length, 0)
   const percent = Math.min(100, Math.round((totalChars / MAX_CHAT_CHARACTERS) * 100))
-  return { totalChars, percent, totalMessages: messages.length }
+  return { totalChars, percent, totalMessages: relevant.length }
+}
+
+function hasUserChatMessage() {
+  return panelState.chatMessages.some(
+    (msg) => msg.kind !== 'summary' && msg.role === 'user' && msg.content.trim().length > 0
+  )
+}
+
+function updateChatVisibility() {
+  const hasMessages = panelState.chatMessages.length > 0
+  chatMessagesEl.classList.toggle('isHidden', !hasMessages)
 }
 
 function updateChatContextStatus() {
   const usage = computeChatContextUsage(panelState.chatMessages)
-  if (!panelState.inChatMode || !chatEnabledValue) {
+  if (!chatEnabledValue || !hasUserChatMessage()) {
     chatContextStatusEl.textContent = ''
     chatContextStatusEl.removeAttribute('data-state')
+    chatContextStatusEl.classList.add('isHidden')
     return
   }
+  chatContextStatusEl.classList.remove('isHidden')
   chatContextStatusEl.textContent = `Context ${usage.percent}% · ${usage.totalMessages} msgs · ${usage.totalChars.toLocaleString()} chars`
   if (usage.percent >= 85) {
     chatContextStatusEl.dataset.state = 'warn'
@@ -645,6 +651,7 @@ async function persistChatHistory() {
     }
   }
   chatHistoryCache.set(tabId, compacted)
+  updateChatVisibility()
   updateChatContextStatus()
   const store = chrome.storage?.session
   if (!store) return
@@ -661,11 +668,13 @@ async function restoreChatHistory() {
   const loadId = (chatHistoryLoadId += 1)
   const history = await loadChatHistory(tabId)
   if (loadId !== chatHistoryLoadId || !history?.length) return
-  panelState.chatMessages = history
+  const compacted = compactChatHistory(history)
+  panelState.chatMessages = compacted
   chatMessagesEl.innerHTML = ''
-  for (const message of history) {
+  for (const message of compacted) {
     renderChatMessage(message)
   }
+  updateChatVisibility()
   updateChatContextStatus()
 }
 
@@ -700,6 +709,7 @@ const streamController = createStreamController({
     clearMetricsForMode('summary')
     panelState.summaryFromCache = null
     panelState.lastMeta = { inputSummary: null, model: null, modelLabel: null }
+    resetChatState()
   },
   onStatus: (text) => headerController.setStatus(text),
   onBaseTitle: (text) => headerController.setBaseTitle(text),
@@ -741,6 +751,7 @@ const streamController = createStreamController({
       panelState.lastMeta.inputSummary,
       panelState.currentSource?.url ?? null
     )
+    setActiveMetricsMode('summary')
   },
   onRender: renderMarkdown,
   onSyncWithActiveTab: syncWithActiveTab,
@@ -991,9 +1002,6 @@ function updateControls(state: UiState) {
     const previousTabId = activeTabId
     activeTabId = nextTabId
     activeTabUrl = nextTabUrl
-    if (panelState.inChatMode) {
-      exitChatMode()
-    }
     resetChatState()
     if (!tabChanged && urlChanged) {
       void clearChatHistoryForTab(previousTabId)
@@ -1014,6 +1022,9 @@ function updateControls(state: UiState) {
   syncHoverToggle()
   chatEnabledValue = state.settings.chatEnabled
   applyChatEnabled()
+  if (chatEnabledValue && activeTabId && panelState.chatMessages.length === 0) {
+    void restoreChatHistory()
+  }
   if (pickerSettings.length !== state.settings.length) {
     pickerSettings = { ...pickerSettings, length: state.settings.length }
     lengthPicker.update({
@@ -1066,22 +1077,19 @@ function handleBgMessage(msg: BgToPanel) {
       }
       return
     case 'run:start':
-      if (panelState.inChatMode) {
-        exitChatMode()
+      if (panelState.chatStreaming) {
+        chatStreamController.abort()
       }
       void clearChatHistoryForActiveTab()
+      resetChatState()
+      setActiveMetricsMode('summary')
       panelState.currentSource = { url: msg.run.url, title: msg.run.title }
       panelState.lastMeta = { inputSummary: null, model: null, modelLabel: null }
       void streamController.start(msg.run)
       return
-    case 'chat:ready':
-      if (!chatEnabledValue) return
-      panelState.currentSource = { url: msg.payload.url, title: msg.payload.title }
-      panelState.chatTranscript = msg.payload.transcript
-      enterChatMode()
-      return
     case 'chat:start':
       if (!chatEnabledValue) return
+      setActiveMetricsMode('chat')
       void chatStreamController.start({
         id: msg.payload.id,
         url: msg.payload.url,
@@ -1175,73 +1183,61 @@ function toggleDrawer(force?: boolean, opts?: { animate?: boolean }) {
   }
 }
 
-function enterChatMode() {
-  if (!chatEnabledValue) return
-  panelState.inChatMode = true
-  panelState.chatMessages = []
-  panelState.chatStreaming = false
-  chatMessagesEl.innerHTML = ''
-  chatInputEl.value = ''
-  chatSendBtn.disabled = false
-
-  renderEl.classList.add('hidden')
-  setupEl.classList.add('hidden')
-  chatContainerEl.classList.remove('hidden')
-  clearMetricsForMode('chat')
-  setActiveMetricsMode('chat')
-
-  headerController.setBaseTitle('Chat')
-  headerController.setBaseSubtitle(panelState.currentSource?.title || '')
-  headerController.setStatus('')
-  updateChatContextStatus()
-  void restoreChatHistory()
-}
-
-function exitChatMode() {
+function resetChatState() {
   if (panelState.chatStreaming) {
     chatStreamController.abort()
   }
-  void persistChatHistory()
-  panelState.inChatMode = false
   panelState.chatMessages = []
   panelState.chatStreaming = false
-  panelState.chatTranscript = null
-
-  chatContainerEl.classList.add('hidden')
-  renderEl.classList.remove('hidden')
-  setActiveMetricsMode('summary')
-
-  headerController.setBaseTitle(panelState.currentSource?.title || 'Summarize')
-  headerController.setBaseSubtitle(
-    buildIdleSubtitle({
-      inputSummary: panelState.lastMeta.inputSummary,
-      modelLabel: panelState.lastMeta.modelLabel,
-      model: panelState.lastMeta.model,
-    })
-  )
-  headerController.setStatus('')
-}
-
-function resetChatState() {
-  panelState.chatMessages = []
-  panelState.chatStreaming = false
-  panelState.chatTranscript = null
   chatMessagesEl.innerHTML = ''
   chatInputEl.value = ''
   chatSendBtn.disabled = false
+  updateChatVisibility()
   updateChatContextStatus()
+}
+
+function upsertSummaryMessage(markdown: string) {
+  const existing = panelState.chatMessages.find((msg) => msg.kind === 'summary') ?? null
+  if (existing) {
+    existing.content = markdown
+    const msgEl = chatMessagesEl.querySelector(`[data-id="${existing.id}"]`)
+    if (msgEl) {
+      msgEl.innerHTML = md.render(markdown || '...')
+      for (const a of Array.from(msgEl.querySelectorAll('a'))) {
+        a.setAttribute('target', '_blank')
+        a.setAttribute('rel', 'noopener noreferrer')
+      }
+    }
+    updateChatVisibility()
+    return
+  }
+
+  const message: ChatMessage = {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: markdown,
+    timestamp: Date.now(),
+    kind: 'summary',
+  }
+
+  panelState.chatMessages = [message, ...panelState.chatMessages.filter((msg) => msg.kind !== 'summary')]
+  renderChatMessage(message, { prepend: true, scroll: !hasUserChatMessage() })
+  updateChatVisibility()
+  void persistChatHistory()
 }
 
 function addChatMessage(message: ChatMessage) {
   panelState.chatMessages.push(message)
   renderChatMessage(message)
+  updateChatVisibility()
   updateChatContextStatus()
   void persistChatHistory()
 }
 
-function renderChatMessage(message: ChatMessage) {
+function renderChatMessage(message: ChatMessage, opts?: { prepend?: boolean; scroll?: boolean }) {
   const msgEl = document.createElement('div')
-  msgEl.className = `chatMessage ${message.role}`
+  const kindClass = message.kind === 'summary' ? ' summary' : ''
+  msgEl.className = `chatMessage ${message.role}${kindClass}`
   msgEl.dataset.id = message.id
 
   if (message.role === 'assistant') {
@@ -1254,13 +1250,19 @@ function renderChatMessage(message: ChatMessage) {
     msgEl.textContent = message.content
   }
 
-  chatMessagesEl.appendChild(msgEl)
-  chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight
+  if (opts?.prepend) {
+    chatMessagesEl.prepend(msgEl)
+  } else {
+    chatMessagesEl.appendChild(msgEl)
+  }
+  if (opts?.scroll !== false) {
+    chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight
+  }
 }
 
 function updateStreamingMessage(content: string) {
   const lastMsg = panelState.chatMessages[panelState.chatMessages.length - 1]
-  if (lastMsg?.role === 'assistant') {
+  if (lastMsg?.role === 'assistant' && lastMsg.kind !== 'summary') {
     lastMsg.content = content
     const msgEl = chatMessagesEl.querySelector(`[data-id="${lastMsg.id}"]`)
     if (msgEl) {
@@ -1282,7 +1284,7 @@ function finishStreamingMessage() {
   chatInputEl.focus()
 
   const lastMsg = panelState.chatMessages[panelState.chatMessages.length - 1]
-  if (lastMsg?.role === 'assistant') {
+  if (lastMsg?.role === 'assistant' && lastMsg.kind !== 'summary') {
     const msgEl = chatMessagesEl.querySelector(`[data-id="${lastMsg.id}"]`)
     if (msgEl) {
       msgEl.classList.remove('streaming')
@@ -1320,21 +1322,16 @@ function sendChatMessage() {
   send({
     type: 'panel:chat',
     messages: panelState.chatMessages
-      .filter((m) => m.content.length > 0)
+      .filter((m) => m.kind !== 'summary' && m.content.length > 0)
       .map((m) => ({ role: m.role, content: m.content })),
   })
 }
 
 summarizeBtn.addEventListener('click', () => send({ type: 'panel:summarize' }))
-chatBtn.addEventListener('click', () => {
-  if (!chatEnabledValue) return
-  send({ type: 'panel:startChat' })
-})
 refreshBtn.addEventListener('click', () => send({ type: 'panel:summarize', refresh: true }))
 drawerToggleBtn.addEventListener('click', () => toggleDrawer())
 advancedBtn.addEventListener('click', () => send({ type: 'panel:openOptions' }))
 
-chatBackBtn.addEventListener('click', exitChatMode)
 chatSendBtn.addEventListener('click', sendChatMessage)
 chatInputEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) {

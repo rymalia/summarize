@@ -9,7 +9,6 @@ import { parseSseStream } from '../lib/sse'
 type PanelToBg =
   | { type: 'panel:ready' }
   | { type: 'panel:summarize'; refresh?: boolean }
-  | { type: 'panel:startChat' }
   | { type: 'panel:chat'; messages: Array<{ role: 'user' | 'assistant'; content: string }> }
   | { type: 'panel:ping' }
   | { type: 'panel:closed' }
@@ -26,12 +25,6 @@ type RunStart = {
   reason: string
 }
 
-type ChatReadyPayload = {
-  url: string
-  title: string | null
-  transcript: string
-}
-
 type ChatStartPayload = {
   id: string
   url: string
@@ -42,7 +35,6 @@ type BgToPanel =
   | { type: 'ui:status'; status: string }
   | { type: 'run:start'; run: RunStart }
   | { type: 'run:error'; message: string }
-  | { type: 'chat:ready'; payload: ChatReadyPayload }
   | { type: 'chat:start'; payload: ChatStartPayload }
 
 type HoverToBg =
@@ -254,6 +246,79 @@ export default defineBackground(() => {
       return null
     }
     return cached
+  }
+
+  const ensureChatExtract = async (
+    tab: chrome.tabs.Tab,
+    settings: Awaited<ReturnType<typeof loadSettings>>
+  ) => {
+    if (!tab.id || !tab.url) {
+      throw new Error('Cannot chat on this page')
+    }
+
+    const cached = getCachedExtract(tab.id, tab.url)
+    if (cached) return cached
+
+    if (!shouldPreferUrlMode(tab.url)) {
+      const extractedAttempt = await extractFromTab(tab.id, settings.maxChars)
+      if (extractedAttempt.ok) {
+        const extracted = extractedAttempt.data
+        const text = extracted.text.trim()
+        if (text.length >= MIN_CHAT_CHARS) {
+          const next = {
+            url: extracted.url,
+            title: extracted.title ?? tab.title?.trim() ?? null,
+            text: extracted.text,
+          }
+          cachedExtracts.set(tab.id, next)
+          return next
+        }
+      } else if (
+        extractedAttempt.error.toLowerCase().includes('chrome blocked') ||
+        extractedAttempt.error.toLowerCase().includes('failed to inject')
+      ) {
+        throw new Error(extractedAttempt.error)
+      }
+    }
+
+    sendStatus('Extracting page content…')
+    const res = await fetch('http://127.0.0.1:8787/v1/summarize', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${settings.token.trim()}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        url: tab.url,
+        mode: 'url',
+        extractOnly: true,
+        maxCharacters: settings.maxChars,
+      }),
+    })
+    const json = (await res.json()) as {
+      ok: boolean
+      extracted?: {
+        content: string
+        title: string | null
+        url: string
+        wordCount: number
+        totalCharacters: number
+        truncated: boolean
+        transcriptSource: string | null
+      }
+      error?: string
+    }
+    if (!res.ok || !json.ok || !json.extracted) {
+      throw new Error(json.error || `${res.status} ${res.statusText}`)
+    }
+
+    const next = {
+      url: json.extracted.url,
+      title: json.extracted.title,
+      text: json.extracted.content,
+    }
+    cachedExtracts.set(tab.id, next)
+    return next
   }
 
   const send = async (msg: BgToPanel) => {
@@ -528,126 +593,6 @@ export default defineBackground(() => {
               refresh: Boolean((msg as { refresh?: boolean }).refresh),
             })
             break
-          case 'panel:startChat':
-            void (async () => {
-              const settings = await loadSettings()
-              if (!settings.chatEnabled) {
-                void send({ type: 'run:error', message: 'Chat is disabled in settings' })
-                return
-              }
-              if (!settings.token.trim()) {
-                void send({ type: 'run:error', message: 'Setup required (missing token)' })
-                return
-              }
-
-              const tab = await getActiveTab()
-              if (!tab?.id || !canSummarizeUrl(tab.url)) {
-                void send({ type: 'run:error', message: 'Cannot chat on this page' })
-                return
-              }
-
-              const cached = getCachedExtract(tab.id, tab.url)
-              if (cached) {
-                void send({
-                  type: 'chat:ready',
-                  payload: {
-                    url: cached.url,
-                    title: cached.title,
-                    transcript: cached.text,
-                  },
-                })
-                sendStatus('')
-                return
-              }
-
-              if (!shouldPreferUrlMode(tab.url)) {
-                const extractedAttempt = await extractFromTab(tab.id, settings.maxChars)
-                if (extractedAttempt.ok) {
-                  const extracted = extractedAttempt.data
-                  const text = extracted.text.trim()
-                  if (text.length >= MIN_CHAT_CHARS) {
-                    const cachedExtract = {
-                      url: extracted.url,
-                      title: extracted.title ?? tab.title?.trim() ?? null,
-                      text: extracted.text,
-                    }
-                    cachedExtracts.set(tab.id, cachedExtract)
-                    void send({
-                      type: 'chat:ready',
-                      payload: {
-                        url: cachedExtract.url,
-                        title: cachedExtract.title,
-                        transcript: cachedExtract.text,
-                      },
-                    })
-                    sendStatus('')
-                    return
-                  }
-                } else if (
-                  extractedAttempt.error.toLowerCase().includes('chrome blocked') ||
-                  extractedAttempt.error.toLowerCase().includes('failed to inject')
-                ) {
-                  void send({ type: 'run:error', message: extractedAttempt.error })
-                  sendStatus(`Error: ${extractedAttempt.error}`)
-                  return
-                }
-              }
-
-              sendStatus('Extracting page content…')
-              try {
-                const res = await fetch('http://127.0.0.1:8787/v1/summarize', {
-                  method: 'POST',
-                  headers: {
-                    Authorization: `Bearer ${settings.token.trim()}`,
-                    'content-type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    url: tab.url,
-                    mode: 'url',
-                    extractOnly: true,
-                    maxCharacters: settings.maxChars,
-                  }),
-                })
-                const json = (await res.json()) as {
-                  ok: boolean
-                  extracted?: {
-                    content: string
-                    title: string | null
-                    url: string
-                    wordCount: number
-                    totalCharacters: number
-                    truncated: boolean
-                    transcriptSource: string | null
-                  }
-                  error?: string
-                }
-                if (!res.ok || !json.ok || !json.extracted) {
-                  throw new Error(json.error || `${res.status} ${res.statusText}`)
-                }
-
-                const cachedExtract = {
-                  url: json.extracted.url,
-                  title: json.extracted.title,
-                  text: json.extracted.content,
-                }
-                cachedExtracts.set(tab.id, cachedExtract)
-
-                void send({
-                  type: 'chat:ready',
-                  payload: {
-                    url: cachedExtract.url,
-                    title: cachedExtract.title,
-                    transcript: cachedExtract.text,
-                  },
-                })
-                sendStatus('')
-              } catch (err) {
-                const message = friendlyFetchError(err, 'Extraction failed')
-                void send({ type: 'run:error', message })
-                sendStatus(`Error: ${message}`)
-              }
-            })()
-            break
           case 'panel:chat':
             void (async () => {
               const settings = await loadSettings()
@@ -666,9 +611,13 @@ export default defineBackground(() => {
                 return
               }
 
-              const cachedExtract = getCachedExtract(tab.id, tab.url)
-              if (!cachedExtract) {
-                void send({ type: 'run:error', message: 'No page content available' })
+              let cachedExtract: CachedExtract
+              try {
+                cachedExtract = await ensureChatExtract(tab, settings)
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err)
+                void send({ type: 'run:error', message })
+                sendStatus(`Error: ${message}`)
                 return
               }
 

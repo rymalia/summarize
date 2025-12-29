@@ -28,6 +28,7 @@ export type ChatMessage = {
   role: 'user' | 'assistant'
   content: string
   timestamp: number
+  kind?: 'summary'
 }
 
 export type PanelState = {
@@ -37,8 +38,6 @@ export type PanelState = {
   summaryFromCache: boolean | null
   phase: PanelPhase
   error: string | null
-  inChatMode: boolean
   chatMessages: ChatMessage[]
   chatStreaming: boolean
-  chatTranscript: string | null
 }

@@ -14,7 +14,6 @@
       </div>
       <div class="controls">
         <button id="summarize" type="button" class="ghost">Summarize</button>
-        <button id="chat" type="button" class="ghost">Chat</button>
         <button id="drawerToggle" type="button" class="ghost icon" aria-label="Settings">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -58,8 +57,8 @@
       </div>
       <pre id="raw" class="raw hidden"></pre>
 
-      <section id="chatContainer" class="chatContainer hidden">
-        <div id="chatMessages" class="chatMessages"></div>
+      <section id="chatContainer" class="chatContainer">
+        <div id="chatMessages" class="chatMessages isHidden"></div>
         <div class="chatInputRow">
           <textarea id="chatInput" class="chatInput" placeholder="Ask about this page..." rows="1"></textarea>
           <button id="chatSend" type="button" class="ghost chatSendBtn" aria-label="Send">
@@ -68,9 +67,8 @@
             </svg>
           </button>
         </div>
-        <div id="chatContextStatus" class="chatContextStatus"></div>
+        <div id="chatContextStatus" class="chatContextStatus isHidden"></div>
         <div id="chatMetricsSlot" class="chatMetricsSlot"></div>
-        <button id="chatBack" type="button" class="ghost chatBackBtn">Back to Summary</button>
       </section>
     </main>
 
