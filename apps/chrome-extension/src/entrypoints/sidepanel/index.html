@@ -64,7 +64,6 @@
       <details id="advancedSettings" class="drawerAdvanced">
         <summary>Advanced</summary>
         <div class="drawerAdvancedBody">
-          <div id="autoToggle" class="toggleRow"></div>
           <label class="wide">
             <span>Model</span>
             <div id="modelRow" class="combo modelRow">
@@ -88,11 +87,14 @@
             </div>
             <div id="modelStatus" class="modelStatus" role="status" aria-live="polite"></div>
           </label>
-          <div class="drawerActions drawerAdvancedActions">
-            <button id="refresh" type="button" class="ghost" title="Refresh (Shift+Enter)">
-              Refresh
-            </button>
-            <button id="advanced" type="button" class="ghost">Advanced…</button>
+          <div class="drawerAdvancedRow">
+            <div id="autoToggle" class="toggleRow"></div>
+            <div class="drawerActions drawerAdvancedActions">
+              <button id="refresh" type="button" class="ghost" title="Refresh (Shift+Enter)">
+                Refresh
+              </button>
+              <button id="advanced" type="button" class="ghost">Advanced…</button>
+            </div>
           </div>
         </div>
       </details>

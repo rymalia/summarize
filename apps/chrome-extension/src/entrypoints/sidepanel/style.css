@@ -764,7 +764,7 @@ button.ghost:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: 100%;
+  width: auto;
   min-width: 0;
   color: var(--text);
   font-size: 12px;
@@ -883,6 +883,16 @@ button.ghost:hover {
   display: grid;
   gap: 8px;
   margin-top: 10px;
+}
+
+.drawerAdvancedRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.drawerAdvancedRow .toggleRow {
+  flex: 1;
 }
 
 .drawerAdvancedActions {
