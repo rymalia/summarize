@@ -2,7 +2,7 @@ import { shouldPreferUrlMode } from '@steipete/summarize-core/content/url'
 import { defineBackground } from 'wxt/utils/define-background'
 import { parseSseEvent } from '../../../../src/shared/sse-events.js'
 import { buildChatPageContent } from '../lib/chat-context'
-import { buildDaemonRequestBody } from '../lib/daemon-payload'
+import { buildSummarizeRequestBody } from '../lib/daemon-payload'
 import { createDaemonRecovery, isDaemonUnreachableError } from '../lib/daemon-recovery'
 import { loadSettings, patchSettings } from '../lib/settings'
 import { parseSseStream } from '../lib/sse'
@@ -656,15 +656,12 @@ export default defineBackground(() => {
     inflightUrl = resolvedPayload.url
     let id: string
     try {
-      const baseBody = buildDaemonRequestBody({
+      const body = buildSummarizeRequestBody({
         extracted: resolvedPayload,
         settings,
         noCache: Boolean(opts?.refresh),
+        inputMode: opts?.inputMode,
       })
-      const body =
-        opts?.inputMode === 'video'
-          ? { ...baseBody, mode: 'url', videoMode: 'transcript' }
-          : baseBody
       const res = await fetch('http://127.0.0.1:8787/v1/summarize', {
         method: 'POST',
         headers: {

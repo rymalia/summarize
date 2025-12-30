@@ -48,3 +48,21 @@ export function buildDaemonRequestBody({
     maxCharacters: settings.maxChars,
   }
 }
+
+export function buildSummarizeRequestBody({
+  extracted,
+  settings,
+  noCache,
+  inputMode,
+}: {
+  extracted: ExtractedPage
+  settings: Settings
+  noCache?: boolean
+  inputMode?: 'page' | 'video'
+}): Record<string, unknown> {
+  const baseBody = buildDaemonRequestBody({ extracted, settings, noCache })
+  if (inputMode === 'video') {
+    return { ...baseBody, mode: 'url', videoMode: 'transcript' }
+  }
+  return baseBody
+}

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildDaemonRequestBody } from '../apps/chrome-extension/src/lib/daemon-payload.js'
+import {
+  buildDaemonRequestBody,
+  buildSummarizeRequestBody,
+} from '../apps/chrome-extension/src/lib/daemon-payload.js'
 import { defaultSettings } from '../apps/chrome-extension/src/lib/settings.js'
 
 describe('chrome/daemon-payload', () => {
@@ -67,5 +70,21 @@ describe('chrome/daemon-payload', () => {
       maxOutputTokens: '2k',
       maxCharacters: defaultSettings.maxChars,
     })
+  })
+
+  it('forces transcript video mode when inputMode=video', () => {
+    const body = buildSummarizeRequestBody({
+      extracted: {
+        url: 'https://example.com/video',
+        title: 'Video',
+        text: '',
+        truncated: false,
+      },
+      settings: defaultSettings,
+      inputMode: 'video',
+    })
+
+    expect(body.mode).toBe('url')
+    expect(body.videoMode).toBe('transcript')
   })
 })
