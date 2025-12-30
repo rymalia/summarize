@@ -538,7 +538,7 @@ header {
   position: absolute;
   right: 12px;
   top: 50%;
-  transform: translateY(-50%) rotate(45deg);
+  transform: translateY(calc(-50% - 1px)) rotate(45deg);
   pointer-events: none;
 }
 
