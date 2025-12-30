@@ -846,9 +846,7 @@ button.ghost:hover {
 }
 
 .drawerAdvanced {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
+  margin-top: 10px;
 }
 
 .drawerAdvanced summary {
@@ -885,6 +883,11 @@ button.ghost:hover {
   display: grid;
   gap: 8px;
   margin-top: 10px;
+}
+
+.drawerAdvancedActions {
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .drawerAdvanced .modelRow {
