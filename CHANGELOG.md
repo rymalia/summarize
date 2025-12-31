@@ -6,10 +6,12 @@
 
 - Transcripts: `--timestamps` adds segment-level timings (`transcriptSegments` + `transcriptTimedText`) for YouTube, podcasts, and embedded captions.
 - Chrome Side Panel chat: timestamped transcript context plus clickable `[mm:ss]` links that seek the current media.
+- Summaries: when transcript timestamps are available, prompts require timestamped bullet summaries; side panel auto-links `[mm:ss]` in summaries for media.
 
 ### Fixes
 
 - Chrome Side Panel: scope streams/state per window so other windows don’t wipe active summaries.
+- Cache: include transcript timestamp requests in extract cache keys so timed summaries don’t reuse plain transcript content.
 
 ## 0.9.0 - 2025-12-31
 
