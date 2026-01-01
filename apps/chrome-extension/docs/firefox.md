@@ -314,16 +314,16 @@ When ready for public distribution:
 
 - [x] Investigate Chrome API usage
 - [x] Document Chrome-specific APIs
-- [ ] Create WXT Firefox target configuration
+- [x] Create WXT Firefox target configuration
 - [ ] Add `sidebar_action` manifest override
 - [ ] Test sidebar rendering in Firefox
 - [ ] Verify SSE streaming works
 - [ ] Test debugger API for automation features
 - [ ] Handle userScripts gracefully if unavailable
 - [ ] Add browser compatibility test tags
-- [ ] Configure Playwright for Firefox
-- [ ] Run full test suite on Firefox build
-- [ ] Manual testing in Firefox Developer Edition
+- [x] Configure Playwright for Firefox
+- [x] Run full test suite on Firefox build
+- [x] Manual testing in Firefox Developer Edition
 - [ ] Update user-facing documentation
 
 ## References
