@@ -52,9 +52,6 @@ export async function summarizeMediaFile(
   ctx: AssetSummaryContext,
   args: SummarizeAssetArgs
 ): Promise<void> {
-  // Get file modification time for cache invalidation
-  const fileMtime = getFileModificationTime(args.sourceLabel)
-
   // Check if basic transcription setup is available
   const openaiKey = ctx.env.OPENAI_API_KEY
   const falKey = ctx.env.FAL_KEY
@@ -81,6 +78,9 @@ See: https://github.com/openai/whisper for setup details`)
 
   const absolutePath = resolvePath(args.sourceLabel)
 
+  // Get file modification time for cache invalidation (after path resolution)
+  const fileMtime = getFileModificationTime(absolutePath)
+
   // Validate file size before attempting transcription
   try {
     const stats = statSync(absolutePath)
@@ -95,10 +95,10 @@ See: https://github.com/openai/whisper for setup details`)
       const fileSizeMB = Math.round(fileSizeBytes / (1024 * 1024))
       throw new Error(`Audio file is too large (${fileSizeMB} MB). Maximum supported size is 500 MB.`)
     }
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('empty') || error.message.includes('large')) {
-      throw error // Re-throw our validation errors
-    }
+   } catch (error) {
+     if (error instanceof Error && (error.message.includes('empty') || error.message.includes('large'))) {
+       throw error // Re-throw our validation errors
+     }
     // For other statSync errors (e.g., file not found), let them bubble up
     throw new Error(`Unable to access audio file: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
@@ -178,12 +178,12 @@ See: https://github.com/openai/whisper for setup details`)
       bytes: new TextEncoder().encode(extracted.content),
     }
 
-    writeVerbose(
-      ctx.stdout,
-      false,
-      `transcription done audio file: ${extracted.diagnostics?.transcript?.provider ?? 'unknown'}`,
-      false
-    )
+     writeVerbose(
+       ctx.stderr,
+       ctx.verbose,
+       `transcription done audio file: ${extracted.diagnostics?.transcript?.provider ?? 'unknown'}`,
+       false
+     )
 
     // Call the standard asset summarization with the transcript
     const { summarizeAsset } = await import('./summary.js')

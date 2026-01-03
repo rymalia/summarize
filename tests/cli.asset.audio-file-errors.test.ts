@@ -11,6 +11,27 @@ import { describe, expect, it, vi } from 'vitest'
 import { runCli } from '../src/run.js'
 import { makeAssistantMessage, makeTextDeltaStream } from './helpers/pi-ai-mock.js'
 
+const mocks = vi.hoisted(() => ({
+  streamSimple: vi.fn(),
+  completeSimple: vi.fn(),
+  getModel: vi.fn(() => {
+    throw new Error('no model')
+  }),
+}))
+
+mocks.streamSimple.mockImplementation(() =>
+  makeTextDeltaStream(
+    ['Audio error test'],
+    makeAssistantMessage({ text: 'Audio error test', usage: { input: 50, output: 10, totalTokens: 60 } })
+  )
+)
+
+vi.mock('@mariozechner/pi-ai', () => ({
+  streamSimple: mocks.streamSimple,
+  completeSimple: mocks.completeSimple,
+  getModel: mocks.getModel,
+}))
+
 function collectStream() {
   let text = ''
   const stream = new Writable({
@@ -20,6 +41,10 @@ function collectStream() {
     },
   })
 
+  return { stream, getText: () => text }
+}
+
+describe('Audio file error handling', () => {
   it('handles non-existent audio files gracefully', async () => {
     mocks.streamSimple.mockClear()
 
