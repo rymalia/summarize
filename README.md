@@ -4,9 +4,10 @@ Fast summaries from URLs, files, and media. Works in the terminal and a Chrome S
 
 ## Big features
 
-- URLs, files, and media: web pages, PDFs, images, audio/video, YouTube, podcasts, RSS.
+- URLs, files, and media: web pages, PDFs, images, local audio files (MP3, WAV, M4A, OGG, FLAC), YouTube, podcasts, RSS.
 - Real extraction pipeline: fetch -> clean -> Markdown (readability + markitdown), Firecrawl fallback when blocked.
 - Transcript-first media flow: published transcripts when available, Whisper fallback when not.
+- Local audio transcription with intelligent caching: extract from MP3/WAV/M4A/OGG/FLAC files, cache by file modification time.
 - Streaming TTY output with Markdown rendering (markdansi) and scrollback-safe formatting.
 - Local, paid, and free models: OpenAI-compatible local endpoints, paid providers, plus an OpenRouter free preset.
 - Output modes: Markdown/text, JSON diagnostics, extract-only, metrics, timing, and cost estimates.
@@ -93,11 +94,18 @@ summarize "https://example.com"
 
 ### Inputs
 
-URLs or local paths:
+URLs or local file paths:
 
 ```bash
 summarize "/path/to/file.pdf" --model google/gemini-3-flash-preview
 summarize "https://example.com/report.pdf" --model google/gemini-3-flash-preview
+```
+
+Local audio files (automatically transcribed):
+
+```bash
+summarize "/path/to/audio.mp3"
+summarize "~/Downloads/podcast.wav"
 ```
 
 YouTube (supports `youtube.com` and `youtu.be`):
@@ -155,12 +163,23 @@ Best effort and provider-dependent. These usually work well:
   - Text-like files are inlined into the prompt for better provider compatibility.
 - PDFs: `application/pdf` (provider support varies; Google is the most reliable here)
 - Images: `image/jpeg`, `image/png`, `image/webp`, `image/gif`
-- Audio/Video: `audio/*`, `video/*` (when supported by the model)
+- **Local audio files:** `.mp3`, `.wav`, `.m4a`, `.ogg`, `.flac`
+  - Automatically transcribed using Whisper (local `whisper.cpp` preferred, OpenAI/FAL fallback)
+  - Transcripts are cached by file modification time for efficient re-processing
+- Audio/Video URLs: `audio/*`, `video/*` (YouTube, podcasts, direct media URLs)
+
+Examples:
+
+```bash
+summarize /path/to/audio.mp3 --model openai/gpt-4o-mini
+summarize /path/to/lecture.wav --language en
+```
 
 Notes:
 
 - If a provider rejects a media type, the CLI fails fast with a friendly message.
 - xAI models do not support attaching generic files (like PDFs) via the AI SDK; use Google/OpenAI/Anthropic for those.
+- Local audio files require a transcription provider: `SUMMARIZE_WHISPER_CPP_BINARY` (preferred), `OPENAI_API_KEY`, or `FAL_KEY`.
 
 ### Model ids
 
@@ -278,6 +297,38 @@ Format the extracted transcript as Markdown (headings + paragraphs) via an LLM:
 ```bash
 summarize "https://www.youtube.com/watch?v=..." --extract --format md --markdown-mode llm
 ```
+
+### Local audio file transcription
+
+Local audio files (MP3, WAV, M4A, OGG, FLAC) are automatically transcribed and summarized:
+
+```bash
+summarize /path/to/audio.mp3
+summarize ~/Downloads/podcast-episode.wav --model openai/gpt-4o-mini
+```
+
+Setup (choose one):
+
+1. **Local `whisper.cpp` (recommended, free):**
+   ```bash
+   brew install ggerganov/ggerganov/whisper-cpp
+   export SUMMARIZE_WHISPER_CPP_BINARY=/path/to/whisper-cli
+   summarize audio.mp3
+   ```
+
+2. **OpenAI Whisper:**
+   ```bash
+   export OPENAI_API_KEY=sk-...
+   summarize audio.mp3
+   ```
+
+3. **FAL Whisper:**
+   ```bash
+   export FAL_KEY=...
+   summarize audio.mp3
+   ```
+
+**Caching:** Transcripts are cached based on file modification time, so re-processing the same file is instant. Updating the file (even with the same name) automatically invalidates the cache.
 
 ### Media transcription (Whisper)
 
