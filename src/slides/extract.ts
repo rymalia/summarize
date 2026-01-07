@@ -11,6 +11,7 @@ import type { SlideSettings } from './settings.js'
 import type { SlideAutoTune, SlideExtractionResult, SlideImage, SlideSource } from './types.js'
 
 const FFMPEG_TIMEOUT_FALLBACK_MS = 300_000
+const slidesLocks = new Map<string, Promise<void>>()
 const YT_DLP_TIMEOUT_MS = 300_000
 const TESSERACT_TIMEOUT_MS = 120_000
 const DEFAULT_SLIDES_WORKERS = 8
@@ -133,256 +134,305 @@ export async function extractSlidesForSource({
   ffmpegPath,
   tesseractPath,
 }: ExtractSlidesArgs): Promise<SlideExtractionResult> {
-  const warnings: string[] = []
-  const workers = resolveSlidesWorkers(env)
-  const totalStartedAt = Date.now()
-  logSlides(
-    `pipeline=ingest(sequential)->scene-detect(parallel:${workers})->extract-frames(parallel:${workers})->ocr(parallel:${workers})`
-  )
-
-  const ffmpegBinary = ffmpegPath ?? resolveExecutableInPath('ffmpeg', env)
-  if (!ffmpegBinary) {
-    throw new Error('Missing ffmpeg (install ffmpeg or add it to PATH).')
-  }
-  const ffprobeBinary = resolveExecutableInPath('ffprobe', env)
-
-  if (settings.ocr && !tesseractPath) {
-    const resolved = resolveExecutableInPath('tesseract', env)
-    if (!resolved) {
-      throw new Error('Missing tesseract OCR (install tesseract or skip --slides-ocr).')
-    }
-    tesseractPath = resolved
-  }
-
   const slidesDir = path.join(settings.outputDir, source.sourceId)
-  {
-    const prepareStartedAt = Date.now()
-    await prepareSlidesDir(slidesDir)
-    logSlidesTiming('prepare output dir', prepareStartedAt)
-  }
-
-  let detectionInputPath = source.url
-  let detectionCleanup: (() => Promise<void>) | null = null
-  let extractionCleanup: (() => Promise<void>) | null = null
-  let detectionUsesStream = false
-
-  if (source.kind === 'youtube') {
-    if (!ytDlpPath) {
-      throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
+  return withSlidesLock(slidesDir, async () => {
+    const cached = await readSlidesCacheIfValid({ slidesDir, source, settings })
+    if (cached) {
+      return cached
     }
-    const ytDlp = ytDlpPath
-    const format = resolveSlidesYtDlpDetectFormat(env)
-    const streamStartedAt = Date.now()
-    try {
-      const streamUrl = await resolveYoutubeStreamUrl({
-        ytDlpPath: ytDlp,
-        url: source.url,
-        format,
-        timeoutMs,
-      })
-      detectionInputPath = streamUrl
-      detectionUsesStream = true
-      logSlidesTiming(`yt-dlp stream url (detect, format=${format})`, streamStartedAt)
-    } catch (error) {
-      warnings.push(`Failed to resolve detection stream URL: ${String(error)}`)
-      const downloadStartedAt = Date.now()
-      const downloaded = await downloadYoutubeVideo({
-        ytDlpPath: ytDlp,
-        url: source.url,
-        timeoutMs,
-        format,
-      })
-      detectionInputPath = downloaded.filePath
-      detectionCleanup = downloaded.cleanup
-      logSlidesTiming(`yt-dlp download (detect, format=${format})`, downloadStartedAt)
-    }
-  }
 
-  try {
-    const ffmpegStartedAt = Date.now()
-    const detect = async () =>
-      detectSlideTimestamps({
-        ffmpegPath: ffmpegBinary,
-        ffprobePath: ffprobeBinary,
-        inputPath: detectionInputPath,
-        sceneThreshold: settings.sceneThreshold,
-        autoTuneThreshold: settings.autoTuneThreshold,
-        env,
-        timeoutMs,
-        warnings,
-        workers,
-        sampleCount: resolveSlidesSampleCount(env),
-      })
-    let detection: Awaited<ReturnType<typeof detect>>
-    try {
-      detection = await detect()
-      logSlidesTiming('ffmpeg scene-detect', ffmpegStartedAt)
-    } catch (error) {
-      if (source.kind !== 'youtube' || !detectionUsesStream) {
-        throw error
+    const warnings: string[] = []
+    const workers = resolveSlidesWorkers(env)
+    const totalStartedAt = Date.now()
+    logSlides(
+      `pipeline=ingest(sequential)->scene-detect(parallel:${workers})->extract-frames(parallel:${workers})->ocr(parallel:${workers})`
+    )
+
+    const ffmpegBinary = ffmpegPath ?? resolveExecutableInPath('ffmpeg', env)
+    if (!ffmpegBinary) {
+      throw new Error('Missing ffmpeg (install ffmpeg or add it to PATH).')
+    }
+    const ffprobeBinary = resolveExecutableInPath('ffprobe', env)
+
+    if (settings.ocr && !tesseractPath) {
+      const resolved = resolveExecutableInPath('tesseract', env)
+      if (!resolved) {
+        throw new Error('Missing tesseract OCR (install tesseract or skip --slides-ocr).')
       }
-      warnings.push(`Scene detection failed on stream URL; retrying download: ${String(error)}`)
-      if (!ytDlpPath) {
-        throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
-      }
-      const format = resolveSlidesYtDlpDetectFormat(env)
-      const downloadStartedAt = Date.now()
-      const downloaded = await downloadYoutubeVideo({
-        ytDlpPath,
-        url: source.url,
-        timeoutMs,
-        format,
-      })
-      detectionInputPath = downloaded.filePath
-      detectionCleanup = downloaded.cleanup
-      detectionUsesStream = false
-      logSlidesTiming(`yt-dlp download (detect, format=${format})`, downloadStartedAt)
-      const retryStartedAt = Date.now()
-      detection = await detect()
-      logSlidesTiming('ffmpeg scene-detect (retry)', retryStartedAt)
+      tesseractPath = resolved
     }
 
-    if (source.kind === 'youtube' && detectionUsesStream && detection.timestamps.length === 0) {
-      warnings.push('Scene detection returned zero timestamps on stream URL; retrying download.')
-      if (!ytDlpPath) {
-        throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
-      }
-      const format = resolveSlidesYtDlpDetectFormat(env)
-      const downloadStartedAt = Date.now()
-      const downloaded = await downloadYoutubeVideo({
-        ytDlpPath,
-        url: source.url,
-        timeoutMs,
-        format,
-      })
-      detectionInputPath = downloaded.filePath
-      detectionCleanup = downloaded.cleanup
-      detectionUsesStream = false
-      logSlidesTiming(`yt-dlp download (detect, format=${format})`, downloadStartedAt)
-      const retryStartedAt = Date.now()
-      detection = await detect()
-      logSlidesTiming('ffmpeg scene-detect (retry)', retryStartedAt)
+    {
+      const prepareStartedAt = Date.now()
+      await prepareSlidesDir(slidesDir)
+      logSlidesTiming('prepare output dir', prepareStartedAt)
     }
 
-    if (detection.timestamps.length === 0) {
-      throw new Error('No slides detected; try adjusting slide extraction settings.')
-    }
+    let detectionInputPath = source.url
+    let detectionCleanup: (() => Promise<void>) | null = null
+    let extractionCleanup: (() => Promise<void>) | null = null
+    let detectionUsesStream = false
 
-    let extractionInputPath = detectionInputPath
     if (source.kind === 'youtube') {
       if (!ytDlpPath) {
         throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
       }
-      const extractionFormat = resolveSlidesYtDlpExtractFormat(env)
-      const detectionFormat = resolveSlidesYtDlpDetectFormat(env)
-      if (resolveSlidesExtractStream(env)) {
-        const streamStartedAt = Date.now()
-        try {
-          const streamUrl = await resolveYoutubeStreamUrl({
+      const ytDlp = ytDlpPath
+      const format = resolveSlidesYtDlpDetectFormat(env)
+      const streamStartedAt = Date.now()
+      try {
+        const streamUrl = await resolveYoutubeStreamUrl({
+          ytDlpPath: ytDlp,
+          url: source.url,
+          format,
+          timeoutMs,
+        })
+        detectionInputPath = streamUrl
+        detectionUsesStream = true
+        logSlidesTiming(`yt-dlp stream url (detect, format=${format})`, streamStartedAt)
+      } catch (error) {
+        warnings.push(`Failed to resolve detection stream URL: ${String(error)}`)
+        const downloadStartedAt = Date.now()
+        const downloaded = await downloadYoutubeVideo({
+          ytDlpPath: ytDlp,
+          url: source.url,
+          timeoutMs,
+          format,
+        })
+        detectionInputPath = downloaded.filePath
+        detectionCleanup = downloaded.cleanup
+        logSlidesTiming(`yt-dlp download (detect, format=${format})`, downloadStartedAt)
+      }
+    }
+
+    try {
+      const ffmpegStartedAt = Date.now()
+      const detect = async () =>
+        detectSlideTimestamps({
+          ffmpegPath: ffmpegBinary,
+          ffprobePath: ffprobeBinary,
+          inputPath: detectionInputPath,
+          sceneThreshold: settings.sceneThreshold,
+          autoTuneThreshold: settings.autoTuneThreshold,
+          env,
+          timeoutMs,
+          warnings,
+          workers,
+          sampleCount: resolveSlidesSampleCount(env),
+        })
+      let detection: Awaited<ReturnType<typeof detect>>
+      try {
+        detection = await detect()
+        logSlidesTiming('ffmpeg scene-detect', ffmpegStartedAt)
+      } catch (error) {
+        if (source.kind !== 'youtube' || !detectionUsesStream) {
+          throw error
+        }
+        warnings.push(`Scene detection failed on stream URL; retrying download: ${String(error)}`)
+        if (!ytDlpPath) {
+          throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
+        }
+        const format = resolveSlidesYtDlpDetectFormat(env)
+        const downloadStartedAt = Date.now()
+        const downloaded = await downloadYoutubeVideo({
+          ytDlpPath,
+          url: source.url,
+          timeoutMs,
+          format,
+        })
+        detectionInputPath = downloaded.filePath
+        detectionCleanup = downloaded.cleanup
+        detectionUsesStream = false
+        logSlidesTiming(`yt-dlp download (detect, format=${format})`, downloadStartedAt)
+        const retryStartedAt = Date.now()
+        detection = await detect()
+        logSlidesTiming('ffmpeg scene-detect (retry)', retryStartedAt)
+      }
+
+      if (source.kind === 'youtube' && detectionUsesStream && detection.timestamps.length === 0) {
+        warnings.push('Scene detection returned zero timestamps on stream URL; retrying download.')
+        if (!ytDlpPath) {
+          throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
+        }
+        const format = resolveSlidesYtDlpDetectFormat(env)
+        const downloadStartedAt = Date.now()
+        const downloaded = await downloadYoutubeVideo({
+          ytDlpPath,
+          url: source.url,
+          timeoutMs,
+          format,
+        })
+        detectionInputPath = downloaded.filePath
+        detectionCleanup = downloaded.cleanup
+        detectionUsesStream = false
+        logSlidesTiming(`yt-dlp download (detect, format=${format})`, downloadStartedAt)
+        const retryStartedAt = Date.now()
+        detection = await detect()
+        logSlidesTiming('ffmpeg scene-detect (retry)', retryStartedAt)
+      }
+
+      if (detection.timestamps.length === 0) {
+        throw new Error('No slides detected; try adjusting slide extraction settings.')
+      }
+
+      let extractionInputPath = detectionInputPath
+      let extractionUsesStream = detectionUsesStream
+      if (source.kind === 'youtube') {
+        if (!ytDlpPath) {
+          throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
+        }
+        const extractionFormat = resolveSlidesYtDlpExtractFormat(env)
+        const detectionFormat = resolveSlidesYtDlpDetectFormat(env)
+        if (resolveSlidesExtractStream(env)) {
+          const streamStartedAt = Date.now()
+          try {
+            const streamUrl = await resolveYoutubeStreamUrl({
+              ytDlpPath,
+              url: source.url,
+              format: extractionFormat,
+              timeoutMs,
+            })
+            extractionInputPath = streamUrl
+            extractionUsesStream = true
+            logSlidesTiming(
+              `yt-dlp stream url (extract, format=${extractionFormat})`,
+              streamStartedAt
+            )
+          } catch (error) {
+            warnings.push(`Failed to resolve stream URL: ${String(error)}`)
+          }
+        }
+
+        if (extractionInputPath === detectionInputPath && extractionFormat !== detectionFormat) {
+          const extractDownloadStartedAt = Date.now()
+          const extracted = await downloadYoutubeVideo({
             ytDlpPath,
             url: source.url,
-            format: extractionFormat,
             timeoutMs,
+            format: extractionFormat,
           })
-          extractionInputPath = streamUrl
+          extractionInputPath = extracted.filePath
+          extractionCleanup = extracted.cleanup
+          extractionUsesStream = false
           logSlidesTiming(
-            `yt-dlp stream url (extract, format=${extractionFormat})`,
-            streamStartedAt
+            `yt-dlp download (extract, format=${extractionFormat})`,
+            extractDownloadStartedAt
           )
-        } catch (error) {
-          warnings.push(`Failed to resolve stream URL: ${String(error)}`)
         }
       }
 
-      if (extractionInputPath === detectionInputPath && extractionFormat !== detectionFormat) {
+      const combined = mergeTimestamps(detection.timestamps, [], settings.minDurationSeconds)
+      const trimmed = applyMaxSlidesFilter(
+        combined.map((timestamp, index) => ({ index: index + 1, timestamp, imagePath: '' })),
+        settings.maxSlides,
+        warnings
+      )
+
+      const extractFrames = async () =>
+        extractFramesAtTimestamps({
+          ffmpegPath: ffmpegBinary,
+          inputPath: extractionInputPath,
+          outputDir: slidesDir,
+          timestamps: trimmed.map((slide) => slide.timestamp),
+          timeoutMs,
+          workers,
+        })
+      const extractFramesStartedAt = Date.now()
+      let extractedSlides: SlideImage[]
+      try {
+        extractedSlides = await extractFrames()
+      } catch (error) {
+        if (source.kind !== 'youtube' || !extractionUsesStream) {
+          throw error
+        }
+        warnings.push(`Frame extraction failed on stream URL; retrying download: ${String(error)}`)
+        if (!ytDlpPath) {
+          throw new Error('Slides for YouTube require yt-dlp (set YT_DLP_PATH or install yt-dlp).')
+        }
+        const extractionFormat = resolveSlidesYtDlpExtractFormat(env)
         const extractDownloadStartedAt = Date.now()
-        const extracted = await downloadYoutubeVideo({
+        const downloaded = await downloadYoutubeVideo({
           ytDlpPath,
           url: source.url,
           timeoutMs,
           format: extractionFormat,
         })
-        extractionInputPath = extracted.filePath
-        extractionCleanup = extracted.cleanup
+        if (extractionCleanup) {
+          await extractionCleanup()
+        }
+        extractionCleanup = downloaded.cleanup
+        extractionInputPath = downloaded.filePath
+        extractionUsesStream = false
+        await prepareSlidesDir(slidesDir)
         logSlidesTiming(
-          `yt-dlp download (extract, format=${extractionFormat})`,
+          `yt-dlp download (extract retry, format=${extractionFormat})`,
           extractDownloadStartedAt
         )
+        const retryStartedAt = Date.now()
+        extractedSlides = await extractFrames()
+        logSlidesTiming('extract frames (retry)', retryStartedAt)
+      }
+      const extractElapsedMs = logSlidesTiming(
+        `extract frames (count=${trimmed.length}, parallel=${workers})`,
+        extractFramesStartedAt
+      )
+      if (trimmed.length > 0) {
+        logSlides(`extract frames avgMsPerFrame=${Math.round(extractElapsedMs / trimmed.length)}`)
+      }
+
+      const rawSlides = applyMinDurationFilter(
+        extractedSlides,
+        settings.minDurationSeconds,
+        warnings
+      )
+
+      const renameStartedAt = Date.now()
+      const renamedSlides = await renameSlidesWithTimestamps(rawSlides, slidesDir)
+      logSlidesTiming('rename slides', renameStartedAt)
+      if (renamedSlides.length === 0) {
+        throw new Error('No slides extracted; try lowering --slides-scene-threshold.')
+      }
+
+      let slidesWithOcr = renamedSlides
+      const ocrAvailable = Boolean(tesseractPath)
+      if (settings.ocr && tesseractPath) {
+        const ocrStartedAt = Date.now()
+        logSlides(`ocr start count=${renamedSlides.length} mode=parallel workers=${workers}`)
+        slidesWithOcr = await runOcrOnSlides(renamedSlides, tesseractPath, workers)
+        const elapsedMs = logSlidesTiming('ocr done', ocrStartedAt)
+        if (renamedSlides.length > 0) {
+          logSlides(`ocr avgMsPerSlide=${Math.round(elapsedMs / renamedSlides.length)}`)
+        }
+      }
+
+      const result: SlideExtractionResult = {
+        sourceUrl: source.url,
+        sourceKind: source.kind,
+        sourceId: source.sourceId,
+        slidesDir,
+        sceneThreshold: settings.sceneThreshold,
+        autoTuneThreshold: settings.autoTuneThreshold,
+        autoTune: detection.autoTune,
+        maxSlides: settings.maxSlides,
+        minSlideDuration: settings.minDurationSeconds,
+        ocrRequested: settings.ocr,
+        ocrAvailable,
+        slides: slidesWithOcr,
+        warnings,
+      }
+
+      await writeSlidesJson(result, slidesDir)
+      logSlidesTiming('slides total', totalStartedAt)
+      return result
+    } finally {
+      if (extractionCleanup) {
+        await extractionCleanup()
+      }
+      if (detectionCleanup) {
+        await detectionCleanup()
       }
     }
-
-    const combined = mergeTimestamps(detection.timestamps, [], settings.minDurationSeconds)
-    const trimmed = applyMaxSlidesFilter(
-      combined.map((timestamp, index) => ({ index: index + 1, timestamp, imagePath: '' })),
-      settings.maxSlides,
-      warnings
-    )
-
-    const extractFramesStartedAt = Date.now()
-    const extractedSlides = await extractFramesAtTimestamps({
-      ffmpegPath: ffmpegBinary,
-      inputPath: extractionInputPath,
-      outputDir: slidesDir,
-      timestamps: trimmed.map((slide) => slide.timestamp),
-      timeoutMs,
-      workers,
-    })
-    const extractElapsedMs = logSlidesTiming(
-      `extract frames (count=${trimmed.length}, parallel=${workers})`,
-      extractFramesStartedAt
-    )
-    if (trimmed.length > 0) {
-      logSlides(`extract frames avgMsPerFrame=${Math.round(extractElapsedMs / trimmed.length)}`)
-    }
-
-    const rawSlides = applyMinDurationFilter(extractedSlides, settings.minDurationSeconds, warnings)
-
-    const renameStartedAt = Date.now()
-    const renamedSlides = await renameSlidesWithTimestamps(rawSlides, slidesDir)
-    logSlidesTiming('rename slides', renameStartedAt)
-    if (renamedSlides.length === 0) {
-      throw new Error('No slides extracted; try lowering --slides-scene-threshold.')
-    }
-
-    let slidesWithOcr = renamedSlides
-    const ocrAvailable = Boolean(tesseractPath)
-    if (settings.ocr && tesseractPath) {
-      const ocrStartedAt = Date.now()
-      logSlides(`ocr start count=${renamedSlides.length} mode=parallel workers=${workers}`)
-      slidesWithOcr = await runOcrOnSlides(renamedSlides, tesseractPath, workers)
-      const elapsedMs = logSlidesTiming('ocr done', ocrStartedAt)
-      if (renamedSlides.length > 0) {
-        logSlides(`ocr avgMsPerSlide=${Math.round(elapsedMs / renamedSlides.length)}`)
-      }
-    }
-
-    const result: SlideExtractionResult = {
-      sourceUrl: source.url,
-      sourceKind: source.kind,
-      sourceId: source.sourceId,
-      slidesDir,
-      sceneThreshold: settings.sceneThreshold,
-      autoTuneThreshold: settings.autoTuneThreshold,
-      autoTune: detection.autoTune,
-      maxSlides: settings.maxSlides,
-      minSlideDuration: settings.minDurationSeconds,
-      ocrRequested: settings.ocr,
-      ocrAvailable,
-      slides: slidesWithOcr,
-      warnings,
-    }
-
-    await writeSlidesJson(result, slidesDir)
-    logSlidesTiming('slides total', totalStartedAt)
-    return result
-  } finally {
-    if (extractionCleanup) {
-      await extractionCleanup()
-    }
-    if (detectionCleanup) {
-      await detectionCleanup()
-    }
-  }
+  })
 }
 
 export function parseShowinfoTimestamp(line: string): number | null {
@@ -635,6 +685,10 @@ async function extractFramesAtTimestamps({
       timeoutMs,
       errorLabel: 'ffmpeg',
     })
+    const stat = await fs.stat(outputPath).catch(() => null)
+    if (!stat?.isFile() || stat.size === 0) {
+      throw new Error(`ffmpeg produced no output frame at ${outputPath}`)
+    }
     return { index: index + 1, timestamp, imagePath: outputPath }
   })
   const results = await runWithConcurrency(tasks, workers)
@@ -1187,6 +1241,64 @@ async function renameSlidesWithTimestamps(
     renamed.push({ ...slide, imagePath: nextPath })
   }
   return renamed
+}
+
+async function withSlidesLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const previous = slidesLocks.get(key) ?? Promise.resolve()
+  let release = () => {}
+  const current = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  slidesLocks.set(key, current)
+  await previous
+  try {
+    return await fn()
+  } finally {
+    release()
+    if (slidesLocks.get(key) === current) {
+      slidesLocks.delete(key)
+    }
+  }
+}
+
+async function readSlidesCacheIfValid({
+  slidesDir,
+  source,
+  settings,
+}: {
+  slidesDir: string
+  source: SlideSource
+  settings: SlideSettings
+}): Promise<SlideExtractionResult | null> {
+  const payloadPath = path.join(slidesDir, 'slides.json')
+  let raw: string
+  try {
+    raw = await fs.readFile(payloadPath, 'utf8')
+  } catch {
+    return null
+  }
+  let parsed: SlideExtractionResult
+  try {
+    parsed = JSON.parse(raw) as SlideExtractionResult
+  } catch {
+    return null
+  }
+  if (!parsed || typeof parsed !== 'object') return null
+  if (parsed.sourceId !== source.sourceId) return null
+  if (parsed.sourceKind !== source.kind) return null
+  if (parsed.sourceUrl !== source.url) return null
+  if (parsed.slidesDir !== slidesDir) return null
+  if (parsed.sceneThreshold !== settings.sceneThreshold) return null
+  if (parsed.maxSlides !== settings.maxSlides) return null
+  if (parsed.minSlideDuration !== settings.minDurationSeconds) return null
+  if (parsed.ocrRequested !== settings.ocr) return null
+  if (!Array.isArray(parsed.slides) || parsed.slides.length === 0) return null
+  for (const slide of parsed.slides) {
+    if (!slide?.imagePath) return null
+    const stat = await fs.stat(slide.imagePath).catch(() => null)
+    if (!stat?.isFile()) return null
+  }
+  return parsed
 }
 
 async function runWithConcurrency<T>(
