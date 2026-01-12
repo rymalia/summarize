@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
+import { transcribeWithOnnxCli, transcribeWithOnnxCliFile } from '../onnx-cli.js'
 import { DEFAULT_SEGMENT_SECONDS, MAX_OPENAI_UPLOAD_BYTES } from './constants.js'
 import { transcribeWithFal } from './fal.js'
 import { isFfmpegAvailable, runFfmpegSegment, transcodeBytesToMp3 } from './ffmpeg.js'
@@ -14,6 +15,14 @@ import type {
 import { ensureWhisperFilenameExtension, formatBytes, readFirstBytes, wrapError } from './utils.js'
 import { isWhisperCppReady, transcribeWithWhisperCppFile } from './whisper-cpp.js'
 
+type Env = Record<string, string | undefined>
+
+function resolveTranscriberPreference(env: Env): 'whisper' | 'parakeet' | 'canary' {
+  const raw = env.SUMMARIZE_TRANSCRIBER?.trim().toLowerCase()
+  if (raw === 'parakeet' || raw === 'canary') return raw
+  return 'whisper'
+}
+
 export async function transcribeMediaWithWhisper({
   bytes,
   mediaType,
@@ -22,6 +31,7 @@ export async function transcribeMediaWithWhisper({
   falApiKey,
   totalDurationSeconds = null,
   onProgress,
+  env = process.env,
 }: {
   bytes: Uint8Array
   mediaType: string
@@ -30,13 +40,37 @@ export async function transcribeMediaWithWhisper({
   falApiKey: string | null
   totalDurationSeconds?: number | null
   onProgress?: ((event: WhisperProgressEvent) => void) | null
+  env?: Env
 }): Promise<WhisperTranscriptionResult> {
   const notes: string[] = []
+
+  const preferredTranscriber = resolveTranscriberPreference(env)
+  if (preferredTranscriber !== 'whisper') {
+    const onnx = await transcribeWithOnnxCli({
+      model: preferredTranscriber,
+      bytes,
+      mediaType,
+      filename,
+      totalDurationSeconds,
+      onProgress,
+      env,
+    })
+    if (onnx.text) {
+      if (onnx.notes.length > 0) notes.push(...onnx.notes)
+      return { ...onnx, notes }
+    }
+    if (onnx.notes.length > 0) notes.push(...onnx.notes)
+    if (onnx.error) {
+      notes.push(
+        `${onnx.provider ?? 'onnx'} failed; falling back to Whisper: ${onnx.error.message}`
+      )
+    }
+  }
 
   const localReady = await isWhisperCppReady()
   let local: WhisperTranscriptionResult | null = null
   if (localReady) {
-    const nameHint = filename?.trim() ? filename.trim() : 'media'
+    const nameHint = filename?.trim() ? basename(filename.trim()) : 'media'
     const tempFile = join(
       tmpdir(),
       `summarize-whisper-local-${randomUUID()}-${ensureWhisperFilenameExtension(nameHint, mediaType)}`
@@ -97,6 +131,7 @@ export async function transcribeMediaWithWhisper({
           falApiKey,
           segmentSeconds: DEFAULT_SEGMENT_SECONDS,
           onProgress,
+          env,
         })
         return chunked
       } finally {
@@ -203,6 +238,7 @@ export async function transcribeMediaFileWithWhisper({
   segmentSeconds = DEFAULT_SEGMENT_SECONDS,
   totalDurationSeconds = null,
   onProgress = null,
+  env = process.env,
 }: {
   filePath: string
   mediaType: string
@@ -212,8 +248,37 @@ export async function transcribeMediaFileWithWhisper({
   segmentSeconds?: number
   totalDurationSeconds?: number | null
   onProgress?: ((event: WhisperProgressEvent) => void) | null
+  env?: Env
 }): Promise<WhisperTranscriptionResult> {
   const notes: string[] = []
+
+  const preferredTranscriber = resolveTranscriberPreference(env)
+  if (preferredTranscriber !== 'whisper') {
+    onProgress?.({
+      partIndex: null,
+      parts: null,
+      processedDurationSeconds: null,
+      totalDurationSeconds,
+    })
+    const onnx = await transcribeWithOnnxCliFile({
+      model: preferredTranscriber,
+      filePath,
+      mediaType,
+      totalDurationSeconds,
+      onProgress,
+      env,
+    })
+    if (onnx.text) {
+      if (onnx.notes.length > 0) notes.push(...onnx.notes)
+      return { ...onnx, notes }
+    }
+    if (onnx.notes.length > 0) notes.push(...onnx.notes)
+    if (onnx.error) {
+      notes.push(
+        `${onnx.provider ?? 'onnx'} failed; falling back to Whisper: ${onnx.error.message}`
+      )
+    }
+  }
 
   const localReady = await isWhisperCppReady()
   let local: WhisperTranscriptionResult | null = null
@@ -274,6 +339,7 @@ export async function transcribeMediaFileWithWhisper({
         filename,
         openaiApiKey,
         falApiKey,
+        env,
       })
       if (partial.notes.length > 0) notes.push(...partial.notes)
       return { ...partial, notes }
@@ -319,6 +385,7 @@ export async function transcribeMediaFileWithWhisper({
           openaiApiKey,
           falApiKey,
           onProgress: null,
+          env,
         })
         if (!usedProvider && result.provider) usedProvider = result.provider
         if (result.error && !result.text) {
@@ -359,6 +426,7 @@ export async function transcribeMediaFileWithWhisper({
     filename,
     openaiApiKey,
     falApiKey,
+    env,
   })
   if (result.notes.length > 0) notes.push(...result.notes)
   return { ...result, notes }

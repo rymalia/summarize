@@ -1,4 +1,3 @@
-import { isWhisperCppReady } from '../../../transcription/whisper.js'
 import { normalizeTranscriptText } from '../normalize.js'
 import type {
   ProviderContext,
@@ -7,6 +6,7 @@ import type {
   TranscriptSource,
 } from '../types.js'
 import { extractYouTubeVideoId } from '../utils.js'
+import { resolveTranscriptionAvailability } from './transcription-start.js'
 import {
   extractYoutubeiTranscriptConfig,
   fetchTranscriptFromTranscriptEndpoint,
@@ -54,8 +54,12 @@ export const fetchTranscript = async (
   }
   const mode = options.youtubeTranscriptMode
   const progress = typeof options.onProgress === 'function' ? options.onProgress : null
-  const hasLocalWhisper = await isWhisperCppReady()
-  const hasYtDlpCredentials = Boolean(options.openaiApiKey || options.falApiKey || hasLocalWhisper)
+  const transcriptionAvailability = await resolveTranscriptionAvailability({
+    env: options.env,
+    openaiApiKey: options.openaiApiKey,
+    falApiKey: options.falApiKey,
+  })
+  const hasYtDlpCredentials = transcriptionAvailability.hasAnyProvider
   // yt-dlp fallback only makes sense if we have the binary *and* some transcription path.
   const canRunYtDlp = Boolean(options.ytDlpPath && hasYtDlpCredentials)
   const pushHint = (hint: string) => {
@@ -210,6 +214,7 @@ export const fetchTranscript = async (
     attemptedProviders.push('yt-dlp')
     const ytdlpResult = await fetchTranscriptWithYtDlp({
       ytDlpPath: options.ytDlpPath,
+      env: options.env,
       openaiApiKey: options.openaiApiKey,
       falApiKey: options.falApiKey,
       url,

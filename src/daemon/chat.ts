@@ -1,6 +1,9 @@
-import type { Message } from '@mariozechner/pi-ai'
+import type { Context, Message } from '@mariozechner/pi-ai'
+import type { LlmApiKeys } from '../llm/generate-text.js'
 import { streamTextWithContext } from '../llm/generate-text.js'
 import { buildAutoModelAttempts } from '../model-auto.js'
+import { parseRequestedModelId } from '../model-spec.js'
+import { resolveEnvState } from '../run/run-env.js'
 
 type ChatSession = {
   id: string
@@ -12,18 +15,11 @@ type ChatSession = {
   }
 }
 
-type ChatRequest = {
-  env: Record<string, string | undefined>
-  fetchImpl: typeof fetch
-  session: ChatSession
-  pageUrl: string
-  pageTitle: string | null
-  pageContent: string
-  messages: Message[]
-  modelOverride: string | null
-  pushToSession: (event: { event: string } & Record<string, unknown>) => void
-  emitMeta: (patch: { model?: string | null }) => void
-}
+type ChatEvent = { event: string; data?: unknown }
+
+const SYSTEM_PROMPT = `You are Summarize Chat.
+
+You answer questions about the current page content. Keep responses concise and grounded in the page.`
 
 function normalizeMessages(messages: Message[]): Message[] {
   return messages.map((message) => ({
@@ -32,10 +28,37 @@ function normalizeMessages(messages: Message[]): Message[] {
   }))
 }
 
+function buildContext({
+  pageUrl,
+  pageTitle,
+  pageContent,
+  messages,
+}: {
+  pageUrl: string
+  pageTitle: string | null
+  pageContent: string
+  messages: Message[]
+}): Context {
+  const header = pageTitle ? `${pageTitle} (${pageUrl})` : pageUrl
+  const systemPrompt = `${SYSTEM_PROMPT}\n\nPage:\n${header}\n\nContent:\n${pageContent}`
+  return { systemPrompt, messages: normalizeMessages(messages) }
+}
+
+function resolveApiKeys(env: Record<string, string | undefined>): LlmApiKeys {
+  const envState = resolveEnvState({ env, envForRun: env, configForCli: null })
+  return {
+    xaiApiKey: envState.xaiApiKey,
+    openaiApiKey: envState.apiKey ?? envState.openaiTranscriptionKey,
+    googleApiKey: envState.googleApiKey,
+    anthropicApiKey: envState.anthropicApiKey,
+    openrouterApiKey: envState.openrouterApiKey,
+  }
+}
+
 export async function streamChatResponse({
   env,
   fetchImpl,
-  session,
+  session: _session,
   pageUrl,
   pageTitle,
   pageContent,
@@ -43,73 +66,87 @@ export async function streamChatResponse({
   modelOverride,
   pushToSession,
   emitMeta,
-}: ChatRequest): Promise<void> {
-  void session
-  void pageUrl
-  void pageTitle
-  void pageContent
+}: {
+  env: Record<string, string | undefined>
+  fetchImpl: typeof fetch
+  session: ChatSession
+  pageUrl: string
+  pageTitle: string | null
+  pageContent: string
+  messages: Message[]
+  modelOverride: string | null
+  pushToSession: (event: ChatEvent) => void
+  emitMeta: (patch: Partial<ChatSession['lastMeta']>) => void
+}) {
+  const apiKeys = resolveApiKeys(env)
+  const context = buildContext({ pageUrl, pageTitle, pageContent, messages })
 
-  const apiKeys = {
-    xaiApiKey: env.XAI_API_KEY ?? null,
-    openaiApiKey: env.OPENAI_API_KEY ?? null,
-    googleApiKey: env.GEMINI_API_KEY ?? null,
-    anthropicApiKey: env.ANTHROPIC_API_KEY ?? null,
-    openrouterApiKey: env.OPENROUTER_API_KEY ?? null,
-  }
-
-  let modelId = modelOverride ?? ''
-  let forceOpenRouter = false
-  let displayModel = modelOverride
-
-  if (modelOverride) {
-    if (modelOverride.toLowerCase().startsWith('openrouter/')) {
-      if (!apiKeys.openrouterApiKey) {
-        throw new Error('Missing OPENROUTER_API_KEY')
+  const resolveModel = () => {
+    if (modelOverride && modelOverride.trim().length > 0) {
+      const requested = parseRequestedModelId(modelOverride)
+      if (requested.kind === 'auto') {
+        return null
       }
-      modelId = modelOverride.replace(/^openrouter\//i, 'openai/')
-      forceOpenRouter = true
-    } else {
-      modelId = modelOverride
+      if (requested.transport === 'cli') {
+        throw new Error('CLI models are not supported in the daemon')
+      }
+      return {
+        userModelId: requested.userModelId,
+        modelId: requested.llmModelId,
+        forceOpenRouter: requested.forceOpenRouter,
+      }
     }
-  } else {
-    const attempts = buildAutoModelAttempts({
-      kind: 'text',
-      promptTokens: null,
-      desiredOutputTokens: null,
-      requiresVideoUnderstanding: false,
-      env,
-      config: null,
-      catalog: null,
-      openrouterProvidersFromEnv: null,
+    return null
+  }
+
+  const resolved = resolveModel()
+  if (resolved) {
+    emitMeta({ model: resolved.userModelId })
+    const result = await streamTextWithContext({
+      modelId: resolved.modelId,
+      apiKeys,
+      context,
+      timeoutMs: 30_000,
+      fetchImpl,
+      forceOpenRouter: resolved.forceOpenRouter,
     })
-    const attempt = attempts[0]
-    if (!attempt) {
-      throw new Error('No model available for chat')
+    for await (const chunk of result.textStream) {
+      pushToSession({ event: 'content', data: chunk })
     }
-    modelId = attempt.llmModelId ?? attempt.userModelId
-    forceOpenRouter = attempt.forceOpenRouter
-    displayModel = attempt.userModelId
+    pushToSession({ event: 'metrics' })
+    return
   }
 
-  emitMeta({ model: displayModel ?? null })
+  const envState = resolveEnvState({ env, envForRun: env, configForCli: null })
+  const attempts = buildAutoModelAttempts({
+    kind: 'text',
+    promptTokens: null,
+    desiredOutputTokens: null,
+    requiresVideoUnderstanding: false,
+    env: envState.envForAuto,
+    config: null,
+    catalog: null,
+    openrouterProvidersFromEnv: null,
+    cliAvailability: envState.cliAvailability,
+  })
 
-  const context = {
-    systemPrompt: undefined,
-    messages: normalizeMessages(messages),
+  const attempt = attempts.find((entry) => entry.transport !== 'cli' && entry.llmModelId)
+  if (!attempt || !attempt.llmModelId) {
+    throw new Error('No model available for chat')
   }
 
-  const { textStream } = await streamTextWithContext({
-    modelId,
+  emitMeta({ model: attempt.userModelId })
+  const result = await streamTextWithContext({
+    modelId: attempt.llmModelId,
     apiKeys,
     context,
     timeoutMs: 30_000,
     fetchImpl,
-    forceOpenRouter,
+    forceOpenRouter: attempt.forceOpenRouter,
   })
-
-  for await (const _chunk of textStream) {
-    // Streaming handled by caller; no-op for tests.
+  for await (const chunk of result.textStream) {
+    pushToSession({ event: 'content', data: chunk })
   }
-
   pushToSession({ event: 'metrics' })
+  void _session
 }

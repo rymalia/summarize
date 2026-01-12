@@ -1,5 +1,4 @@
 import { load } from 'cheerio'
-import { isWhisperCppReady } from '../../../transcription/whisper.js'
 import { isTwitterStatusUrl } from '../../link-preview/content/twitter-utils.js'
 import type { TranscriptSegment } from '../../link-preview/types.js'
 import { isDirectMediaUrl } from '../../url.js'
@@ -11,6 +10,7 @@ import {
   vttToSegments,
 } from '../parse.js'
 import type { ProviderContext, ProviderFetchOptions, ProviderResult } from '../types.js'
+import { resolveTranscriptionAvailability } from './transcription-start.js'
 
 export const canHandle = (): boolean => true
 
@@ -87,9 +87,12 @@ export const fetchTranscript = async (
     }
   }
 
-  const hasTranscriptionKeys = Boolean(options.openaiApiKey || options.falApiKey)
-  const hasLocalWhisper = await isWhisperCppReady()
-  if (!hasTranscriptionKeys && !hasLocalWhisper) {
+  const transcriptionAvailability = await resolveTranscriptionAvailability({
+    env: options.env,
+    openaiApiKey: options.openaiApiKey,
+    falApiKey: options.falApiKey,
+  })
+  if (!transcriptionAvailability.hasAnyProvider) {
     return {
       text: null,
       source: null,
@@ -115,6 +118,7 @@ export const fetchTranscript = async (
   const mod = await import('./youtube/yt-dlp.js')
   const ytdlpResult = await mod.fetchTranscriptWithYtDlp({
     ytDlpPath: options.ytDlpPath,
+    env: options.env,
     openaiApiKey: options.openaiApiKey,
     falApiKey: options.falApiKey,
     url: context.url,
@@ -333,9 +337,12 @@ async function fetchDirectMediaTranscript({
     return null
   }
 
-  const hasTranscriptionKeys = Boolean(options.openaiApiKey || options.falApiKey)
-  const hasLocalWhisper = await isWhisperCppReady()
-  if (!hasTranscriptionKeys && !hasLocalWhisper) {
+  const transcriptionAvailability = await resolveTranscriptionAvailability({
+    env: options.env,
+    openaiApiKey: options.openaiApiKey,
+    falApiKey: options.falApiKey,
+  })
+  if (!transcriptionAvailability.hasAnyProvider) {
     notes.push('Missing transcription provider (install whisper-cpp or set OPENAI_API_KEY/FAL_KEY)')
     return null
   }
@@ -345,6 +352,7 @@ async function fetchDirectMediaTranscript({
   const mod = await import('./youtube/yt-dlp.js')
   const ytdlpResult = await mod.fetchTranscriptWithYtDlp({
     ytDlpPath: options.ytDlpPath,
+    env: options.env,
     openaiApiKey: options.openaiApiKey,
     falApiKey: options.falApiKey,
     url,

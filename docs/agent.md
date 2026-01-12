@@ -19,7 +19,7 @@ Explicit exclusions (per product direction): **no update checker**, **no tutoria
 1) **Side panel** maintains the agent loop + chat UI.
 2) **Background** handles tab data, extraction, and tool execution.
 3) **Content scripts** handle element picking and native-input bridge.
-4) **Daemon** provides `/v1/agent` (single-step LLM response with tool calls).
+4) **Daemon** provides `/v1/agent` (SSE stream of chunks + final assistant message).
 
 ### Data Flow (Agent Loop)
 
@@ -29,8 +29,8 @@ Explicit exclusions (per product direction): **no update checker**, **no tutoria
   - `tools` (names)
   - `summary` (optional current summary markdown)
 - Background builds `pageContent` using the latest extract (summary + transcript/text + metadata).
-- Background calls daemon `POST /v1/agent`.
-- Daemon returns **one** assistant message (may include tool calls).
+- Background calls daemon `POST /v1/agent` (SSE).
+- Daemon streams `chunk` events, then an `assistant` event (may include tool calls).
 - Panel executes tool calls locally, appends `toolResult` messages, and repeats `/v1/agent` until no tool calls remain.
 
 The daemon **never** executes tools. It only returns the next assistant message.
@@ -60,7 +60,7 @@ Defined in `apps/chrome-extension/wxt.config.ts` and requested via Options:
 
 ## Daemon Endpoint
 
-### `POST /v1/agent`
+### `POST /v1/agent` (SSE)
 
 **Headers**
 - `Authorization: Bearer <token>`
@@ -72,16 +72,51 @@ Defined in `apps/chrome-extension/wxt.config.ts` and requested via Options:
   "url": "https://...",
   "title": "Page title",
   "pageContent": "<summary + transcript + metadata>",
+  "cacheContent": "<transcript/text used for cache key>",
   "messages": [/* pi-ai Message[] */],
   "model": "auto" | "openai/..." | "anthropic/..." | ...,
+  "length": "short" | "xl" | "20k" | ...,
+  "language": "auto" | "en" | "de" | ...,
   "tools": ["navigate", "repl", "ask_user_which_element", "skill", "debugger"],
+  "automationEnabled": true
+}
+```
+
+**Response (SSE)**
+```
+event: chunk
+data: { "text": "..." }
+
+event: assistant
+data: { /* AssistantMessage */ }
+
+event: done
+data: {}
+
+event: error
+data: { "message": "..." }
+```
+
+### `POST /v1/agent/history`
+
+Returns cached chat history for the same cache key as `/v1/agent`.
+
+**Body**
+```
+{
+  "url": "https://...",
+  "pageContent": "<summary + transcript + metadata>",
+  "cacheContent": "<transcript/text used for cache key>",
+  "model": "auto" | "openai/..." | "anthropic/..." | ...,
+  "length": "short" | "xl" | "20k" | ...,
+  "language": "auto" | "en" | "de" | ...,
   "automationEnabled": true
 }
 ```
 
 **Response**
 ```
-{ "ok": true, "assistant": { /* AssistantMessage */ } }
+{ "ok": true, "messages": [/* Message[] */] }
 ```
 
 ### Model Resolution (Daemon)

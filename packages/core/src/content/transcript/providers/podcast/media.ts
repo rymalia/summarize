@@ -4,14 +4,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
   isFfmpegAvailable,
-  isWhisperCppReady,
   MAX_OPENAI_UPLOAD_BYTES,
   probeMediaDurationSecondsWithFfprobe,
-  resolveWhisperCppModelNameForDisplay,
   transcribeMediaFileWithWhisper,
   transcribeMediaWithWhisper,
 } from '../../../../transcription/whisper.js'
 import type { ProviderFetchOptions } from '../../types.js'
+import { resolveTranscriptionStartInfo } from '../transcription-start.js'
 import { MAX_REMOTE_MEDIA_BYTES, TRANSCRIPTION_TIMEOUT_MS } from './constants.js'
 
 export type TranscribeRequest = {
@@ -28,6 +27,7 @@ export type TranscriptionResult = {
 
 export async function transcribeMediaUrl({
   fetchImpl,
+  env,
   url,
   filenameHint,
   durationSecondsHint,
@@ -37,6 +37,7 @@ export async function transcribeMediaUrl({
   progress,
 }: {
   fetchImpl: typeof fetch
+  env?: Record<string, string | undefined>
   url: string
   filenameHint: string
   durationSecondsHint: number | null
@@ -50,16 +51,14 @@ export async function transcribeMediaUrl({
   } | null
 }): Promise<TranscriptionResult> {
   const canChunk = await isFfmpegAvailable()
-  const providerHint: 'cpp' | 'openai' | 'fal' | 'openai->fal' | 'unknown' =
-    (await isWhisperCppReady())
-      ? 'cpp'
-      : openaiApiKey && falApiKey
-        ? 'openai->fal'
-        : openaiApiKey
-          ? 'openai'
-          : falApiKey
-            ? 'fal'
-            : 'unknown'
+  const effectiveEnv = env ?? process.env
+  const startInfo = await resolveTranscriptionStartInfo({
+    env: effectiveEnv,
+    openaiApiKey,
+    falApiKey,
+  })
+  const providerHint = startInfo.providerHint
+  const modelId = startInfo.modelId
 
   const head = await probeRemoteMedia(fetchImpl, url)
   if (head.contentLength !== null && head.contentLength > MAX_REMOTE_MEDIA_BYTES) {
@@ -79,17 +78,6 @@ export async function transcribeMediaUrl({
     mediaUrl: url,
     totalBytes,
   })
-
-  const modelId =
-    providerHint === 'cpp'
-      ? ((await resolveWhisperCppModelNameForDisplay()) ?? 'whisper.cpp')
-      : openaiApiKey && falApiKey
-        ? 'whisper-1->fal-ai/wizper'
-        : openaiApiKey
-          ? 'whisper-1'
-          : falApiKey
-            ? 'fal-ai/wizper'
-            : null
   if (!canChunk) {
     const bytes = await downloadCappedBytes(fetchImpl, url, MAX_OPENAI_UPLOAD_BYTES, {
       totalBytes,
@@ -126,6 +114,7 @@ export async function transcribeMediaUrl({
       openaiApiKey,
       falApiKey,
       totalDurationSeconds: durationSecondsHint,
+      env: effectiveEnv,
       onProgress: (event) => {
         progress?.onProgress?.({
           kind: 'transcript-whisper-progress',
@@ -177,6 +166,7 @@ export async function transcribeMediaUrl({
       openaiApiKey,
       falApiKey,
       totalDurationSeconds: durationSecondsHint,
+      env: effectiveEnv,
       onProgress: (event) => {
         progress?.onProgress?.({
           kind: 'transcript-whisper-progress',
@@ -232,6 +222,7 @@ export async function transcribeMediaUrl({
       openaiApiKey,
       falApiKey,
       totalDurationSeconds: probedDurationSeconds,
+      env: effectiveEnv,
       onProgress: (event) => {
         progress?.onProgress?.({
           kind: 'transcript-whisper-progress',

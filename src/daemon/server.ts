@@ -1,16 +1,28 @@
 import { randomUUID } from 'node:crypto'
 import http from 'node:http'
 import { Writable } from 'node:stream'
-import type { CacheState } from '../cache.js'
+import type { AssistantMessage, Message } from '@mariozechner/pi-ai'
+import {
+  buildLanguageKey,
+  buildLengthKey,
+  buildSummaryCacheKey,
+  type CacheState,
+  hashString,
+  normalizeContentForHash,
+} from '../cache.js'
 import { loadSummarizeConfig } from '../config.js'
 import { createDaemonLogger } from '../logging/daemon.js'
 import { refreshFree } from '../refresh-free.js'
 import { createCacheStateFromConfig, refreshCacheStoreIfMissing } from '../run/cache-state.js'
 import { formatModelLabelForDisplay } from '../run/finish-line.js'
-import { resolveRunOverrides } from '../run/run-settings.js'
+import {
+  resolveOutputLanguageSetting,
+  resolveRunOverrides,
+  resolveSummaryLength,
+} from '../run/run-settings.js'
 import { encodeSseEvent, type SseEvent } from '../shared/sse-events.js'
 import { resolvePackageVersion } from '../version.js'
-import { completeAgentResponse } from './agent.js'
+import { buildAgentPromptHash, streamAgentResponse } from './agent.js'
 import { type DaemonRequestedMode, resolveAutoDaemonMode } from './auto-mode.js'
 import type { DaemonConfig } from './config.js'
 import { DAEMON_HOST, DAEMON_PORT_DEFAULT } from './constants.js'
@@ -77,6 +89,9 @@ function resolveOriginHeader(req: http.IncomingMessage): string | null {
 
 function corsHeaders(origin: string | null): Record<string, string> {
   if (!origin) return {}
+  // Echo back any origin (chrome-extension://, moz-extension://, etc.)
+  // Security is enforced via Bearer token auth, not origin checking.
+  // This permissive CORS setup supports both Chrome and Firefox extensions.
   return {
     'access-control-allow-origin': origin,
     'access-control-allow-credentials': 'true',
@@ -155,6 +170,55 @@ function createSession(): Session {
 
 const MAX_SESSION_BUFFER_EVENTS = 2000
 const MAX_SESSION_BUFFER_BYTES = 512 * 1024
+
+type ChatCacheInput = {
+  cacheContent: string
+  model: string | null
+  length: unknown
+  language: unknown
+  automationEnabled: boolean
+}
+
+type ChatHistoryMessage = Extract<Message, { role: 'user' | 'assistant' }>
+
+function buildChatCacheKey({
+  cacheContent,
+  model,
+  length,
+  language,
+  automationEnabled,
+}: ChatCacheInput): string {
+  const contentHash = hashString(normalizeContentForHash(cacheContent))
+  const promptHash = buildAgentPromptHash(automationEnabled)
+  const { lengthArg } = resolveSummaryLength(length, 'xl')
+  const outputLanguage = resolveOutputLanguageSetting({ raw: language, fallback: { kind: 'auto' } })
+  const lengthKey = buildLengthKey(lengthArg)
+  const languageKey = buildLanguageKey(outputLanguage)
+  const modelKey = typeof model === 'string' && model.trim() ? model.trim() : 'auto'
+  return buildSummaryCacheKey({
+    contentHash,
+    promptHash,
+    model: modelKey,
+    lengthKey,
+    languageKey,
+  })
+}
+
+function filterChatHistoryMessages(raw: unknown): ChatHistoryMessage[] {
+  if (!Array.isArray(raw)) return []
+  const now = Date.now()
+  return raw
+    .filter((item) => item && typeof item === 'object')
+    .map((item) => {
+      const msg = item as Message
+      if (msg.role !== 'user' && msg.role !== 'assistant') return null
+      if (typeof msg.timestamp !== 'number') {
+        ;(msg as ChatHistoryMessage).timestamp = now
+      }
+      return msg as ChatHistoryMessage
+    })
+    .filter((msg): msg is ChatHistoryMessage => Boolean(msg))
+}
 
 function pushToSession(
   session: Session,
@@ -372,6 +436,7 @@ export async function runDaemonServer({
           timeout: obj.timeout,
           retries: obj.retries,
           maxOutputTokens: obj.maxOutputTokens,
+          transcriber: obj.transcriber,
         })
         const diagnostics = parseDiagnostics(obj.diagnostics)
         const includeContentLog = daemonLogger.enabled && diagnostics.includeContent
@@ -647,6 +712,66 @@ export async function runDaemonServer({
         return
       }
 
+      if (req.method === 'POST' && pathname === '/v1/agent/history') {
+        let body: unknown
+        try {
+          body = await readJsonBody(req, 4_000_000)
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          json(res, 400, { ok: false, error: message }, cors)
+          return
+        }
+        if (!body || typeof body !== 'object') {
+          json(res, 400, { ok: false, error: 'invalid json' }, cors)
+          return
+        }
+
+        const obj = body as Record<string, unknown>
+        const pageUrl = typeof obj.url === 'string' ? obj.url.trim() : ''
+        const pageContent = typeof obj.pageContent === 'string' ? obj.pageContent : ''
+        const cacheContent =
+          typeof obj.cacheContent === 'string' && obj.cacheContent.trim().length > 0
+            ? obj.cacheContent
+            : pageContent
+        const modelOverride = typeof obj.model === 'string' ? obj.model.trim() : null
+        const lengthRaw = obj.length
+        const languageRaw = obj.language
+        const automationEnabled = Boolean(obj.automationEnabled)
+
+        if (!pageUrl) {
+          json(res, 400, { ok: false, error: 'missing url' }, cors)
+          return
+        }
+
+        const cacheStore = cacheState.mode === 'default' ? cacheState.store : null
+        if (!cacheStore) {
+          json(res, 200, { ok: true, messages: null }, cors)
+          return
+        }
+
+        const cacheKey = buildChatCacheKey({
+          cacheContent,
+          model: modelOverride,
+          length: lengthRaw,
+          language: languageRaw,
+          automationEnabled,
+        })
+        const cached = cacheStore.getJson<unknown>('chat', cacheKey)
+        if (!cached) {
+          json(res, 200, { ok: true, messages: null }, cors)
+          return
+        }
+        const messages = Array.isArray(cached)
+          ? cached
+          : typeof cached === 'object' &&
+              cached &&
+              Array.isArray((cached as { messages?: unknown }).messages)
+            ? (cached as { messages: unknown[] }).messages
+            : null
+        json(res, 200, { ok: true, messages }, cors)
+        return
+      }
+
       if (req.method === 'POST' && pathname === '/v1/agent') {
         let body: unknown
         try {
@@ -665,20 +790,59 @@ export async function runDaemonServer({
         const pageUrl = typeof obj.url === 'string' ? obj.url.trim() : ''
         const pageTitle = typeof obj.title === 'string' ? obj.title.trim() : null
         const pageContent = typeof obj.pageContent === 'string' ? obj.pageContent : ''
+        const cacheContent =
+          typeof obj.cacheContent === 'string' && obj.cacheContent.trim().length > 0
+            ? obj.cacheContent
+            : pageContent
         const messages = obj.messages
         const modelOverride = typeof obj.model === 'string' ? obj.model.trim() : null
+        const lengthRaw = obj.length
+        const languageRaw = obj.language
         const tools = Array.isArray(obj.tools)
           ? obj.tools.filter((tool): tool is string => typeof tool === 'string')
           : []
         const automationEnabled = Boolean(obj.automationEnabled)
+        const cacheStore = cacheState.mode === 'default' ? cacheState.store : null
+        const cacheKey = cacheStore
+          ? buildChatCacheKey({
+              cacheContent,
+              model: modelOverride,
+              length: lengthRaw,
+              language: languageRaw,
+              automationEnabled,
+            })
+          : null
 
         if (!pageUrl) {
           json(res, 400, { ok: false, error: 'missing url' }, cors)
           return
         }
 
+        res.writeHead(200, {
+          ...cors,
+          'content-type': 'text/event-stream; charset=utf-8',
+          'cache-control': 'no-cache, no-transform',
+          connection: 'keep-alive',
+        })
+
+        const controller = new AbortController()
+        let closed = false
+        const close = () => {
+          if (closed) return
+          closed = true
+          controller.abort()
+        }
+        req.on('close', close)
+        req.on('aborted', close)
+
+        const writeEvent = (event: SseEvent) => {
+          if (closed) return
+          res.write(encodeSseEvent(event))
+        }
+
+        let finalAssistant: AssistantMessage | null = null
         try {
-          const assistant = await completeAgentResponse({
+          await streamAgentResponse({
             env,
             pageUrl,
             pageTitle,
@@ -688,12 +852,27 @@ export async function runDaemonServer({
               modelOverride && modelOverride.toLowerCase() !== 'auto' ? modelOverride : null,
             tools,
             automationEnabled,
+            onChunk: (text) => writeEvent({ event: 'chunk', data: { text } }),
+            onAssistant: (assistant) => {
+              finalAssistant = assistant
+              writeEvent({ event: 'assistant', data: assistant })
+            },
+            signal: controller.signal,
           })
-          json(res, 200, { ok: true, assistant }, cors)
+          if (cacheStore && cacheKey && finalAssistant) {
+            const history = filterChatHistoryMessages(messages)
+            history.push(finalAssistant)
+            cacheStore.setJson('chat', cacheKey, { messages: history }, cacheState.ttlMs)
+          }
+          writeEvent({ event: 'done', data: {} })
         } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          console.error('[summarize-daemon] agent failed', error)
-          json(res, 500, { ok: false, error: message }, cors)
+          if (!controller.signal.aborted) {
+            const message = error instanceof Error ? error.message : String(error)
+            writeEvent({ event: 'error', data: { message } })
+            console.error('[summarize-daemon] agent stream failed', error)
+          }
+        } finally {
+          if (!closed) res.end()
         }
         return
       }

@@ -118,6 +118,7 @@ export async function runUrlFlow({
   const transcriptCache = cacheStore ? cacheStore.transcriptCache : null
 
   const client = createLinkPreviewClient({
+    env: io.envForRun,
     apifyApiToken: model.apiStatus.apifyToken,
     ytDlpPath: model.apiStatus.ytDlpPath,
     falApiKey: model.apiStatus.falApiKey,

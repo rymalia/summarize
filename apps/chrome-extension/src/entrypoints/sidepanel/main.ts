@@ -29,6 +29,11 @@ type PanelToBg =
       tools: string[]
       summary?: string | null
     }
+  | {
+      type: 'panel:chat-history'
+      requestId: string
+      summary?: string | null
+    }
   | { type: 'panel:seek'; seconds: number }
   | { type: 'panel:ping' }
   | { type: 'panel:closed' }
@@ -42,6 +47,8 @@ type BgToPanel =
   | { type: 'ui:status'; status: string }
   | { type: 'run:start'; run: RunStart }
   | { type: 'run:error'; message: string }
+  | { type: 'chat:history'; requestId: string; ok: boolean; messages?: Message[]; error?: string }
+  | { type: 'agent:chunk'; requestId: string; text: string }
   | {
       type: 'agent:response'
       requestId: string
@@ -259,7 +266,17 @@ window.addEventListener('summarize:automation-permissions', (event) => {
 type AgentResponse = { ok: boolean; assistant?: AssistantMessage; error?: string }
 const pendingAgentRequests = new Map<
   string,
-  { resolve: (response: AgentResponse) => void; reject: (error: Error) => void }
+  {
+    resolve: (response: AgentResponse) => void
+    reject: (error: Error) => void
+    onChunk?: (text: string) => void
+  }
+>()
+
+type ChatHistoryResponse = { ok: boolean; messages?: Message[]; error?: string }
+const pendingChatHistoryRequests = new Map<
+  string,
+  { resolve: (response: ChatHistoryResponse) => void; reject: (error: Error) => void }
 >()
 
 function abortPendingAgentRequests(reason: string) {
@@ -293,6 +310,20 @@ function wrapMessage(message: Message): ChatMessage {
   return { ...message, id: crypto.randomUUID() }
 }
 
+function buildStreamingAssistantMessage(): ChatMessage {
+  return {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: [],
+    api: 'openai-completions',
+    provider: 'openai',
+    model: 'streaming',
+    usage: buildEmptyUsage(),
+    stopReason: 'stop',
+    timestamp: Date.now(),
+  }
+}
+
 function handleAgentResponse(msg: Extract<BgToPanel, { type: 'agent:response' }>) {
   const pending = pendingAgentRequests.get(msg.requestId)
   if (!pending) return
@@ -300,7 +331,25 @@ function handleAgentResponse(msg: Extract<BgToPanel, { type: 'agent:response' }>
   pending.resolve({ ok: msg.ok, assistant: msg.assistant, error: msg.error })
 }
 
-async function requestAgent(messages: Message[], tools: string[], summary?: string | null) {
+function handleAgentChunk(msg: Extract<BgToPanel, { type: 'agent:chunk' }>) {
+  const pending = pendingAgentRequests.get(msg.requestId)
+  if (!pending?.onChunk) return
+  pending.onChunk(msg.text)
+}
+
+function handleChatHistoryResponse(msg: Extract<BgToPanel, { type: 'chat:history' }>) {
+  const pending = pendingChatHistoryRequests.get(msg.requestId)
+  if (!pending) return
+  pendingChatHistoryRequests.delete(msg.requestId)
+  pending.resolve({ ok: msg.ok, messages: msg.messages, error: msg.error })
+}
+
+async function requestAgent(
+  messages: Message[],
+  tools: string[],
+  summary?: string | null,
+  opts?: { onChunk?: (text: string) => void }
+) {
   const requestId = crypto.randomUUID()
   const response = new Promise<AgentResponse>((resolve, reject) => {
     const timeout = window.setTimeout(() => {
@@ -316,8 +365,31 @@ async function requestAgent(messages: Message[], tools: string[], summary?: stri
         window.clearTimeout(timeout)
         reject(error)
       },
+      onChunk: opts?.onChunk,
     })
     void send({ type: 'panel:agent', requestId, messages, tools, summary })
+  })
+  return response
+}
+
+async function requestChatHistory(summary?: string | null) {
+  const requestId = crypto.randomUUID()
+  const response = new Promise<ChatHistoryResponse>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      pendingChatHistoryRequests.delete(requestId)
+      reject(new Error('Chat history request timed out'))
+    }, 20_000)
+    pendingChatHistoryRequests.set(requestId, {
+      resolve: (result) => {
+        window.clearTimeout(timeout)
+        resolve(result)
+      },
+      reject: (error) => {
+        window.clearTimeout(timeout)
+        reject(error)
+      },
+    })
+    void send({ type: 'panel:chat-history', requestId, summary })
   })
   return response
 }
@@ -620,6 +692,7 @@ function canSyncTabUrl(url: string | null | undefined): url is string {
   if (!url) return false
   if (url.startsWith('chrome://')) return false
   if (url.startsWith('chrome-extension://')) return false
+  if (url.startsWith('moz-extension://')) return false // Firefox extension pages
   if (url.startsWith('edge://')) return false
   if (url.startsWith('about:')) return false
   return true
@@ -1178,9 +1251,29 @@ async function restoreChatHistory() {
   chatHistoryLoadId += 1
   const loadId = chatHistoryLoadId
   const history = await loadChatHistory(tabId)
-  if (loadId !== chatHistoryLoadId || !history?.length) return
-  const compacted = compactChatHistory(history, chatLimits)
-  chatController.setMessages(compacted, { scroll: false })
+  if (loadId !== chatHistoryLoadId) return
+  if (history?.length) {
+    const compacted = compactChatHistory(history, chatLimits)
+    chatController.setMessages(compacted, { scroll: false })
+    return
+  }
+
+  try {
+    const response = await requestChatHistory(panelState.summaryMarkdown)
+    if (loadId !== chatHistoryLoadId || !response.ok || !Array.isArray(response.messages)) {
+      return
+    }
+    const parsed = response.messages
+      .filter((msg) => msg && typeof msg === 'object')
+      .map((msg) => normalizeStoredMessage(msg as Record<string, unknown>))
+      .filter((msg): msg is ChatMessage => Boolean(msg))
+    if (!parsed.length) return
+    const compacted = compactChatHistory(parsed, chatLimits)
+    chatController.setMessages(compacted, { scroll: false })
+    await persistChatHistory()
+  } catch {
+    // ignore
+  }
 }
 
 type PlatformKind = 'mac' | 'windows' | 'linux' | 'other'
@@ -1954,7 +2047,19 @@ function handleBgMessage(msg: BgToPanel) {
       panelState.lastMeta = { inputSummary: null, model: null, modelLabel: null }
       void streamController.start(msg.run)
       return
+    case 'chat:history':
+      handleChatHistoryResponse(msg)
+      return
+    case 'agent:chunk':
+      handleAgentChunk(msg)
+      return
     }
+    case 'chat:history':
+      handleChatHistoryResponse(msg)
+      return
+    case 'agent:chunk':
+      handleAgentChunk(msg)
+      return
     case 'agent:response':
       handleAgentResponse(msg)
       return
@@ -2136,20 +2241,35 @@ async function runAgentLoop() {
   while (true) {
     if (abortAgentRequested) return
     const messages = chatController.buildRequestMessages() as Message[]
+    const streamingMessage = buildStreamingAssistantMessage()
+    let streamedContent = ''
+    chatController.addMessage(streamingMessage)
+    scrollToBottom(true)
     let response: AgentResponse
     try {
-      response = await requestAgent(messages, tools, panelState.summaryMarkdown)
+      response = await requestAgent(messages, tools, panelState.summaryMarkdown, {
+        onChunk: (text) => {
+          streamedContent += text
+          chatController.updateStreamingMessage(streamedContent)
+        },
+      })
     } catch (error) {
+      chatController.removeMessage(streamingMessage.id)
       if (abortAgentRequested) return
       throw error
     }
     if (!response.ok || !response.assistant) {
+      chatController.removeMessage(streamingMessage.id)
       throw new Error(response.error || 'Agent failed')
     }
 
-    const assistant = response.assistant
-    if (abortAgentRequested) return
-    chatController.addMessage(wrapMessage(assistant))
+    const assistant = { ...response.assistant, id: streamingMessage.id }
+    if (abortAgentRequested) {
+      chatController.removeMessage(streamingMessage.id)
+      return
+    }
+    chatController.replaceMessage(assistant)
+    chatController.finishStreamingMessage()
     scrollToBottom(true)
 
     const toolCalls = assistant.content.filter((part) => part.type === 'toolCall') as ToolCall[]

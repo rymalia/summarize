@@ -19,8 +19,10 @@ import {
   handleRefreshFreeRequest,
 } from './cli-preflight.js'
 import { parseCliProviderArg } from './env.js'
-import { handleFileInput, handleUrlAsset } from './flows/asset/input.js'
+import { extractAssetContent } from './flows/asset/extract.js'
+import { handleFileInput, withUrlAsset } from './flows/asset/input.js'
 import { summarizeMediaFile as summarizeMediaFileImpl } from './flows/asset/media.js'
+import { outputExtractedAsset } from './flows/asset/output.js'
 import { summarizeAsset as summarizeAssetFlow } from './flows/asset/summary.js'
 import { runUrlFlow } from './flows/url/flow.js'
 import { attachRichHelp, buildProgram } from './help.js'
@@ -221,6 +223,26 @@ export async function runCli(
   const plain = Boolean(program.opts().plain)
   const debug = Boolean(program.opts().debug)
   const verbose = Boolean(program.opts().verbose) || debug
+
+  const normalizeTranscriber = (value: unknown): 'whisper' | 'parakeet' | 'canary' | null => {
+    if (typeof value !== 'string') return null
+    const normalized = value.trim().toLowerCase()
+    if (normalized === 'whisper' || normalized === 'parakeet' || normalized === 'canary')
+      return normalized
+    return null
+  }
+
+  const transcriberExplicitlySet = normalizedArgv.some(
+    (arg) => arg === '--transcriber' || arg.startsWith('--transcriber=')
+  )
+  const envTranscriber =
+    (envForRun as Record<string, string | undefined>)?.SUMMARIZE_TRANSCRIBER ??
+    process.env.SUMMARIZE_TRANSCRIBER ??
+    null
+  const transcriber =
+    normalizeTranscriber(transcriberExplicitlySet ? program.opts().transcriber : envTranscriber) ??
+    'whisper'
+  ;(envForRun as Record<string, string | undefined>).SUMMARIZE_TRANSCRIBER = transcriber
 
   const isYoutubeUrl = typeof url === 'string' ? /youtube\.com|youtu\.be/i.test(url) : false
   const formatExplicitlySet = normalizedArgv.some(
@@ -551,7 +573,65 @@ export async function runCli(
     if (await handleFileInput(assetInputContext, inputTarget)) {
       return
     }
-    if (url && (await handleUrlAsset(assetInputContext, url, isYoutubeUrl))) {
+    if (
+      url &&
+      (await withUrlAsset(assetInputContext, url, isYoutubeUrl, async ({ loaded, spinner }) => {
+        if (extractMode) {
+          if (progressEnabled) spinner.setText('Extracting text…')
+          const extracted = await extractAssetContent({
+            ctx: {
+              env,
+              envForRun,
+              execFileImpl,
+              timeoutMs,
+              preprocessMode,
+            },
+            attachment: loaded.attachment,
+          })
+          await outputExtractedAsset({
+            io: { env, envForRun, stdout, stderr },
+            flags: {
+              timeoutMs,
+              preprocessMode,
+              format,
+              plain,
+              json,
+              metricsEnabled,
+              metricsDetailed,
+              shouldComputeReport,
+              runStartedAtMs,
+              verboseColor,
+            },
+            hooks: { clearProgressForStdout, buildReport, estimateCostUsd },
+            url,
+            sourceLabel: loaded.sourceLabel,
+            attachment: loaded.attachment,
+            extracted,
+            apiStatus: {
+              xaiApiKey,
+              apiKey,
+              openrouterApiKey,
+              apifyToken,
+              firecrawlConfigured,
+              googleConfigured,
+              anthropicConfigured,
+            },
+          })
+          return
+        }
+
+        if (progressEnabled) spinner.setText('Summarizing…')
+        await summarizeAsset({
+          sourceKind: 'asset-url',
+          sourceLabel: loaded.sourceLabel,
+          attachment: loaded.attachment,
+          onModelChosen: (modelId) => {
+            if (!progressEnabled) return
+            spinner.setText(`Summarizing (model: ${modelId})…`)
+          },
+        })
+      }))
+    ) {
       return
     }
 

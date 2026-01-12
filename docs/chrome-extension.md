@@ -4,7 +4,7 @@ read_when:
   - "When working on the extension, daemon, or side panel UX."
 ---
 
-# Chrome Side Panel (Chrome Extension + Daemon)
+# Browser Side Panel (Chrome + Firefox Extension + Daemon)
 
 Goal: Chrome **Side Panel** (“real sidebar”) summarizes **what you see** on the current tab. Panel open → navigation → auto summarize (optional) → **streaming** Markdown rendered in-panel.
 
@@ -14,11 +14,17 @@ Quickstart:
   - `npm i -g @steipete/summarize`
   - `brew install steipete/tap/summarize` (macOS arm64)
 - Build/load extension: `apps/chrome-extension/README.md`
+- Firefox sidebar build: `pnpm -C apps/chrome-extension build:firefox` (load via `about:debugging` → temporary add-on)
 - Open side panel → copy token install command → run:
   - `summarize daemon install --token <TOKEN>` (macOS: LaunchAgent, Linux: systemd user, Windows: Scheduled Task)
 - Verify:
   - `summarize daemon status`
   - Restart (if needed): `summarize daemon restart`
+
+Firefox notes:
+- Sidebar UX differs from Chrome’s side panel (persistent sidebar instead of slide-in panel).
+- Firefox testing is limited in Playwright; see `apps/chrome-extension/tests/README-firefox.md`.
+- Compatibility details: `apps/chrome-extension/docs/firefox.md`.
 
 Dev (repo checkout):
 
@@ -166,17 +172,35 @@ Problem: daemon must be secured; extension must discover and pair with it.
     - `text?: string` (required for `mode: "page"`; optional for `auto`)
     - `truncated?: boolean` (optional; indicates extracted `text` was shortened)
   - 200 JSON: `{ ok: true, id }`
-- `POST /v1/agent`
+- `POST /v1/agent` (SSE)
   - Headers: `Authorization: Bearer <token>`
   - Body:
     - `url: string` (required)
     - `title?: string | null`
     - `pageContent: string`
+    - `cacheContent?: string` (used for cache key; defaults to `pageContent`)
     - `messages: Array<Message>` (pi-ai format)
     - `model?: string`
+    - `length?: string` (e.g. `short`, `xl`, `20k`)
+    - `language?: string` (e.g. `auto`, `en`, `de`)
     - `tools?: string[]`
     - `automationEnabled?: boolean`
-  - 200 JSON: `{ ok: true, assistant }`
+  - SSE events:
+    - `event: chunk` `data: { text }`
+    - `event: assistant` `data: { ...assistant }`
+    - `event: done` `data: {}`
+    - `event: error` `data: { message }`
+- `POST /v1/agent/history`
+  - Headers: `Authorization: Bearer <token>`
+  - Body:
+    - `url: string` (required)
+    - `pageContent: string`
+    - `cacheContent?: string` (used for cache key; defaults to `pageContent`)
+    - `model?: string`
+    - `length?: string`
+    - `language?: string`
+    - `automationEnabled?: boolean`
+  - 200 JSON: `{ ok: true, messages }`
 - `GET /v1/summarize/:id/events` (SSE)
   - `event: chunk` `data: { text }`
   - `event: meta` `data: { model }`

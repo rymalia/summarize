@@ -72,6 +72,6 @@ export function hasUserChatMessage(messages: ChatMessage[]): boolean {
 
 export function buildChatRequestMessages(messages: ChatMessage[]) {
   return messages
-    .filter((msg) => messageTextLength(msg) > 0)
+    .filter((message) => messageTextLength(message) > 0)
     .map(({ id: _id, timestamp: _timestamp, ...rest }) => rest)
 }

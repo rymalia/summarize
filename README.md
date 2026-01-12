@@ -1,6 +1,6 @@
 # Summarize 👉 Point at any URL or file. Get the gist.
 
-Fast summaries from URLs, files, and media. Works in the terminal and a Chrome Side Panel.
+Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Side Panel
 
 ## Big features
 
@@ -11,11 +11,11 @@ Fast summaries from URLs, files, and media. Works in the terminal and a Chrome S
 - Local, paid, and free models: OpenAI-compatible local endpoints, paid providers, plus an OpenRouter free preset.
 - Output modes: Markdown/text, JSON diagnostics, extract-only, metrics, timing, and cost estimates.
 
-## Chrome Extension (Side Panel)
+## Browser Extension (Side Panel + Sidebar)
 
 ![Summarize extension screenshot](docs/assets/summarize-extension.png)
 
-One-click summarizer for the current tab. Real Chrome Side Panel + local daemon for streaming Markdown.
+One-click summarizer for the current tab. Chrome Side Panel + Firefox Sidebar + local daemon for streaming Markdown.
 
 Quickstart:
 
@@ -23,10 +23,13 @@ Quickstart:
    - `npm i -g @steipete/summarize`
    - `brew install steipete/tap/summarize` (macOS arm64)
 2) Build + load the extension (unpacked):
-   - `pnpm -C apps/chrome-extension build`
-   - Chrome -> `chrome://extensions` -> Developer mode -> Load unpacked
-   - Pick: `apps/chrome-extension/.output/chrome-mv3`
-3) Open the Side Panel -> it shows a token + install command.
+   - Chrome: `pnpm -C apps/chrome-extension build`
+     - `chrome://extensions` → Developer mode → Load unpacked
+     - Pick: `apps/chrome-extension/.output/chrome-mv3`
+   - Firefox: `pnpm -C apps/chrome-extension build:firefox`
+     - `about:debugging#/runtime/this-firefox` → Load Temporary Add-on
+     - Pick: `apps/chrome-extension/.output/firefox-mv3/manifest.json`
+3) Open the Side Panel (Chrome) or Sidebar (Firefox) -> it shows a token + install command.
 4) Run the install command in Terminal:
    - Installed binary: `summarize daemon install --token <TOKEN>`
    - Repo/dev checkout: `pnpm summarize daemon install --token <TOKEN> --dev`
@@ -46,6 +49,7 @@ More:
 
 - Step-by-step install: [apps/chrome-extension/README.md](apps/chrome-extension/README.md)
 - Architecture + troubleshooting: [docs/chrome-extension.md](docs/chrome-extension.md)
+- Firefox compatibility notes: [apps/chrome-extension/docs/firefox.md](apps/chrome-extension/docs/firefox.md)
 
 ## CLI
 

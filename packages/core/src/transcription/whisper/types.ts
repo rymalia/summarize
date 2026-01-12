@@ -1,4 +1,9 @@
-export type TranscriptionProvider = 'openai' | 'fal' | 'whisper.cpp'
+export type TranscriptionProvider =
+  | 'openai'
+  | 'fal'
+  | 'whisper.cpp'
+  | 'onnx-parakeet'
+  | 'onnx-canary'
 
 export type WhisperTranscriptionResult = {
   text: string | null

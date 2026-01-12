@@ -31,6 +31,12 @@ export type AssetInputContext = {
   clearProgressIfCurrent: (fn: () => void) => void
 }
 
+type UrlAssetHandler = (args: {
+  loaded: Awaited<ReturnType<typeof loadRemoteAsset>>
+  spinner: ReturnType<typeof startSpinner>
+  clearProgressLine: () => void
+}) => Promise<void>
+
 export async function handleFileInput(
   ctx: AssetInputContext,
   inputTarget: InputTarget
@@ -109,10 +115,11 @@ export async function handleFileInput(
   }
 }
 
-export async function handleUrlAsset(
+export async function withUrlAsset(
   ctx: AssetInputContext,
   url: string,
-  isYoutubeUrl: boolean
+  isYoutubeUrl: boolean,
+  handler: UrlAssetHandler
 ): Promise<boolean> {
   if (!url || isYoutubeUrl) return false
 
@@ -156,6 +163,20 @@ export async function handleUrlAsset(
 
     if (!loaded) return false
     assertAssetMediaTypeSupported({ attachment: loaded.attachment, sizeLabel: null })
+    await handler({ loaded, spinner, clearProgressLine })
+    return true
+  } finally {
+    ctx.clearProgressIfCurrent(clearProgressLine)
+    stopProgress()
+  }
+}
+
+export async function handleUrlAsset(
+  ctx: AssetInputContext,
+  url: string,
+  isYoutubeUrl: boolean
+): Promise<boolean> {
+  return withUrlAsset(ctx, url, isYoutubeUrl, async ({ loaded, spinner }) => {
     if (ctx.progressEnabled) spinner.setText('Summarizing…')
     await ctx.summarizeAsset({
       sourceKind: 'asset-url',
@@ -166,9 +187,5 @@ export async function handleUrlAsset(
         spinner.setText(`Summarizing (model: ${modelId})…`)
       },
     })
-    return true
-  } finally {
-    ctx.clearProgressIfCurrent(clearProgressLine)
-    stopProgress()
-  }
+  })
 }

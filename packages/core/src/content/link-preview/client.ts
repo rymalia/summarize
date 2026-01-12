@@ -17,6 +17,7 @@ export interface LinkPreviewClient {
 /** Public options for wiring dependencies into the link preview client. */
 export interface LinkPreviewClientOptions {
   fetch?: typeof fetch
+  env?: Record<string, string | undefined>
   scrapeWithFirecrawl?: ScrapeWithFirecrawl | null
   apifyApiToken?: string | null
   ytDlpPath?: string | null
@@ -33,6 +34,7 @@ export interface LinkPreviewClientOptions {
 export function createLinkPreviewClient(options: LinkPreviewClientOptions = {}): LinkPreviewClient {
   const fetchImpl: typeof fetch =
     options.fetch ?? ((...args: Parameters<typeof fetch>) => globalThis.fetch(...args))
+  const env = typeof options.env === 'object' && options.env ? options.env : undefined
   const scrape: ScrapeWithFirecrawl | null = options.scrapeWithFirecrawl ?? null
   const apifyApiToken = typeof options.apifyApiToken === 'string' ? options.apifyApiToken : null
   const ytDlpPath = typeof options.ytDlpPath === 'string' ? options.ytDlpPath : null
@@ -50,6 +52,7 @@ export function createLinkPreviewClient(options: LinkPreviewClientOptions = {}):
     fetchLinkContent: (url: string, contentOptions?: FetchLinkContentOptions) =>
       fetchLinkContent(url, contentOptions, {
         fetch: fetchImpl,
+        env,
         scrapeWithFirecrawl: scrape,
         apifyApiToken,
         ytDlpPath,

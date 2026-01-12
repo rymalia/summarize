@@ -5,15 +5,15 @@ import type { AssistantMessage, Tool } from '@mariozechner/pi-ai'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { completeAgentResponse } from '../src/daemon/agent.js'
 
-const mocks = vi.hoisted(() => ({
-  completeSimple: vi.fn(),
-  getModel: vi.fn(),
+const { mockCompleteSimple, mockGetModel } = vi.hoisted(() => ({
+  mockCompleteSimple: vi.fn(),
+  mockGetModel: vi.fn(),
 }))
 
 vi.mock('@mariozechner/pi-ai', () => {
   return {
-    completeSimple: mocks.completeSimple,
-    getModel: mocks.getModel,
+    completeSimple: mockCompleteSimple,
+    getModel: mockGetModel,
   }
 })
 
@@ -51,12 +51,12 @@ const makeModel = (provider: string, modelId: string) => ({
 const makeTempHome = () => mkdtempSync(join(tmpdir(), 'summarize-daemon-agent-'))
 
 beforeEach(() => {
-  mocks.completeSimple.mockReset()
-  mocks.getModel.mockReset()
-  mocks.getModel.mockImplementation((provider: string, modelId: string) =>
+  mockCompleteSimple.mockReset()
+  mockGetModel.mockReset()
+  mockGetModel.mockImplementation((provider: string, modelId: string) =>
     makeModel(provider, modelId)
   )
-  mocks.completeSimple.mockImplementation(async (model: { provider: string; id: string }) =>
+  mockCompleteSimple.mockImplementation(async (model: { provider: string; id: string }) =>
     buildAssistant(model.provider, model.id)
   )
 })
@@ -75,7 +75,7 @@ describe('daemon/agent', () => {
       automationEnabled: false,
     })
 
-    const options = mocks.completeSimple.mock.calls[0]?.[2] as { apiKey?: string }
+    const options = mockCompleteSimple.mock.calls[0]?.[2] as { apiKey?: string }
     expect(options.apiKey).toBe('or-key')
   })
 
@@ -92,7 +92,7 @@ describe('daemon/agent', () => {
       automationEnabled: false,
     })
 
-    const options = mocks.completeSimple.mock.calls[0]?.[2] as { apiKey?: string }
+    const options = mockCompleteSimple.mock.calls[0]?.[2] as { apiKey?: string }
     expect(options.apiKey).toBe('sk-openai')
   })
 
@@ -125,7 +125,7 @@ describe('daemon/agent', () => {
       automationEnabled: true,
     })
 
-    const context = mocks.completeSimple.mock.calls[0]?.[1] as { tools?: Tool[] }
+    const context = mockCompleteSimple.mock.calls[0]?.[1] as { tools?: Tool[] }
     expect(context.tools?.some((tool) => tool.name === 'summarize')).toBe(true)
   })
 
@@ -142,7 +142,7 @@ describe('daemon/agent', () => {
       automationEnabled: true,
     })
 
-    const context = mocks.completeSimple.mock.calls[0]?.[1] as { tools?: Tool[] }
+    const context = mockCompleteSimple.mock.calls[0]?.[1] as { tools?: Tool[] }
     expect(context.tools?.some((tool) => tool.name === 'artifacts')).toBe(true)
   })
 
@@ -159,7 +159,7 @@ describe('daemon/agent', () => {
       automationEnabled: true,
     })
 
-    const context = mocks.completeSimple.mock.calls[0]?.[1] as { tools?: Tool[] }
+    const context = mockCompleteSimple.mock.calls[0]?.[1] as { tools?: Tool[] }
     const navigate = context.tools?.find((tool) => tool.name === 'navigate')
     const properties = (navigate?.parameters as { properties?: Record<string, unknown> })
       ?.properties

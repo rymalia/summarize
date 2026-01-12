@@ -16,6 +16,7 @@ export interface ProviderContext {
 
 export interface ProviderFetchOptions {
   fetch: typeof fetch
+  env?: Record<string, string | undefined>
   scrapeWithFirecrawl?: ScrapeWithFirecrawl | null
   apifyApiToken: string | null
   youtubeTranscriptMode: YoutubeTranscriptMode

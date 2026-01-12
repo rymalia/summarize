@@ -27,6 +27,14 @@ export const ProgressKind = {
   BirdDone: 'bird-done',
 } as const
 
+export type TranscriptionProviderHint =
+  | 'cpp'
+  | 'onnx'
+  | 'openai'
+  | 'fal'
+  | 'openai->fal'
+  | 'unknown'
+
 /** Public progress events emitted by link preview fetchers. */
 export type LinkPreviewProgressEvent =
   | { kind: 'fetch-html-start'; url: string }
@@ -67,7 +75,7 @@ export type LinkPreviewProgressEvent =
       kind: 'transcript-whisper-start'
       url: string
       service: 'youtube' | 'podcast' | 'generic'
-      providerHint: 'cpp' | 'openai' | 'fal' | 'openai->fal' | 'unknown'
+      providerHint: TranscriptionProviderHint
       modelId: string | null
       totalDurationSeconds: number | null
       parts: number | null
@@ -150,6 +158,7 @@ export type ResolveTwitterCookies = (args: { url: string }) => Promise<TwitterCo
 /** Internal dependency bag; prefer createLinkPreviewClient unless you need custom wiring. */
 export interface LinkPreviewDeps {
   fetch: typeof fetch
+  env?: Record<string, string | undefined>
   scrapeWithFirecrawl: ScrapeWithFirecrawl | null
   apifyApiToken: string | null
   ytDlpPath: string | null

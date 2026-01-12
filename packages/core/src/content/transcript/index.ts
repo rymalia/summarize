@@ -106,6 +106,7 @@ export const resolveTranscriptForLink = async (
 
   const providerResult = await executeProvider(provider, baseContext, {
     fetch: deps.fetch,
+    env: deps.env,
     scrapeWithFirecrawl: deps.scrapeWithFirecrawl,
     apifyApiToken: deps.apifyApiToken,
     ytDlpPath: deps.ytDlpPath,
