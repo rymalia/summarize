@@ -172,17 +172,35 @@ Problem: daemon must be secured; extension must discover and pair with it.
     - `text?: string` (required for `mode: "page"`; optional for `auto`)
     - `truncated?: boolean` (optional; indicates extracted `text` was shortened)
   - 200 JSON: `{ ok: true, id }`
-- `POST /v1/agent`
+- `POST /v1/agent` (SSE)
   - Headers: `Authorization: Bearer <token>`
   - Body:
     - `url: string` (required)
     - `title?: string | null`
     - `pageContent: string`
+    - `cacheContent?: string` (used for cache key; defaults to `pageContent`)
     - `messages: Array<Message>` (pi-ai format)
     - `model?: string`
+    - `length?: string` (e.g. `short`, `xl`, `20k`)
+    - `language?: string` (e.g. `auto`, `en`, `de`)
     - `tools?: string[]`
     - `automationEnabled?: boolean`
-  - 200 JSON: `{ ok: true, assistant }`
+  - SSE events:
+    - `event: chunk` `data: { text }`
+    - `event: assistant` `data: { ...assistant }`
+    - `event: done` `data: {}`
+    - `event: error` `data: { message }`
+- `POST /v1/agent/history`
+  - Headers: `Authorization: Bearer <token>`
+  - Body:
+    - `url: string` (required)
+    - `pageContent: string`
+    - `cacheContent?: string` (used for cache key; defaults to `pageContent`)
+    - `model?: string`
+    - `length?: string`
+    - `language?: string`
+    - `automationEnabled?: boolean`
+  - 200 JSON: `{ ok: true, messages }`
 - `GET /v1/summarize/:id/events` (SSE)
   - `event: chunk` `data: { text }`
   - `event: meta` `data: { model }`

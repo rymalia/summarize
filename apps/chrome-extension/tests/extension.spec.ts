@@ -92,6 +92,21 @@ function buildAssistant(text: string) {
   }
 }
 
+function buildAgentStream(text: string) {
+  const assistant = buildAssistant(text)
+  return [
+    'event: chunk',
+    `data: ${JSON.stringify({ text })}`,
+    '',
+    'event: assistant',
+    `data: ${JSON.stringify(assistant)}`,
+    '',
+    'event: done',
+    'data: {}',
+    '',
+  ].join('\n')
+}
+
 function filterAllowed(errors: string[]) {
   return errors.filter((message) => !consoleErrorAllowlist.some((pattern) => pattern.test(message)))
 }
@@ -172,6 +187,13 @@ async function launchExtension(browser: BrowserType = 'chromium'): Promise<Exten
   })
   await context.route('**/favicon.ico', async (route) => {
     await route.fulfill({ status: 204, body: '' })
+  })
+  await context.route('http://127.0.0.1:8787/v1/agent/history', async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ok: true, messages: null }),
+    })
   })
 
   // Get extension ID - different approach for Firefox vs Chromium
@@ -907,8 +929,8 @@ test('sidepanel shows an error when agent request fails', async ({
       agentCalls += 1
       await route.fulfill({
         status: 500,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ok: false, error: 'Boom' }),
+        headers: { 'content-type': 'text/plain' },
+        body: 'Boom',
       })
     })
 
@@ -932,6 +954,7 @@ test('sidepanel shows an error when agent request fails', async ({
     await expect.poll(() => agentCalls).toBe(1)
     await expect(page.locator('#error')).toBeVisible()
     await expect(page.locator('#errorMessage')).toContainText('Chat request failed: Boom')
+    await expect(page.locator('.chatMessage.assistant.streaming')).toHaveCount(0)
     assertNoErrors(harness)
   } finally {
     await closeExtension(harness.context, harness.userDataDir)
@@ -1047,10 +1070,11 @@ test('sidepanel chat queue sends next message after stream completes', async ({
     await harness.context.route('http://127.0.0.1:8787/v1/agent', async (route) => {
       agentRequestCount += 1
       if (agentRequestCount === 1) await firstGate
+      const body = buildAgentStream(`Reply ${agentRequestCount}`)
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ok: true, assistant: buildAssistant(`Reply ${agentRequestCount}`) }),
+        headers: { 'content-type': 'text/event-stream' },
+        body,
       })
     })
 
@@ -1112,10 +1136,11 @@ test('sidepanel chat queue drains messages after stream completes', async ({
     await harness.context.route('http://127.0.0.1:8787/v1/agent', async (route) => {
       agentRequestCount += 1
       if (agentRequestCount === 1) await firstGate
+      const body = buildAgentStream(`Reply ${agentRequestCount}`)
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ok: true, assistant: buildAssistant(`Reply ${agentRequestCount}`) }),
+        headers: { 'content-type': 'text/event-stream' },
+        body,
       })
     })
 
@@ -1186,10 +1211,11 @@ test('sidepanel clears chat on user navigation', async ({
     await injectContentScript(harness, 'content-scripts/extract.js', 'https://example.com')
 
     await harness.context.route('http://127.0.0.1:8787/v1/agent', async (route) => {
+      const body = buildAgentStream('Ack')
       await route.fulfill({
         status: 200,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ok: true, assistant: buildAssistant('Ack') }),
+        headers: { 'content-type': 'text/event-stream' },
+        body,
       })
     })
 

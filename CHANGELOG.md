@@ -7,6 +7,7 @@
 - Transcripts: `--timestamps` adds segment-level timings (`transcriptSegments` + `transcriptTimedText`) for YouTube, podcasts, and embedded captions.
 - Chrome Side Panel chat: timestamped transcript context plus clickable `[mm:ss]` links that seek the current media.
 - Summaries: when transcript timestamps are available, prompts require timestamped bullet summaries; side panel auto-links `[mm:ss]` in summaries for media.
+- Chrome Side Panel chat: stream agent replies over SSE and restore chat history from daemon cache (#33, thanks @dougvk).
 - Chrome automation: add artifacts tool + REPL helpers for persistent session files (notes/JSON/CSV) and downloads.
 - Chrome automation: expand navigate tool with list/switch tab support and return matching skills after navigation.
 - Browser extension: add Firefox sidebar build + multi-browser config (#31, thanks @vlnd0).
@@ -14,6 +15,7 @@
 ### Fixes
 
 - Chrome Side Panel: scope streams/state per window so other windows don’t wipe active summaries.
+- Chrome Side Panel chat: clear streaming placeholders on errors/aborts.
 - Cache: include transcript timestamp requests in extract cache keys so timed summaries don’t reuse plain transcript content.
 - Automation: require userScripts (no isolated-world fallback), with improved guidance and in-panel permission notice.
 
