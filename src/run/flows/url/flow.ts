@@ -280,6 +280,9 @@ export async function runUrlFlow({
         ytDlpPath: model.apiStatus.ytDlpPath,
         ffmpegPath: null,
         tesseractPath: null,
+        hooks: {
+          onSlideChunk: (chunk) => ctx.hooks.onSlideChunk?.(chunk),
+        },
       })
       if (slidesResult) {
         ctx.hooks.onSlidesExtracted?.(slidesResult)

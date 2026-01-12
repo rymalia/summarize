@@ -549,15 +549,17 @@ renderEl.addEventListener('click', (event) => {
 })
 
 const summarizeControl = mountSummarizeControl(summarizeControlRoot, {
-  value: inputMode,
-  mediaAvailable: false,
+  mode: inputMode,
   slidesEnabled: slidesEnabledValue,
+  mediaAvailable: false,
   videoLabel: 'Video',
-  onValueChange: (value) => {
-    inputMode = value
+  busy: false,
+  onChange: (value) => {
+    inputMode = value.mode
+    inputModeOverride = value.mode
+    slidesEnabledValue = value.slides
   },
   onSummarize: () => sendSummarize(),
-  onToggleSlides: () => {},
 })
 
 function normalizeQueueText(input: string) {
@@ -2247,49 +2249,43 @@ function updateControls(state: UiState) {
   mediaAvailable = nextMediaAvailable
   const updateSummarizeControl = () => {
     summarizeControl.update({
-      value: inputMode,
-      mediaAvailable,
+      mode: inputMode,
       slidesEnabled: slidesEnabledValue,
+      mediaAvailable,
+      busy: slidesBusy,
       videoLabel: nextVideoLabel,
       pageWords: state.stats.pageWords,
       videoDurationSeconds: state.stats.videoDurationSeconds,
-      onValueChange: (value) => {
-        inputMode = value
-        inputModeOverride = value
-        if (autoValue) {
-          sendSummarize({ refresh: true })
-        }
-      },
-      onSummarize: () => sendSummarize(),
-      onToggleSlides: () => {
+      onChange: (value) => {
         void (async () => {
-          const nextValue = !slidesEnabledValue
-          if (nextValue) {
+          const prevSlides = slidesEnabledValue
+          const prevMode = inputMode
+          if (value.slides && !slidesEnabledValue) {
             const tools = await fetchSlideTools()
             if (!tools.ok) {
               const missing = tools.missing.join(', ')
               showSlideNotice(
                 `Slide extraction requires ${missing}. Install and restart the daemon.`
               )
+              updateSummarizeControl()
               return
             }
             hideSlideNotice()
-            if (preferUrlMode) {
-              inputMode = 'video'
-              inputModeOverride = 'video'
-            }
-          } else {
+          } else if (!value.slides) {
             hideSlideNotice()
             setSlidesBusy(false)
           }
-          slidesEnabledValue = nextValue
+          inputMode = value.mode
+          inputModeOverride = value.mode
+          slidesEnabledValue = value.slides
           await patchSettings({ slidesEnabled: slidesEnabledValue })
-          updateSummarizeControl()
-          if (nextValue && mediaAvailable && !isStreaming()) {
+          if (autoValue && (value.mode !== prevMode || value.slides !== prevSlides)) {
             sendSummarize({ refresh: true })
           }
+          updateSummarizeControl()
         })()
       },
+      onSummarize: () => sendSummarize(),
     })
   }
   updateSummarizeControl()
