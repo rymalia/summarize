@@ -5,6 +5,7 @@ import { homedir, tmpdir } from 'node:os'
 import { basename, extname, join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
+import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { isFfmpegAvailable, runFfmpegTranscodeToWav } from './whisper/ffmpeg.js'
 import type { WhisperProgressEvent, WhisperTranscriptionResult } from './whisper/types.js'
 import { wrapError } from './whisper/utils.js'
@@ -171,7 +172,10 @@ async function downloadFile(url: string, destination: string) {
     )
   }
 
-  await pipeline(Readable.fromWeb(response.body), createWriteStream(destination))
+  // `fetch` Response.body is typed as DOM `ReadableStream` but Node's `Readable.fromWeb` expects
+  // `node:stream/web`'s `ReadableStream` (which includes async-iterator helpers). Runtime is fine.
+  const body = response.body as unknown as NodeReadableStream
+  await pipeline(Readable.fromWeb(body), createWriteStream(destination))
 }
 
 async function ensureModelArtifactsDownloaded({
