@@ -322,9 +322,40 @@ function urlsMatch(a: string, b: string) {
 
 async function extractFromTab(
   tabId: number,
-  maxChars: number
+  maxChars: number,
+  opts?: {
+    timeoutMs?: number
+    log?: (event: string, detail?: Record<string, unknown>) => void
+  }
 ): Promise<{ ok: true; data: ExtractResponse & { ok: true } } | { ok: false; error: string }> {
   const req = { type: 'extract', maxChars } satisfies ExtractRequest
+  const timeoutMs = opts?.timeoutMs ?? 6_000
+
+  const sendMessageWithTimeout = async (): Promise<ExtractResponse> => {
+    const start = Date.now()
+    let timer: ReturnType<typeof setTimeout> | null = null
+    try {
+      const res = (await Promise.race([
+        chrome.tabs.sendMessage(tabId, req) as Promise<ExtractResponse>,
+        new Promise<never>((_resolve, reject) => {
+          timer = setTimeout(
+            () => reject(new Error(`extract timed out after ${timeoutMs}ms`)),
+            timeoutMs
+          )
+        }),
+      ])) as ExtractResponse
+      if (timer) clearTimeout(timer)
+      opts?.log?.('extract:message:ok', { elapsedMs: Date.now() - start })
+      return res
+    } catch (err) {
+      if (timer) clearTimeout(timer)
+      opts?.log?.('extract:message:error', {
+        elapsedMs: Date.now() - start,
+        error: err instanceof Error ? err.message : String(err),
+      })
+      throw err
+    }
+  }
 
   const tryInject = async (): Promise<{ ok: true } | { ok: false; error: string }> => {
     try {
@@ -332,9 +363,11 @@ async function extractFromTab(
         target: { tabId },
         files: ['content-scripts/extract.js'],
       })
+      opts?.log?.('extract:inject:ok')
       return { ok: true }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      opts?.log?.('extract:inject:error', { error: message })
       return {
         ok: false,
         error:
@@ -348,7 +381,8 @@ async function extractFromTab(
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const res = (await chrome.tabs.sendMessage(tabId, req)) as ExtractResponse
+      opts?.log?.('extract:attempt', { attempt: attempt + 1, timeoutMs })
+      const res = await sendMessageWithTimeout()
       if (!res.ok) return { ok: false, error: res.error }
       return { ok: true, data: res }
     } catch (err) {
@@ -356,7 +390,22 @@ async function extractFromTab(
       const noReceiver =
         message.includes('Receiving end does not exist') ||
         message.includes('Could not establish connection')
+      const didTimeout = message.includes('extract timed out')
       if (noReceiver) {
+        const injected = await tryInject()
+        if (!injected.ok) return injected
+        await new Promise((r) => setTimeout(r, 120))
+        continue
+      }
+
+      if (didTimeout) {
+        if (attempt === 2) {
+          return {
+            ok: false,
+            error:
+              'Page extraction timed out. Reload the tab (or “Summarize → Refresh”), then retry.',
+          }
+        }
         const injected = await tryInject()
         if (!injected.ok) return injected
         await new Promise((r) => setTimeout(r, 120))
@@ -956,7 +1005,17 @@ export default defineBackground(() => {
     session.runController = controller
 
     sendStatus(session, `Extracting… (${reason})`)
-    const extractedAttempt = await extractFromTab(tab.id, settings.maxChars)
+    logPanel('extract:start', { reason, tabId: tab.id, maxChars: settings.maxChars })
+    const extractedAttempt = await extractFromTab(tab.id, settings.maxChars, {
+      timeoutMs: 8_000,
+      log: (event, detail) => logPanel(event, detail),
+    })
+    logPanel(extractedAttempt.ok ? 'extract:done' : 'extract:failed', {
+      ok: extractedAttempt.ok,
+      ...(extractedAttempt.ok
+        ? { url: extractedAttempt.data.url }
+        : { error: extractedAttempt.error }),
+    })
     let extracted = extractedAttempt.ok
       ? extractedAttempt.data
       : {
@@ -970,7 +1029,11 @@ export default defineBackground(() => {
 
     if (tab.url && extracted.url && !urlsMatch(tab.url, extracted.url)) {
       await new Promise((resolve) => setTimeout(resolve, 180))
-      const retry = await extractFromTab(tab.id, settings.maxChars)
+      logPanel('extract:retry', { tabId: tab.id, maxChars: settings.maxChars })
+      const retry = await extractFromTab(tab.id, settings.maxChars, {
+        timeoutMs: 8_000,
+        log: (event, detail) => logPanel(event, detail),
+      })
       if (retry.ok) {
         extracted = retry.data
       }
