@@ -127,8 +127,8 @@ describe('chrome/daemon-payload', () => {
         text: '',
         truncated: false,
       },
-      settings: { ...defaultSettings, slidesEnabled: true },
-      slidesEnabled: true,
+      settings: defaultSettings,
+      slides: { enabled: true, ocr: true },
     })
 
     expect(body.slides).toBe(true)

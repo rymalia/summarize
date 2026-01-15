@@ -56,27 +56,47 @@ export function buildSummarizeRequestBody({
   noCache,
   inputMode,
   timestamps,
-  slidesEnabled,
+  slides,
 }: {
   extracted: ExtractedPage
   settings: Settings
   noCache?: boolean
   inputMode?: 'page' | 'video'
   timestamps?: boolean
-  slidesEnabled?: boolean
+  slides?: {
+    enabled: boolean
+    ocr?: boolean
+    maxSlides?: number | null
+    minDurationSeconds?: number | null
+  }
 }): Record<string, unknown> {
   const baseBody = buildDaemonRequestBody({ extracted, settings, noCache })
   const withTimestamps = timestamps ? { ...baseBody, timestamps: true } : baseBody
+  const slidesEnabled = Boolean(slides?.enabled)
+  const slidesOcr = Boolean(slides?.ocr)
+  const slidesSettings = slidesEnabled
+    ? {
+        slides: true,
+        ...(slidesOcr ? { slidesOcr: true } : {}),
+        ...(typeof slides?.maxSlides === 'number' && Number.isFinite(slides.maxSlides)
+          ? { slidesMax: slides.maxSlides }
+          : {}),
+        ...(typeof slides?.minDurationSeconds === 'number' &&
+        Number.isFinite(slides.minDurationSeconds)
+          ? { slidesMinDuration: slides.minDurationSeconds }
+          : {}),
+      }
+    : {}
   if (inputMode === 'video') {
     return {
       ...withTimestamps,
       mode: 'url',
       videoMode: 'transcript',
-      ...(slidesEnabled ? { slides: true, slidesOcr: true } : {}),
+      ...slidesSettings,
     }
   }
   if (inputMode === 'page') {
     return { ...withTimestamps, mode: 'page' }
   }
-  return slidesEnabled ? { ...withTimestamps, slides: true, slidesOcr: true } : withTimestamps
+  return slidesEnabled ? { ...withTimestamps, ...slidesSettings } : withTimestamps
 }

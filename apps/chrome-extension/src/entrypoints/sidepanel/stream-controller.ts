@@ -198,7 +198,13 @@ export function createStreamController(options: StreamControllerOptions): Stream
         } else if (event.event === 'slides') {
           onSlides?.(event.data)
         } else if (event.event === 'status') {
-          if (!streamedAnyNonWhitespace) onStatus(event.data.text)
+          const raw = typeof event.data.text === 'string' ? event.data.text : ''
+          const trimmed = raw.trim().toLowerCase()
+          const allowDuringStreaming =
+            trimmed.startsWith('slides:') ||
+            trimmed.startsWith('slides ') ||
+            trimmed.startsWith('slide:')
+          if (!streamedAnyNonWhitespace || allowDuringStreaming) onStatus(raw)
         } else if (event.event === 'metrics') {
           onMetrics?.(event.data.summary)
         } else if (event.event === 'error') {

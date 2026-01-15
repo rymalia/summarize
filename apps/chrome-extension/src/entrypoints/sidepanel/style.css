@@ -1660,6 +1660,10 @@ button.setup__pill.isActive {
   margin-top: 0;
 }
 
+.render__markdownHost > :first-child {
+  margin-top: 0;
+}
+
 .metrics {
   margin-top: 14px;
   padding-top: 12px;
@@ -1925,14 +1929,41 @@ button.setup__pill.isActive {
   border-radius: 12px;
   padding: 0;
   overflow: hidden;
-  background: var(--surface);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
   border-color: var(--border);
 }
 
-.slideInline img {
+.slideInline__thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--panel) 75%, transparent);
+}
+
+.slideInline__thumb.isPlaceholder {
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--panel) 76%, transparent) 0%,
+      color-mix(in srgb, var(--panel) 58%, transparent) 38%,
+      color-mix(in srgb, var(--panel) 76%, transparent) 78%
+    ),
+    color-mix(in srgb, var(--panel) 75%, transparent);
+  background-size: 200% 100%;
+  animation: slideShimmer 1.2s ease-in-out infinite;
+}
+
+.slideInline__thumbImage {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.slideInline__thumbImage[data-loaded="true"] {
+  opacity: 1;
 }
 
 .slideInline .slideCaption {
@@ -1945,8 +1976,8 @@ button.setup__pill.isActive {
 
 .slideStrip {
   margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 .slideStrip__header {
@@ -2004,16 +2035,44 @@ button.setup__pill.isActive {
   min-width: 0;
 }
 
-.slideStrip__item img {
+.slideStrip__thumb {
   width: 100%;
-  height: 96px;
-  object-fit: cover;
+  aspect-ratio: 16 / 9;
   border-radius: 12px 12px 8px 8px;
-  display: block;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--panel) 75%, transparent);
 }
 
-.slideStrip__grid.isExpanded .slideStrip__item img {
-  height: auto;
+.slideStrip__thumb.isPlaceholder {
+  background:
+    linear-gradient(
+      110deg,
+      color-mix(in srgb, var(--panel) 76%, transparent) 0%,
+      color-mix(in srgb, var(--panel) 58%, transparent) 38%,
+      color-mix(in srgb, var(--panel) 76%, transparent) 78%
+    ),
+    color-mix(in srgb, var(--panel) 75%, transparent);
+  background-size: 200% 100%;
+  animation: slideShimmer 1.2s ease-in-out infinite;
+}
+
+.slideStrip__thumbImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+
+.slideStrip__thumbImage[data-loaded="true"] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slideStrip__thumb.isPlaceholder {
+    animation: none;
+  }
 }
 
 .slideStrip__meta {
@@ -2032,6 +2091,15 @@ button.setup__pill.isActive {
 
 .slideStrip__text:empty {
   display: none;
+}
+
+@keyframes slideShimmer {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 100% 0%;
+  }
 }
 
 .slideModal {

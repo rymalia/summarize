@@ -1,5 +1,5 @@
 import type { AssistantMessage, Message, ToolCall, ToolResultMessage } from '@mariozechner/pi-ai'
-import { shouldPreferUrlMode } from '@steipete/summarize-core/content/url'
+import { extractYouTubeVideoId, shouldPreferUrlMode } from '@steipete/summarize-core/content/url'
 import { SUMMARY_LENGTH_SPECS } from '@steipete/summarize-core/prompts'
 import MarkdownIt from 'markdown-it'
 
@@ -125,6 +125,11 @@ const errorMessageEl = byId<HTMLParagraphElement>('errorMessage')
 const errorRetryBtn = byId<HTMLButtonElement>('errorRetry')
 const slideNoticeEl = byId<HTMLDivElement>('slideNotice')
 const renderEl = byId<HTMLElement>('render')
+const renderSlidesHostEl = document.createElement('div')
+renderSlidesHostEl.className = 'render__slidesHost'
+const renderMarkdownHostEl = document.createElement('div')
+renderMarkdownHostEl.className = 'render__markdownHost'
+renderEl.append(renderSlidesHostEl, renderMarkdownHostEl)
 const mainEl = document.querySelector('main') as HTMLElement
 if (!mainEl) throw new Error('Missing <main>')
 const metricsEl = byId<HTMLDivElement>('metrics')
@@ -249,9 +254,11 @@ let slidesTranscriptSegments: TranscriptSegment[] = []
 let slidesTranscriptAvailable = false
 let slidesOcrAvailable = false
 let slideDescriptions = new Map<number, string>()
+let slideSummaryByIndex = new Map<number, string>()
 let slidesContextRequestId = 0
 let slidesContextPending = false
 let slidesContextUrl: string | null = null
+let pendingRunForPlannedSlides: RunStart | null = null
 
 const AGENT_NAV_TTL_MS = 20_000
 type AgentNavigation = { url: string; tabId: number | null; at: number }
@@ -289,6 +296,65 @@ function hideSlideNotice() {
 
 const slideImageCache = new Map<string, string>()
 const slideImagePending = new Map<string, Promise<string | null>>()
+const slideImageRetryTimers = new WeakMap<HTMLImageElement, number>()
+
+type SlideImageObserverEntry = { imageUrl: string }
+const slideImageObserverEntries = new WeakMap<HTMLImageElement, SlideImageObserverEntry>()
+const slideImageObserver =
+  typeof IntersectionObserver !== 'undefined'
+    ? new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue
+            const img = entry.target as HTMLImageElement
+            const info = slideImageObserverEntries.get(img)
+            if (!info) continue
+            slideImageObserverEntries.delete(img)
+            slideImageObserver?.unobserve(img)
+            img.dataset.slideObserveArmed = 'false'
+            void setSlideImage(img, info.imageUrl)
+          }
+        },
+        { rootMargin: '320px 0px' }
+      )
+    : null
+
+function observeSlideImage(img: HTMLImageElement, imageUrl: string) {
+  if (!imageUrl) return
+  const isSameUrl = img.dataset.slideImageUrl === imageUrl
+  if (isSameUrl) {
+    if (img.dataset.loaded === 'true' && img.src) return
+    if (img.dataset.slideObserveArmed === 'true') return
+  }
+  const hadVisibleImage = img.dataset.loaded === 'true' && Boolean(img.src)
+  img.dataset.slideImageUrl = imageUrl
+  if (!hadVisibleImage) {
+    img.dataset.loaded = 'false'
+  }
+  const thumb = img.closest<HTMLElement>('.slideStrip__thumb, .slideInline__thumb')
+  if (thumb && img.dataset.loaded !== 'true') thumb.classList.add('isPlaceholder')
+  if (!isSameUrl) {
+    img.dataset.slideRetryCount = '0'
+    img.dataset.slideRetryStartedAt = String(Date.now())
+  } else if (!img.dataset.slideRetryCount) {
+    img.dataset.slideRetryCount = '0'
+  }
+  if (img.dataset.slideLoadListener !== 'true') {
+    img.dataset.slideLoadListener = 'true'
+    img.addEventListener('load', () => {
+      img.dataset.loaded = 'true'
+      const parent = img.closest<HTMLElement>('.slideStrip__thumb, .slideInline__thumb')
+      parent?.classList.remove('isPlaceholder')
+    })
+  }
+  if (!slideImageObserver) {
+    void setSlideImage(img, imageUrl)
+    return
+  }
+  img.dataset.slideObserveArmed = 'true'
+  slideImageObserverEntries.set(img, { imageUrl })
+  slideImageObserver.observe(img)
+}
 
 function clearSlideImageCache() {
   for (const url of slideImageCache.values()) {
@@ -307,10 +373,23 @@ async function resolveSlideImageUrl(imageUrl: string): Promise<string | null> {
 
   const task = (async () => {
     try {
-      const token = (await loadSettings()).token.trim()
+      const settings = await loadSettings()
+      const token = settings.token.trim()
       if (!token) return null
       const res = await fetch(imageUrl, { headers: { Authorization: `Bearer ${token}` } })
-      if (!res.ok) return null
+      if (!res.ok) {
+        if (settings.extendedLogging) {
+          console.debug('[summarize] slide fetch failed', { url: imageUrl, status: res.status })
+        }
+        return null
+      }
+      const readyHeader = res.headers.get('x-summarize-slide-ready')
+      if (readyHeader === '0') {
+        if (settings.extendedLogging) {
+          console.debug('[summarize] slide not ready', { url: imageUrl })
+        }
+        return null
+      }
       const blob = await res.blob()
       const objectUrl = URL.createObjectURL(blob)
       slideImageCache.set(imageUrl, objectUrl)
@@ -328,16 +407,38 @@ async function resolveSlideImageUrl(imageUrl: string): Promise<string | null> {
 
 async function setSlideImage(img: HTMLImageElement, imageUrl: string) {
   if (!imageUrl) return
+  const existingTimer = slideImageRetryTimers.get(img)
+  if (existingTimer) {
+    window.clearTimeout(existingTimer)
+    slideImageRetryTimers.delete(img)
+  }
   const cached = slideImageCache.get(imageUrl)
   if (cached) {
-    img.src = cached
+    if (img.src !== cached) img.src = cached
     return
   }
   img.dataset.slideImageUrl = imageUrl
   const resolved = await resolveSlideImageUrl(imageUrl)
-  if (!resolved) return
+  if (!resolved) {
+    if (img.dataset.slideImageUrl !== imageUrl) return
+    const retryCount = Number(img.dataset.slideRetryCount ?? '0')
+    if (!Number.isFinite(retryCount)) return
+    const startedAt = Number(img.dataset.slideRetryStartedAt ?? '0')
+    const elapsedMs = startedAt > 0 ? Date.now() - startedAt : 0
+    // Slide extraction can take minutes on long videos; keep polling, but cap total time.
+    if (elapsedMs > 20 * 60_000) return
+    const nextRetry = retryCount + 1
+    img.dataset.slideRetryCount = String(nextRetry)
+    const delayMs = Math.min(30_000, Math.round(500 * 1.7 ** retryCount))
+    const timer = window.setTimeout(() => {
+      if (img.dataset.slideImageUrl !== imageUrl) return
+      void setSlideImage(img, imageUrl)
+    }, delayMs)
+    slideImageRetryTimers.set(img, timer)
+    return
+  }
   if (img.dataset.slideImageUrl !== imageUrl) return
-  img.src = resolved
+  if (img.src !== resolved) img.src = resolved
 }
 
 async function fetchSlideTools(): Promise<{
@@ -605,7 +706,7 @@ function handleSlidesTextModeChange(next: SlideTextMode) {
   slidesTextMode = next
   rebuildSlideDescriptions()
   if (panelState.summaryMarkdown) {
-    renderInlineSlides(renderEl, { fallback: true })
+    renderInlineSlides(renderMarkdownHostEl, { fallback: true })
   }
   refreshSummarizeControl()
 }
@@ -962,7 +1063,8 @@ async function syncWithActiveTab() {
 }
 
 function resetSummaryView({ preserveChat = false }: { preserveChat?: boolean } = {}) {
-  renderEl.innerHTML = ''
+  renderMarkdownHostEl.innerHTML = ''
+  clearSlideStrip(renderSlidesHostEl)
   clearMetricsForMode('summary')
   panelState.summaryMarkdown = null
   panelState.summaryFromCache = null
@@ -975,6 +1077,7 @@ function resetSummaryView({ preserveChat = false }: { preserveChat?: boolean } =
   slidesTextToggleVisible = false
   slidesTextMode = 'transcript'
   slideDescriptions = new Map()
+  slideSummaryByIndex = new Map()
   refreshSummarizeControl()
   if (!preserveChat) {
     clearSlideImageCache()
@@ -998,14 +1101,15 @@ window.addEventListener('unhandledrejection', (event) => {
 
 function renderMarkdown(markdown: string) {
   panelState.summaryMarkdown = markdown
+  updateSlideSummaryFromMarkdown(markdown)
   try {
-    renderEl.innerHTML = md.render(linkifyTimestamps(markdown))
+    renderMarkdownHostEl.innerHTML = md.render(linkifyTimestamps(markdown))
   } catch (err) {
     const message = err instanceof Error ? err.stack || err.message : String(err)
     headerController.setStatus(`Error: ${message}`)
     return
   }
-  for (const a of Array.from(renderEl.querySelectorAll('a'))) {
+  for (const a of Array.from(renderMarkdownHostEl.querySelectorAll('a'))) {
     const href = a.getAttribute('href') ?? ''
     if (href.startsWith('timestamp:')) {
       a.classList.add('chatTimestamp')
@@ -1016,7 +1120,63 @@ function renderMarkdown(markdown: string) {
     a.setAttribute('target', '_blank')
     a.setAttribute('rel', 'noopener noreferrer')
   }
-  renderInlineSlides(renderEl, { fallback: true })
+  renderInlineSlides(renderMarkdownHostEl, { fallback: true })
+}
+
+function updateSlideSummaryFromMarkdown(markdown: string) {
+  slideSummaryByIndex = parseSlideSummariesFromMarkdown(markdown)
+  rebuildSlideDescriptions()
+  if (!panelState.slides) return
+  const existing = renderSlidesHostEl.querySelector('.slideStrip')
+  if (!existing) {
+    renderSlideStrip(renderSlidesHostEl)
+    return
+  }
+  updateSlideStripText(existing)
+}
+
+function parseSlideSummariesFromMarkdown(markdown: string): Map<number, string> {
+  const result = new Map<number, string>()
+  if (!markdown.trim()) return result
+  const slidesHeadingMatch = markdown.match(/^###\s+Slides\b.*$/im)
+  if (slidesHeadingMatch?.index == null) return result
+  const startAt = slidesHeadingMatch.index
+  const slice = markdown.slice(startAt)
+
+  const lines = slice.split('\n')
+  let currentIndex: number | null = null
+  let buffer: string[] = []
+  const flush = () => {
+    if (currentIndex == null) return
+    const text = buffer.join('\n').trim().replace(/\s+/g, ' ')
+    if (text) result.set(currentIndex, text)
+    currentIndex = null
+    buffer = []
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    const heading = trimmed.match(/^#{1,3}\s+\S/)
+    if (heading && !trimmed.toLowerCase().startsWith('### slides')) {
+      flush()
+      break
+    }
+    const match = trimmed.match(/^\[slide:(\d+)\]\s*(.*)$/i)
+    if (match) {
+      flush()
+      const index = Number.parseInt(match[1] ?? '', 10)
+      if (!Number.isFinite(index) || index <= 0) continue
+      currentIndex = index
+      const rest = (match[2] ?? '').trim()
+      if (rest) buffer.push(rest)
+      continue
+    }
+    if (currentIndex == null) continue
+    if (!trimmed) continue
+    buffer.push(trimmed)
+  }
+  flush()
+  return result
 }
 
 function setSlidesBusy(next: boolean) {
@@ -1214,12 +1374,27 @@ function rebuildSlideDescriptions() {
   if (!panelState.slides) return
   const budget = resolveSlideTextBudget(pickerSettings.length)
   const windowSeconds = resolveSlideWindowSeconds(pickerSettings.length)
+  const hasSummary = slideSummaryByIndex.size > 0
+  const effectiveInputMode = inputModeOverride ?? inputMode
+  const holdTranscriptFallback =
+    !hasSummary &&
+    slidesEnabledValue &&
+    effectiveInputMode === 'video' &&
+    (panelState.phase === 'connecting' || panelState.phase === 'streaming')
   for (const slide of panelState.slides.slides) {
-    const text =
-      slidesTextMode === 'ocr'
-        ? getOcrTextForSlide(slide, budget)
-        : getTranscriptTextForSlide(slide, budget, windowSeconds)
-    slideDescriptions.set(slide.index, text)
+    if (slidesTextMode === 'ocr') {
+      slideDescriptions.set(slide.index, getOcrTextForSlide(slide, budget))
+      continue
+    }
+    if (hasSummary) {
+      slideDescriptions.set(slide.index, slideSummaryByIndex.get(slide.index) ?? '')
+      continue
+    }
+    if (holdTranscriptFallback) {
+      slideDescriptions.set(slide.index, '')
+      continue
+    }
+    slideDescriptions.set(slide.index, getTranscriptTextForSlide(slide, budget, windowSeconds))
   }
 }
 
@@ -1258,6 +1433,25 @@ function updateSlidesTextState() {
   refreshSummarizeControl()
 }
 
+function mergeSlidesPayload(
+  prev: NonNullable<PanelState['slides']>,
+  next: NonNullable<PanelState['slides']>
+): NonNullable<PanelState['slides']> {
+  if (prev.sourceId !== next.sourceId) return next
+  const mergedByIndex = new Map<number, NonNullable<PanelState['slides']>['slides'][number]>()
+  for (const slide of prev.slides) mergedByIndex.set(slide.index, slide)
+  for (const slide of next.slides) {
+    const existing = mergedByIndex.get(slide.index)
+    mergedByIndex.set(slide.index, existing ? { ...existing, ...slide } : slide)
+  }
+  const mergedSlides = Array.from(mergedByIndex.values()).sort((a, b) => a.index - b.index)
+  return {
+    ...prev,
+    ...next,
+    slides: mergedSlides,
+  }
+}
+
 async function requestSlidesContext() {
   if (!panelState.slides || slidesContextPending) return
   const sourceUrl = panelState.slides.sourceUrl || panelState.currentSource?.url || null
@@ -1270,82 +1464,181 @@ async function requestSlidesContext() {
 }
 
 const MAX_SLIDE_STRIP = 12
+let slideStripRenderQueued = 0
+
+function queueSlideStripRender() {
+  if (slideStripRenderQueued) return
+  slideStripRenderQueued = window.setTimeout(() => {
+    slideStripRenderQueued = 0
+    renderSlideStrip(renderSlidesHostEl)
+  }, 120)
+}
 
 function clearSlideStrip(container: HTMLElement) {
   const existing = container.querySelector('.slideStrip')
   if (existing) existing.remove()
 }
 
+function updateSlideStripText(strip: Element) {
+  if (!slidesExpanded) return
+  const buttons = Array.from(strip.querySelectorAll<HTMLButtonElement>('.slideStrip__item'))
+  for (const button of buttons) {
+    const idxRaw = button.dataset.slideIndex
+    const idx = idxRaw ? Number(idxRaw) : Number.NaN
+    if (!Number.isFinite(idx)) continue
+    const textEl = button.querySelector<HTMLElement>('.slideStrip__text')
+    if (!textEl) continue
+    textEl.textContent = slideDescriptions.get(idx) ?? ''
+  }
+}
+
 function renderSlideStrip(container: HTMLElement) {
   if (!panelState.slides) return
-  clearSlideStrip(container)
   const allSlides = panelState.slides.slides
   const slides = slidesExpanded ? allSlides : allSlides.slice(0, MAX_SLIDE_STRIP)
-  if (allSlides.length === 0 || slides.length === 0) return
+  if (allSlides.length === 0 || slides.length === 0) {
+    clearSlideStrip(container)
+    return
+  }
 
-  const root = document.createElement('div')
-  root.className = 'slideStrip'
+  const existing = container.querySelector<HTMLDivElement>('.slideStrip')
+  const sourceId = panelState.slides.sourceId
+  const expectedMode = slidesExpanded ? 'expanded' : 'collapsed'
+  if (
+    !existing ||
+    existing.dataset.sourceId !== sourceId ||
+    existing.dataset.mode !== expectedMode
+  ) {
+    clearSlideStrip(container)
+    const root = document.createElement('div')
+    root.className = 'slideStrip'
+    root.dataset.sourceId = sourceId
+    root.dataset.mode = expectedMode
 
-  const header = document.createElement('div')
-  header.className = 'slideStrip__header'
+    const header = document.createElement('div')
+    header.className = 'slideStrip__header'
 
-  const title = document.createElement('div')
-  title.className = 'slideStrip__title'
+    const title = document.createElement('div')
+    title.className = 'slideStrip__title'
+    header.appendChild(title)
+
+    const toggle = document.createElement('button')
+    toggle.type = 'button'
+    toggle.className = 'slideStrip__toggle'
+    toggle.addEventListener('click', () => {
+      slidesExpanded = !slidesExpanded
+      renderSlideStrip(container)
+    })
+    header.appendChild(toggle)
+    root.appendChild(header)
+
+    const grid = document.createElement('div')
+    grid.className = 'slideStrip__grid'
+    root.appendChild(grid)
+    container.prepend(root)
+  }
+
+  const root = container.querySelector<HTMLDivElement>('.slideStrip')
+  if (!root) return
+  root.dataset.sourceId = sourceId
+  root.dataset.mode = expectedMode
+
+  const header = root.querySelector<HTMLDivElement>('.slideStrip__header')
+  const title = root.querySelector<HTMLDivElement>('.slideStrip__title')
+  const toggle = root.querySelector<HTMLButtonElement>('.slideStrip__toggle')
+  const grid = root.querySelector<HTMLDivElement>('.slideStrip__grid')
+  if (!header || !title || !toggle || !grid) return
+
   const total = allSlides.length
   title.textContent =
     !slidesExpanded && total > slides.length
       ? `Slides (${total}) · showing ${slides.length}`
       : `Slides (${total})`
-  header.appendChild(title)
-
-  const toggle = document.createElement('button')
-  toggle.type = 'button'
-  toggle.className = 'slideStrip__toggle'
   toggle.textContent = slidesExpanded ? 'Collapse' : 'Expand'
   toggle.setAttribute('aria-pressed', slidesExpanded ? 'true' : 'false')
-  toggle.addEventListener('click', () => {
-    slidesExpanded = !slidesExpanded
-    renderSlideStrip(container)
-  })
-  header.appendChild(toggle)
-  root.appendChild(header)
-
-  const grid = document.createElement('div')
-  grid.className = 'slideStrip__grid'
   if (slidesExpanded) {
     grid.classList.add('isExpanded')
+  } else {
+    grid.classList.remove('isExpanded')
   }
+
+  const existingButtons = new Map<number, HTMLButtonElement>()
+  for (const button of Array.from(grid.querySelectorAll<HTMLButtonElement>('.slideStrip__item'))) {
+    const idxRaw = button.dataset.slideIndex
+    const idx = idxRaw ? Number(idxRaw) : Number.NaN
+    if (!Number.isFinite(idx)) continue
+    existingButtons.set(idx, button)
+  }
+
+  const wanted = new Set<number>(slides.map((slide) => slide.index))
+  for (const [idx, button] of existingButtons) {
+    if (wanted.has(idx)) continue
+    button.remove()
+    existingButtons.delete(idx)
+  }
+
   for (const slide of slides) {
-    const button = document.createElement('button')
-    button.type = 'button'
-    button.className = 'slideStrip__item'
-    const img = document.createElement('img')
-    img.alt = `Slide ${slide.index}`
-    void setSlideImage(img, slide.imageUrl)
-    const meta = document.createElement('div')
-    meta.className = 'slideStrip__meta'
-    const timestamp = formatSlideTimestamp(slide.timestamp)
-    meta.textContent = timestamp ? `Slide ${slide.index} · ${timestamp}` : `Slide ${slide.index}`
-    button.appendChild(img)
-    button.appendChild(meta)
-    if (slidesExpanded) {
-      const description = document.createElement('div')
-      description.className = 'slideStrip__text'
-      description.textContent = slideDescriptions.get(slide.index) ?? ''
-      button.appendChild(description)
+    const idx = slide.index
+    let button = existingButtons.get(idx)
+    if (!button) {
+      button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'slideStrip__item'
+      button.dataset.slideIndex = String(idx)
+
+      const thumb = document.createElement('div')
+      thumb.className = 'slideStrip__thumb'
+      const img = document.createElement('img')
+      img.alt = `Slide ${idx}`
+      img.className = 'slideStrip__thumbImage'
+      thumb.appendChild(img)
+
+      const meta = document.createElement('div')
+      meta.className = 'slideStrip__meta'
+
+      button.appendChild(thumb)
+      button.appendChild(meta)
+      grid.appendChild(button)
+      existingButtons.set(idx, button)
     }
-    button.addEventListener('click', () => {
+
+    const thumb = button.querySelector<HTMLDivElement>('.slideStrip__thumb')
+    const img = button.querySelector<HTMLImageElement>('img.slideStrip__thumbImage')
+    const meta = button.querySelector<HTMLDivElement>('.slideStrip__meta')
+    if (!thumb || !img || !meta) continue
+
+    if (slide.imageUrl) {
+      thumb.classList.remove('isPlaceholder')
+      observeSlideImage(img, slide.imageUrl)
+    } else {
+      thumb.classList.add('isPlaceholder')
+    }
+
+    const timestamp = formatSlideTimestamp(slide.timestamp)
+    meta.textContent = timestamp ? `Slide ${idx} · ${timestamp}` : `Slide ${idx}`
+
+    const existingText = button.querySelector<HTMLDivElement>('.slideStrip__text')
+    if (slidesExpanded) {
+      if (!existingText) {
+        const description = document.createElement('div')
+        description.className = 'slideStrip__text'
+        button.appendChild(description)
+      }
+      const textEl = button.querySelector<HTMLDivElement>('.slideStrip__text')
+      if (textEl) textEl.textContent = slideDescriptions.get(idx) ?? ''
+    } else if (existingText) {
+      existingText.remove()
+    }
+
+    button.onclick = () => {
       seekToSlideTimestamp(slide.timestamp)
-    })
-    grid.appendChild(button)
+    }
   }
-  root.appendChild(grid)
-  container.prepend(root)
 }
 
 function renderInlineSlides(container: HTMLElement, opts?: { fallback?: boolean }) {
   if (!panelState.slides) {
-    if (opts?.fallback) clearSlideStrip(container)
+    if (opts?.fallback) clearSlideStrip(renderSlidesHostEl)
     return
   }
   const slidesByIndex = new Map(panelState.slides.slides.map((slide) => [slide.index, slide]))
@@ -1361,14 +1654,18 @@ function renderInlineSlides(container: HTMLElement, opts?: { fallback?: boolean 
     wrapper.dataset.slideIndex = String(index)
     const button = document.createElement('button')
     button.type = 'button'
+    const thumb = document.createElement('div')
+    thumb.className = 'slideInline__thumb isPlaceholder'
     const img = document.createElement('img')
     img.alt = `Slide ${index}`
-    void setSlideImage(img, slide.imageUrl)
+    img.className = 'slideInline__thumbImage'
+    observeSlideImage(img, slide.imageUrl)
     const caption = document.createElement('div')
     caption.className = 'slideCaption'
     const timestamp = formatSlideTimestamp(slide.timestamp)
     caption.textContent = timestamp ? `Slide ${index} · ${timestamp}` : `Slide ${index}`
-    button.appendChild(img)
+    thumb.appendChild(img)
+    button.appendChild(thumb)
     button.appendChild(caption)
     button.addEventListener('click', () => {
       seekToSlideTimestamp(slide.timestamp)
@@ -1379,9 +1676,9 @@ function renderInlineSlides(container: HTMLElement, opts?: { fallback?: boolean 
   }
   if (opts?.fallback) {
     if (replacedCount === 0) {
-      renderSlideStrip(container)
+      renderSlideStrip(renderSlidesHostEl)
     } else {
-      clearSlideStrip(container)
+      clearSlideStrip(renderSlidesHostEl)
     }
   }
 }
@@ -2160,6 +2457,10 @@ const streamController = createStreamController({
     resetSummaryView({ preserveChat })
     panelState.lastMeta = { inputSummary: null, model: null, modelLabel: null }
     lastStreamError = null
+    if (pendingRunForPlannedSlides) {
+      seedPlannedSlidesForRun(pendingRunForPlannedSlides)
+      pendingRunForPlannedSlides = null
+    }
   },
   onStatus: (text) => {
     headerController.setStatus(text)
@@ -2174,6 +2475,10 @@ const streamController = createStreamController({
       setPhase('error', { error: lastStreamError ?? panelState.error })
     } else {
       setPhase(phase)
+    }
+    if (phase === 'idle' && panelState.slides && slideSummaryByIndex.size === 0) {
+      rebuildSlideDescriptions()
+      queueSlideStripRender()
     }
   },
   onRememberUrl: (url) => void send({ type: 'panel:rememberUrl', url }),
@@ -2196,16 +2501,19 @@ const streamController = createStreamController({
     )
   },
   onSlides: (data) => {
-    panelState.slides = data
-    setSlidesBusy(false)
-    slidesContextPending = false
-    slidesContextUrl = null
-    slidesTranscriptSegments = []
-    slidesTranscriptAvailable = false
+    const isSameSource = Boolean(panelState.slides && panelState.slides.sourceId === data.sourceId)
+    panelState.slides = panelState.slides ? mergeSlidesPayload(panelState.slides, data) : data
+    if (!isSameSource) {
+      slidesContextPending = false
+      slidesContextUrl = null
+      slidesTranscriptSegments = []
+      slidesTranscriptAvailable = false
+      void requestSlidesContext()
+    }
     updateSlidesTextState()
-    void requestSlidesContext()
+    queueSlideStripRender()
     if (panelState.summaryMarkdown) {
-      renderInlineSlides(renderEl, { fallback: true })
+      renderInlineSlides(renderMarkdownHostEl, { fallback: true })
     }
     renderInlineSlides(chatMessagesEl)
   },
@@ -2592,7 +2900,7 @@ function updateControls(state: UiState) {
     })
     rebuildSlideDescriptions()
     if (panelState.summaryMarkdown) {
-      renderInlineSlides(renderEl, { fallback: true })
+      renderInlineSlides(renderMarkdownHostEl, { fallback: true })
     }
   }
   if (
@@ -2627,7 +2935,7 @@ function updateControls(state: UiState) {
     headerController.setBaseTitle(state.tab.title || state.tab.url || 'Summarize')
     headerController.setBaseSubtitle('')
   }
-  if (!isStreaming() || state.status.trim().length > 0) {
+  if (!isStreaming()) {
     headerController.setStatus(state.status)
   }
   if (state.status.trim().length === 0 && panelState.phase !== 'error') {
@@ -2657,9 +2965,7 @@ function handleBgMessage(msg: BgToPanel) {
       updateControls(msg.state)
       return
     case 'ui:status':
-      if (!isStreaming() || msg.status.trim().length > 0) {
-        headerController.setStatus(msg.status)
-      }
+      if (!isStreaming()) headerController.setStatus(msg.status)
       return
     case 'run:error':
       headerController.setStatus(
@@ -2682,7 +2988,7 @@ function handleBgMessage(msg: BgToPanel) {
         slidesTranscriptAvailable = false
         updateSlidesTextState()
         if (panelState.summaryMarkdown) {
-          renderInlineSlides(renderEl, { fallback: true })
+          renderInlineSlides(renderMarkdownHostEl, { fallback: true })
         }
         return
       }
@@ -2690,7 +2996,7 @@ function handleBgMessage(msg: BgToPanel) {
       slidesTranscriptAvailable = slidesTranscriptSegments.length > 0
       updateSlidesTextState()
       if (panelState.summaryMarkdown) {
-        renderInlineSlides(renderEl, { fallback: true })
+        renderInlineSlides(renderMarkdownHostEl, { fallback: true })
       }
       return
     }
@@ -2714,6 +3020,7 @@ function handleBgMessage(msg: BgToPanel) {
       setActiveMetricsMode('summary')
       panelState.currentSource = { url: msg.run.url, title: msg.run.title }
       panelState.lastMeta = { inputSummary: null, model: null, modelLabel: null }
+      pendingRunForPlannedSlides = msg.run
       void streamController.start(msg.run)
       return
     }
@@ -2761,6 +3068,61 @@ function sendSummarize(opts?: { refresh?: boolean }) {
     refresh: Boolean(opts?.refresh),
     inputMode: inputModeOverride ?? undefined,
   })
+}
+
+function seedPlannedSlidesForRun(run: RunStart) {
+  if (!slidesEnabledValue) return
+  const effectiveInputMode = inputModeOverride ?? inputMode
+  if (effectiveInputMode !== 'video') return
+  const durationSeconds = summarizeVideoDurationSeconds
+  if (!durationSeconds || !Number.isFinite(durationSeconds) || durationSeconds <= 0) return
+
+  const normalized = pickerSettings.length.trim().toLowerCase()
+  const chunkSeconds =
+    normalized === 'short'
+      ? 600
+      : normalized === 'medium'
+        ? 450
+        : normalized === 'long'
+          ? 300
+          : normalized === 'xl'
+            ? 180
+            : normalized === 'xxl'
+              ? 120
+              : 300
+
+  const target = Math.max(3, Math.round(durationSeconds / chunkSeconds))
+  const count = Math.max(3, Math.min(80, target))
+
+  const youtubeId = extractYouTubeVideoId(run.url)
+  const sourceId = youtubeId ?? `planned-${run.id}`
+  const sourceKind = youtubeId ? 'youtube' : 'direct'
+  const baseImageUrl = youtubeId ? `http://127.0.0.1:8787/v1/slides/${sourceId}` : null
+
+  if (
+    panelState.slides &&
+    panelState.slides.sourceId === sourceId &&
+    panelState.slides.slides.length > 0
+  ) {
+    return
+  }
+
+  const slides = Array.from({ length: count }, (_, i) => {
+    const ratio = count <= 1 ? 0 : i / Math.max(1, count - 1)
+    const timestamp = Math.max(0, Math.min(durationSeconds - 0.1, ratio * durationSeconds))
+    const index = i + 1
+    return { index, timestamp, imageUrl: baseImageUrl ? `${baseImageUrl}/${index}` : '' }
+  })
+
+  panelState.slides = {
+    sourceUrl: run.url,
+    sourceId,
+    sourceKind,
+    ocrAvailable: false,
+    slides,
+  }
+  updateSlidesTextState()
+  renderSlideStrip(renderSlidesHostEl)
 }
 
 const timestampPattern = /\[(\d{1,2}:\d{2}(?::\d{2})?)\]/g

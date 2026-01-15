@@ -320,6 +320,26 @@ function urlsMatch(a: string, b: string) {
   return boundaryMatch(left, right) || boundaryMatch(right, left)
 }
 
+function isYouTubeWatchUrl(value: string | null | undefined): boolean {
+  if (!value) return false
+  try {
+    const url = new URL(value)
+    const host = url.hostname.toLowerCase()
+    if (host === 'youtu.be') {
+      const id = url.pathname.replace(/^\/+/, '').trim()
+      return Boolean(id)
+    }
+    if (!host.endsWith('youtube.com')) return false
+    const path = url.pathname.toLowerCase()
+    if (path === '/watch') return Boolean(url.searchParams.get('v')?.trim())
+    if (path.startsWith('/shorts/')) return true
+    if (path.startsWith('/live/')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 async function extractFromTab(
   tabId: number,
   maxChars: number,
@@ -761,7 +781,7 @@ export default defineBackground(() => {
         mode: 'url',
         extractOnly: true,
         timestamps: true,
-        ...(wantsSlides ? { slides: true, slidesOcr: true } : {}),
+        ...(wantsSlides ? { slides: true } : {}),
         maxCharacters: null,
       }),
     })
@@ -1004,28 +1024,136 @@ export default defineBackground(() => {
     const controller = new AbortController()
     session.runController = controller
 
-    sendStatus(session, `Extracting… (${reason})`)
-    logPanel('extract:start', { reason, tabId: tab.id, maxChars: settings.maxChars })
-    const extractedAttempt = await extractFromTab(tab.id, settings.maxChars, {
-      timeoutMs: 8_000,
-      log: (event, detail) => logPanel(event, detail),
-    })
-    logPanel(extractedAttempt.ok ? 'extract:done' : 'extract:failed', {
-      ok: extractedAttempt.ok,
-      ...(extractedAttempt.ok
-        ? { url: extractedAttempt.data.url }
-        : { error: extractedAttempt.error }),
-    })
-    let extracted = extractedAttempt.ok
-      ? extractedAttempt.data
-      : {
+    const prefersUrlMode = Boolean(tab.url && shouldPreferUrlMode(tab.url))
+    const wantsUrlFastPath =
+      Boolean(tab.url && isYouTubeWatchUrl(tab.url)) && opts?.inputMode !== 'page' && prefersUrlMode
+
+    let extracted: ExtractResponse & { ok: true }
+    if (wantsUrlFastPath) {
+      sendStatus(session, `Fetching transcript… (${reason})`)
+      logPanel('extract:url-fastpath:start', { reason, tabId: tab.id })
+      try {
+        const res = await fetch('http://127.0.0.1:8787/v1/summarize', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${settings.token.trim()}`,
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            url: tab.url,
+            title: tab.title ?? null,
+            mode: 'url',
+            extractOnly: true,
+            timestamps: true,
+            ...(opts?.refresh ? { noCache: true } : {}),
+            maxCharacters: null,
+            diagnostics: settings.extendedLogging ? { includeContent: true } : null,
+          }),
+          signal: controller.signal,
+        })
+        const json = (await res.json()) as {
+          ok?: boolean
+          extracted?: {
+            url: string
+            title: string | null
+            content: string
+            truncated: boolean
+            mediaDurationSeconds?: number | null
+            transcriptTimedText?: string | null
+          }
+          error?: string
+        }
+        if (!res.ok || !json.ok || !json.extracted) {
+          throw new Error(json.error || `${res.status} ${res.statusText}`)
+        }
+        const extractedUrl = json.extracted.url || tab.url
+        extracted = {
+          ok: true,
+          url: extractedUrl,
+          title: json.extracted.title ?? tab.title ?? null,
+          text: '',
+          truncated: Boolean(json.extracted.truncated),
+          media: { hasVideo: true, hasAudio: true, hasCaptions: true },
+          mediaDurationSeconds: json.extracted.mediaDurationSeconds ?? null,
+        }
+        cachedExtracts.set(tab.id, {
+          url: extractedUrl,
+          title: extracted.title ?? null,
+          text: '',
+          source: 'url',
+          truncated: Boolean(json.extracted.truncated),
+          totalCharacters: 0,
+          wordCount: null,
+          media: { hasVideo: true, hasAudio: true, hasCaptions: true },
+          transcriptSource: null,
+          transcriptionProvider: null,
+          transcriptCharacters: null,
+          transcriptWordCount: null,
+          transcriptLines: null,
+          transcriptTimedText: json.extracted.transcriptTimedText ?? null,
+          mediaDurationSeconds: json.extracted.mediaDurationSeconds ?? null,
+          slides: null,
+          diagnostics: null,
+        })
+        logPanel('extract:url-fastpath:ok', {
+          url: extractedUrl,
+          transcriptTimedText: Boolean(json.extracted.transcriptTimedText),
+          durationSeconds: json.extracted.mediaDurationSeconds ?? null,
+        })
+      } catch (err) {
+        logPanel('extract:url-fastpath:error', {
+          error: err instanceof Error ? err.message : String(err),
+        })
+        extracted = {
           ok: true,
           url: tab.url,
           title: tab.title ?? null,
           text: '',
           truncated: false,
-          media: null,
+          media: { hasVideo: true, hasAudio: true, hasCaptions: true },
         }
+      }
+    } else {
+      sendStatus(session, `Extracting… (${reason})`)
+      logPanel('extract:start', { reason, tabId: tab.id, maxChars: settings.maxChars })
+      const statusFromExtractEvent = (event: string) => {
+        if (!isPanelOpen(session)) return
+        if (event === 'extract:attempt') {
+          sendStatus(session, `Extracting page content… (${reason})`)
+          return
+        }
+        if (event === 'extract:inject:ok') {
+          sendStatus(session, `Extracting: injecting… (${reason})`)
+          return
+        }
+        if (event === 'extract:message:ok') {
+          sendStatus(session, `Extracting: reading… (${reason})`)
+        }
+      }
+      const extractedAttempt = await extractFromTab(tab.id, settings.maxChars, {
+        timeoutMs: 8_000,
+        log: (event, detail) => {
+          statusFromExtractEvent(event)
+          logPanel(event, detail)
+        },
+      })
+      logPanel(extractedAttempt.ok ? 'extract:done' : 'extract:failed', {
+        ok: extractedAttempt.ok,
+        ...(extractedAttempt.ok
+          ? { url: extractedAttempt.data.url }
+          : { error: extractedAttempt.error }),
+      })
+      extracted = extractedAttempt.ok
+        ? extractedAttempt.data
+        : {
+            ok: true,
+            url: tab.url,
+            title: tab.title ?? null,
+            text: '',
+            truncated: false,
+            media: null,
+          }
+    }
 
     if (tab.url && extracted.url && !urlsMatch(tab.url, extracted.url)) {
       await new Promise((resolve) => setTimeout(resolve, 180))
@@ -1066,24 +1194,53 @@ export default defineBackground(() => {
 
     const resolvedTitle = tab.title?.trim() || resolvedExtracted.title || null
     const resolvedPayload = { ...resolvedExtracted, title: resolvedTitle }
+    const effectiveInputMode =
+      opts?.inputMode ??
+      (resolvedPayload.url && shouldPreferUrlMode(resolvedPayload.url) ? 'video' : undefined)
     const wordCount =
       resolvedPayload.text.length > 0 ? resolvedPayload.text.split(/\s+/).filter(Boolean).length : 0
     const wantsSummaryTimestamps =
       settings.summaryTimestamps &&
-      (opts?.inputMode === 'video' ||
+      (effectiveInputMode === 'video' ||
         resolvedPayload.media?.hasVideo === true ||
         resolvedPayload.media?.hasAudio === true ||
         resolvedPayload.media?.hasCaptions === true ||
         shouldPreferUrlMode(resolvedPayload.url))
     const wantsSlides =
       settings.slidesEnabled &&
-      (opts?.inputMode === 'video' ||
+      (effectiveInputMode === 'video' ||
         resolvedPayload.media?.hasVideo === true ||
         shouldPreferUrlMode(resolvedPayload.url))
+
+    const resolveSlidesForLength = (
+      lengthValue: string,
+      durationSeconds: number | null | undefined
+    ): { maxSlides: number | null; minDurationSeconds: number | null } => {
+      if (!durationSeconds || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+        return { maxSlides: null, minDurationSeconds: null }
+      }
+      const normalized = lengthValue.trim().toLowerCase()
+      const chunkSeconds =
+        normalized === 'short'
+          ? 600
+          : normalized === 'medium'
+            ? 450
+            : normalized === 'long'
+              ? 300
+              : normalized === 'xl'
+                ? 180
+                : normalized === 'xxl'
+                  ? 120
+                  : 300
+      const target = Math.max(3, Math.round(durationSeconds / chunkSeconds))
+      const maxSlides = Math.max(3, Math.min(80, target))
+      const minDuration = Math.max(2, Math.floor(durationSeconds / maxSlides))
+      return { maxSlides, minDurationSeconds: minDuration }
+    }
     logPanel('summarize:start', {
       reason,
       url: resolvedPayload.url,
-      inputMode: opts?.inputMode ?? null,
+      inputMode: effectiveInputMode ?? null,
       wantsSummaryTimestamps,
       wantsSlides,
     })
@@ -1112,13 +1269,23 @@ export default defineBackground(() => {
     session.inflightUrl = resolvedPayload.url
     let id: string
     try {
+      const slideAuto = wantsSlides
+        ? resolveSlidesForLength(settings.length, resolvedPayload.mediaDurationSeconds)
+        : { maxSlides: null, minDurationSeconds: null }
       const body = buildSummarizeRequestBody({
         extracted: resolvedPayload,
         settings,
         noCache: Boolean(opts?.refresh),
-        inputMode: opts?.inputMode,
+        inputMode: effectiveInputMode,
         timestamps: wantsSummaryTimestamps,
-        slidesEnabled: wantsSlides,
+        slides: wantsSlides
+          ? {
+              enabled: true,
+              ocr: false,
+              maxSlides: slideAuto.maxSlides,
+              minDurationSeconds: slideAuto.minDurationSeconds,
+            }
+          : { enabled: false },
       })
       logPanel('summarize:request', {
         url: resolvedPayload.url,
