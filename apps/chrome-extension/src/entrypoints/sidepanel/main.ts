@@ -1100,6 +1100,7 @@ async function syncWithActiveTab() {
 }
 
 function resetSummaryView({ preserveChat = false }: { preserveChat?: boolean } = {}) {
+  renderEl.replaceChildren(renderSlidesHostEl, renderMarkdownHostEl)
   renderMarkdownHostEl.innerHTML = ''
   clearSlideStrip(renderSlidesHostEl)
   clearSlideGallery(renderSlidesHostEl)
