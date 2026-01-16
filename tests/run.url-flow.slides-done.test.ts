@@ -9,9 +9,8 @@ import { resolveSlideSettings } from '../src/slides/settings.js'
 import type { SlideExtractionResult } from '../src/slides/types.js'
 
 vi.mock('../src/slides/index.js', async () => {
-  const actual = await vi.importActual<typeof import('../src/slides/index.js')>(
-    '../src/slides/index.js'
-  )
+  const actual =
+    await vi.importActual<typeof import('../src/slides/index.js')>('../src/slides/index.js')
   return {
     ...actual,
     extractSlidesForSource: vi.fn(),
@@ -92,6 +91,9 @@ describe('runUrlFlow slides done hook', () => {
 
     const slides = resolveSlideSettings({ slides: true, cwd: root })
     expect(slides).not.toBeNull()
+    if (!slides) {
+      throw new Error('Expected slides settings to be available.')
+    }
 
     let doneResult: { ok: boolean; error?: string | null } | null = null
 
@@ -104,7 +106,7 @@ describe('runUrlFlow slides done hook', () => {
       lengthRaw: 'short',
       languageRaw: 'auto',
       maxExtractCharacters: null,
-      slides: slides!,
+      slides,
       hooks: {
         onSlidesDone: (result) => {
           doneResult = result
@@ -151,6 +153,9 @@ describe('runUrlFlow slides done hook', () => {
 
     const slides = resolveSlideSettings({ slides: true, cwd: root })
     expect(slides).not.toBeNull()
+    if (!slides) {
+      throw new Error('Expected slides settings to be available.')
+    }
 
     let doneResult: { ok: boolean; error?: string | null } | null = null
 
@@ -163,7 +168,7 @@ describe('runUrlFlow slides done hook', () => {
       lengthRaw: 'short',
       languageRaw: 'auto',
       maxExtractCharacters: null,
-      slides: slides!,
+      slides,
       hooks: {
         onSlidesDone: (result) => {
           doneResult = result
