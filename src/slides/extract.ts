@@ -494,9 +494,6 @@ export async function extractSlidesForSource({
               reportSlidesProgress?.('downloading video', mapped, detail)
             },
           })
-          if (extractionCleanup) {
-            await extractionCleanup()
-          }
           extractionCleanup = downloaded.cleanup
           extractionInputPath = downloaded.filePath
           extractionUsesStream = false
