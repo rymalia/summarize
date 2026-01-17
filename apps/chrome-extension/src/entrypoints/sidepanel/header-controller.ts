@@ -70,11 +70,14 @@ export function createHeaderController({
       ? splitStatusPercent(trimmed)
       : { text: '', percent: null as string | null }
     const percentNum = split.percent ? Number.parseInt(split.percent, 10) : null
+    const statusLabel = split.text || trimmed
     const isError =
       showStatus &&
       (trimmed.toLowerCase().startsWith('error:') || trimmed.toLowerCase().includes(' error'))
     const isRunning = showProgress && !isError
-    const shouldShowStatus = showStatus && (!isStreaming || !baseSubtitle)
+    const allowStatusWithSubtitle = showStatus && (isRunning || isActiveStatus(trimmed))
+    const shouldShowStatus =
+      showStatus && (!isStreaming || !baseSubtitle || allowStatusWithSubtitle)
 
     titleEl.textContent = baseTitle
     headerEl.classList.toggle('isError', isError)
@@ -94,10 +97,14 @@ export function createHeaderController({
     }
 
     progressFillEl.style.display = isRunning || isError ? '' : 'none'
+    const combinedSubtitle =
+      allowStatusWithSubtitle && baseSubtitle && !isError
+        ? `${statusLabel} · ${baseSubtitle}`
+        : statusLabel
     subtitleEl.textContent = isError
-      ? split.text || trimmed
+      ? statusLabel
       : shouldShowStatus
-        ? split.text || trimmed
+        ? combinedSubtitle
         : baseSubtitle
   }
 
