@@ -36,4 +36,19 @@ Second slide text.
     expect(map.get(1)).toBe('First slide text.')
     expect(map.get(2)).toBe('Second slide text.')
   })
+
+  it('keeps empty slide markers', () => {
+    const markdown = `
+Intro paragraph.
+
+### Slides
+[slide:1]
+
+[slide:2] Second summary.
+`
+    const map = parseSlideSummariesFromMarkdown(markdown)
+    expect(map.has(1)).toBe(true)
+    expect(map.get(1)).toBe('')
+    expect(map.get(2)).toBe('Second summary.')
+  })
 })

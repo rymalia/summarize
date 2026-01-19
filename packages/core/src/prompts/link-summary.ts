@@ -196,9 +196,10 @@ export function buildLinkSummaryPrompt({
       : ''
   const listGuidanceLine =
     'Use short paragraphs; use bullet lists only when they improve scanability; avoid rigid templates.'
-  const sponsorInstruction = hasTranscript
-    ? 'Ignore sponsor messages, ads, promos, and calls-to-action (including podcast ad reads); do not summarize them.'
-    : ''
+  const sponsorInstruction =
+    hasTranscript || (slides && slides.count > 0)
+      ? 'Ignore sponsor messages, ads, promos, and calls-to-action (including podcast ad reads). Do not mention them or say they were skipped. Treat them as if they do not exist. If a slide segment is purely sponsor/ad content, leave that slide marker with no text.'
+      : ''
 
   const baseInstructions = [
     audienceLine,

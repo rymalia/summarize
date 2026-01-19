@@ -144,6 +144,22 @@ describe('slides text helpers', () => {
     expect(onlyIntro).toContain('[slide:1]')
   })
 
+  it('does not backfill empty slide markers', () => {
+    const slides = [
+      { index: 1, timestamp: 10 },
+      { index: 2, timestamp: 20 },
+    ]
+    const coerced = coerceSummaryWithSlides({
+      markdown: 'Intro\n\n[slide:1]\n\n[slide:2] Covered segment.',
+      slides,
+      transcriptTimedText: '[00:10] FALLBACK SEGMENT\n[00:20] Another segment',
+      lengthArg: { kind: 'preset', preset: 'short' },
+    })
+    expect(coerced).toContain('[slide:1]')
+    expect(coerced).not.toContain('FALLBACK SEGMENT')
+    expect(coerced).toContain('Covered segment.')
+  })
+
   it('parses transcript timed text and sorts by timestamp', () => {
     const input = [
       '[00:10] Second',

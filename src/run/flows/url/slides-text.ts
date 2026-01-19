@@ -66,7 +66,7 @@ export function parseSlideSummariesFromMarkdown(markdown: string): Map<number, s
   const flush = () => {
     if (currentIndex == null) return
     const text = buffer.join('\n').trim().replace(/\s+/g, ' ')
-    if (text) result.set(currentIndex, text)
+    result.set(currentIndex, text)
     currentIndex = null
     buffer = []
   }

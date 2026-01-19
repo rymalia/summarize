@@ -83,6 +83,7 @@ installed, auto mode can use local CLI models when `cli.enabled` is set (see `do
 ## Prompt rules
 
 - Video and podcast summaries ignore sponsor/ads/promotional segments; do not include them in the summary.
+- Do not mention sponsor/ads or that they were skipped.
 
 ## Z.AI
 

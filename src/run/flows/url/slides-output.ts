@@ -220,7 +220,8 @@ export function createSlidesTerminalOutput({
     const timeLink = timestampLabel
       ? formatOsc8Link(timestampLabel, timestampUrl, isRichTty(io.stdout) && !flags.plain)
       : null
-    const label = timeLink ? `Slide ${index} · ${timeLink}` : `Slide ${index}`
+    const slideLabelBase = total > 0 ? `Slide ${index}/${total}` : `Slide ${index}`
+    const label = timeLink ? `${slideLabelBase} · ${timeLink}` : slideLabelBase
 
     clearProgressForStdout()
     io.stdout.write('\n')
