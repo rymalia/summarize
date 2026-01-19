@@ -9,6 +9,7 @@ import {
   parseArtifact,
   upsertArtifact,
 } from '../automation/artifacts-store'
+import { logExtensionEvent } from '../lib/extension-logs'
 import { readAgentResponse } from '../lib/agent-response'
 import { buildChatPageContent } from '../lib/chat-context'
 import { buildDaemonRequestBody, buildSummarizeRequestBody } from '../lib/daemon-payload'
@@ -673,6 +674,13 @@ export default defineBackground(() => {
     { requestId: string; controller: AbortController }
   >()
 
+  const resolveLogLevel = (event: string) => {
+    const normalized = event.toLowerCase()
+    if (normalized.includes('error') || normalized.includes('failed')) return 'error'
+    if (normalized.includes('warn')) return 'warn'
+    return 'verbose'
+  }
+
   const isPanelOpen = (session: PanelSession) => {
     if (!session.panelOpen) return false
     if (session.panelLastPingAt === 0) return true
@@ -1045,7 +1053,14 @@ export default defineBackground(() => {
 
     const logPanel = (event: string, detail?: Record<string, unknown>) => {
       if (!settings.extendedLogging) return
-      const payload = detail ? { event, ...detail } : { event }
+      const payload = detail ? { event, windowId: session.windowId, ...detail } : { event }
+      const detailPayload = detail ? { windowId: session.windowId, ...detail } : { windowId: session.windowId }
+      logExtensionEvent({
+        event,
+        detail: detailPayload,
+        scope: 'panel:bg',
+        level: resolveLogLevel(event),
+      })
       console.debug('[summarize][panel:bg]', payload)
     }
 
@@ -1467,6 +1482,13 @@ export default defineBackground(() => {
     const logHover = (event: string, detail?: Record<string, unknown>) => {
       if (!settings.extendedLogging) return
       const payload = detail ? { event, ...detail } : { event }
+      const detailPayload = detail ?? {}
+      logExtensionEvent({
+        event,
+        detail: detailPayload,
+        scope: 'hover:bg',
+        level: resolveLogLevel(event),
+      })
       console.debug('[summarize][hover:bg]', payload)
     }
     const token = msg.token?.trim() || settings.token.trim()
@@ -1948,6 +1970,13 @@ export default defineBackground(() => {
           const logSlides = (event: string, detail?: Record<string, unknown>) => {
             if (!settings.extendedLogging) return
             const payload = detail ? { event, ...detail } : { event }
+            const detailPayload = detail ?? {}
+            logExtensionEvent({
+              event,
+              detail: detailPayload,
+              scope: 'slides:bg',
+              level: resolveLogLevel(event),
+            })
             console.debug('[summarize][slides:bg]', payload)
           }
           const tab = await getActiveTab(session.windowId)

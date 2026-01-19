@@ -593,6 +593,9 @@ form {
   text-transform: uppercase;
   letter-spacing: 0.3px;
   color: var(--muted);
+  z-index: 1;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 .logsTable tbody tr + tr td {

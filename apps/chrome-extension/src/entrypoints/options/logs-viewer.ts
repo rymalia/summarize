@@ -1,3 +1,5 @@
+import { readExtensionLogs } from '../../lib/extension-logs'
+
 type LogLevel = 'info' | 'warn' | 'error' | 'verbose'
 
 type LogEntry = {
@@ -70,6 +72,34 @@ const LOG_DETAIL_IGNORE = new Set([
   'runtime',
   'runtimeVersion',
 ])
+
+const formatBytes = (bytes: number): string => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  let value = bytes
+  let unitIndex = 0
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024
+    unitIndex += 1
+  }
+  const digits = value < 10 && unitIndex > 0 ? 1 : 0
+  return `${value.toFixed(digits)} ${units[unitIndex]}`
+}
+
+const formatRelativeTime = (timeMs: number): string => {
+  if (!Number.isFinite(timeMs)) return ''
+  const diffMs = Date.now() - timeMs
+  if (!Number.isFinite(diffMs)) return ''
+  const diffSeconds = Math.max(0, Math.round(diffMs / 1000))
+  if (diffSeconds < 10) return 'just now'
+  if (diffSeconds < 60) return `${diffSeconds}s ago`
+  const diffMinutes = Math.round(diffSeconds / 60)
+  if (diffMinutes < 60) return `${diffMinutes}m ago`
+  const diffHours = Math.round(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  const diffDays = Math.round(diffHours / 24)
+  return `${diffDays}d ago`
+}
 
 const formatLogTime = (value: unknown): string => {
   if (typeof value !== 'string') return ''
@@ -179,6 +209,29 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
 
   const setMeta = (text: string) => {
     metaEl.textContent = text
+    metaEl.title = ''
+  }
+
+  const setMetaInfo = (info: {
+    sizeBytes?: number
+    mtimeMs?: number | null
+    truncated?: boolean
+    warning?: string
+  }) => {
+    const summaryParts: string[] = []
+    if (typeof info.sizeBytes === 'number') {
+      summaryParts.push(`size ${formatBytes(info.sizeBytes)}`)
+    }
+    if (typeof info.mtimeMs === 'number') {
+      const relative = formatRelativeTime(info.mtimeMs)
+      if (relative) summaryParts.push(`updated ${relative}`)
+      metaEl.title = new Date(info.mtimeMs).toLocaleString()
+    } else {
+      metaEl.title = ''
+    }
+    if (info.truncated) summaryParts.push('tail truncated')
+    if (info.warning) summaryParts.push(info.warning)
+    setMeta(summaryParts.join(' · '))
   }
 
   const render = () => {
@@ -249,8 +302,10 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
       return
     }
     if (!isActive()) return
+    const source = sourceEl.value.trim() || 'daemon'
+    const isExtensionSource = source === 'extension'
     const token = getToken().trim()
-    if (!token) {
+    if (!isExtensionSource && !token) {
       setMeta('Add token to load daemon logs.')
       setLines([])
       needsRefresh = true
@@ -258,13 +313,29 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
     }
     refreshInFlight = true
     needsRefresh = false
-    const source = sourceEl.value.trim() || 'daemon'
     const tail = normalizeTailCount(tailEl.value)
     tailEl.value = String(tail)
     if (!opts.auto) {
       setMeta('Loading logs…')
     }
     try {
+      if (isExtensionSource) {
+        const result = await readExtensionLogs(tail)
+        if (!result.ok) {
+          setMeta('Extension logs unavailable.')
+          setLines([])
+          return
+        }
+        if (!result.lines.length) {
+          setMeta('No logs returned.')
+          setLines([])
+          return
+        }
+        setMetaInfo(result)
+        setLines(result.lines)
+        return
+      }
+
       const url = new URL('http://127.0.0.1:8787/v1/logs')
       url.searchParams.set('source', source)
       url.searchParams.set('tail', String(tail))
@@ -291,16 +362,7 @@ export function createLogsViewer(options: LogsViewerOptions): LogsViewer {
         setLines([])
         return
       }
-      const summaryParts: string[] = []
-      if (typeof json.sizeBytes === 'number') {
-        summaryParts.push(`size ${Math.round(json.sizeBytes / 1024)}kb`)
-      }
-      if (typeof json.mtimeMs === 'number') {
-        summaryParts.push(`updated ${new Date(json.mtimeMs).toLocaleTimeString()}`)
-      }
-      if (json.truncated) summaryParts.push('tail truncated')
-      if (json.warning) summaryParts.push(json.warning)
-      setMeta(summaryParts.join(' · '))
+      setMetaInfo(json)
       setLines(json.lines)
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)

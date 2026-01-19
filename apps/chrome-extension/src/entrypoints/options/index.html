@@ -391,7 +391,7 @@
                 <button id="logsRefresh" type="button" class="miniButton">Refresh</button>
                 <label class="logsAuto">
                   <input id="logsAuto" type="checkbox" />
-                  <span>Auto</span>
+                  <span>Auto refresh</span>
                 </label>
               </div>
             </div>
@@ -399,6 +399,7 @@
               <label>
                 <span>Source</span>
                 <select id="logsSource">
+                  <option value="extension">extension.log</option>
                   <option value="daemon">daemon.jsonl</option>
                   <option value="stderr">daemon.err.log</option>
                   <option value="stdout">daemon.log</option>

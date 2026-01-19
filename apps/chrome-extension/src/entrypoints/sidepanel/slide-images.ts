@@ -1,3 +1,4 @@
+import { logExtensionEvent } from '../../lib/extension-logs'
 import { loadSettings, type Settings } from '../../lib/settings'
 
 const SLIDE_THUMB_SELECTOR = '.slideStrip__thumb, .slideInline__thumb, .slideGallery__thumb'
@@ -84,6 +85,12 @@ export function createSlideImageLoader(
         const res = await fetch(imageUrl, { headers: { Authorization: `Bearer ${token}` } })
         if (!res.ok) {
           if (settings.extendedLogging) {
+            logExtensionEvent({
+              event: 'slides:image:fetch-failed',
+              level: 'warn',
+              scope: 'slides:panel',
+              detail: { url: imageUrl, status: res.status },
+            })
             console.debug('[summarize] slide fetch failed', { url: imageUrl, status: res.status })
           }
           return null
@@ -91,11 +98,25 @@ export function createSlideImageLoader(
         const readyHeader = res.headers.get('x-summarize-slide-ready')
         if (readyHeader === '0') {
           if (settings.extendedLogging) {
+            logExtensionEvent({
+              event: 'slides:image:not-ready',
+              level: 'verbose',
+              scope: 'slides:panel',
+              detail: { url: imageUrl },
+            })
             console.debug('[summarize] slide not ready', { url: imageUrl })
           }
           return null
         }
         const blob = await res.blob()
+        if (settings.extendedLogging) {
+          logExtensionEvent({
+            event: 'slides:image:loaded',
+            level: 'info',
+            scope: 'slides:panel',
+            detail: { url: imageUrl, sizeBytes: blob.size },
+          })
+        }
         const objectUrl = URL.createObjectURL(blob)
         recordCacheUse(imageUrl, objectUrl)
         pruneCache()

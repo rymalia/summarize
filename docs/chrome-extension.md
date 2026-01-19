@@ -38,6 +38,9 @@ Dev (repo checkout):
 - “Daemon not reachable”:
   - `summarize daemon status`
   - Logs: `~/.summarize/logs/daemon.err.log`
+- “Need extension-side traces”:
+  - Options → Logs → `extension.log` (panel/background events).
+  - Enable “Extended logging” in Advanced settings for full pipeline traces.
 - “Stream ended unexpectedly” / empty chat response:
   - The daemon likely stopped mid-stream. Restart it, then click “Try again”.
   - `summarize daemon restart`

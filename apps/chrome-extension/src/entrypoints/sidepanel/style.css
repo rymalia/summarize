@@ -475,13 +475,20 @@ header {
   top: 0;
   z-index: 10;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   padding: var(--header-pad) var(--header-pad) 10px;
   border-bottom: 0;
   background: var(--panel);
   backdrop-filter: blur(12px);
+}
+
+.headerRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .brand {
@@ -678,6 +685,12 @@ button.ghost {
 button.ghost:hover {
   border-color: color-mix(in srgb, var(--ui-focus) 35%, var(--border));
   color: var(--text);
+}
+
+button.ghost.small {
+  padding: 6px 10px;
+  font-size: 11px;
+  min-height: 28px;
 }
 
 .drawer {
@@ -1516,7 +1529,20 @@ main {
   background: color-mix(in srgb, #ff6a6a 10%, var(--surface));
   border-radius: 14px;
   padding: 16px;
-  margin-bottom: 12px;
+  margin-top: 6px;
+  margin-bottom: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+
+.error__content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .error__title {
@@ -1525,16 +1551,18 @@ main {
 }
 
 .error__message {
-  margin: 6px 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: 12px;
   word-break: break-word;
 }
 
 .error__actions {
-  margin-top: 10px;
   display: flex;
+  align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
 }
 
 .setup h2 {
@@ -2295,11 +2323,26 @@ button.setup__pill.isActive {
   z-index: 2;
 }
 
+.inlineError__content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
 .inlineError__text {
   font-size: 13px;
   line-height: 1.4;
   color: var(--text);
   word-break: break-word;
+}
+
+.inlineError__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .inlineError__close {

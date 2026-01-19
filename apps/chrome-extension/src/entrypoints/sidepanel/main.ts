@@ -17,6 +17,7 @@ import { mountCheckbox } from '../../ui/zag-checkbox'
 import { ChatController } from './chat-controller'
 import { type ChatHistoryLimits, compactChatHistory } from './chat-state'
 import { createHeaderController } from './header-controller'
+import { createErrorController } from './error-controller'
 import { createPanelCacheController, type PanelCachePayload } from './panel-cache'
 import { mountSidepanelLengthPicker, mountSidepanelPickers, mountSummarizeControl } from './pickers'
 import { createSlideImageLoader, normalizeSlideImageUrl } from './slide-images'
@@ -131,6 +132,7 @@ const setupEl = byId<HTMLDivElement>('setup')
 const errorEl = byId<HTMLDivElement>('error')
 const errorMessageEl = byId<HTMLParagraphElement>('errorMessage')
 const errorRetryBtn = byId<HTMLButtonElement>('errorRetry')
+const errorLogsBtn = byId<HTMLButtonElement>('errorLogs')
 const slideNoticeEl = byId<HTMLDivElement>('slideNotice')
 const renderEl = byId<HTMLElement>('render')
 const renderSlidesHostEl = document.createElement('div')
@@ -149,6 +151,7 @@ const slideImageLoader = createSlideImageLoader()
 const summarizeControlRoot = byId<HTMLElement>('summarizeControlRoot')
 const drawerToggleBtn = byId<HTMLButtonElement>('drawerToggle')
 const refreshBtn = byId<HTMLButtonElement>('refresh')
+const clearBtn = byId<HTMLButtonElement>('clear')
 const advancedBtn = byId<HTMLButtonElement>('advanced')
 const autoToggleRoot = byId<HTMLDivElement>('autoToggle')
 const lengthRoot = byId<HTMLDivElement>('lengthRoot')
@@ -178,6 +181,8 @@ const chatJumpBtn = byId<HTMLButtonElement>('chatJump')
 const chatQueueEl = byId<HTMLDivElement>('chatQueue')
 const inlineErrorEl = byId<HTMLDivElement>('inlineError')
 const inlineErrorMessageEl = byId<HTMLDivElement>('inlineErrorMessage')
+const inlineErrorRetryBtn = byId<HTMLButtonElement>('inlineErrorRetry')
+const inlineErrorLogsBtn = byId<HTMLButtonElement>('inlineErrorLogs')
 const inlineErrorCloseBtn = byId<HTMLButtonElement>('inlineErrorClose')
 
 const md = new MarkdownIt({
@@ -302,11 +307,13 @@ function hideAutomationNotice() {
 function showSlideNotice(message: string) {
   slideNoticeEl.textContent = message
   slideNoticeEl.classList.remove('hidden')
+  headerController.updateHeaderOffset()
 }
 
 function hideSlideNotice() {
   slideNoticeEl.classList.add('hidden')
   slideNoticeEl.textContent = ''
+  headerController.updateHeaderOffset()
 }
 
 function stopSlidesStream() {
@@ -704,56 +711,15 @@ function clearQueuedMessages() {
 
 const isStreaming = () => panelState.phase === 'connecting' || panelState.phase === 'streaming'
 
-const showError = (message: string) => {
-  errorMessageEl.textContent = message
-  errorEl.classList.remove('hidden')
-}
+const optionsTabStorageKey = 'summarize:options-tab'
 
-const clearError = () => {
-  errorMessageEl.textContent = ''
-  errorEl.classList.add('hidden')
-}
-
-let inlineErrorToken = 0
-const showInlineError = (message: string) => {
-  inlineErrorToken += 1
-  inlineErrorEl.dataset.token = String(inlineErrorToken)
-  if (!message || message.trim().length === 0) {
-    clearInlineError()
-    return
+const openOptionsTab = (tabId: string) => {
+  try {
+    localStorage.setItem(optionsTabStorageKey, tabId)
+  } catch {
+    // ignore
   }
-  inlineErrorMessageEl.textContent = message
-  inlineErrorEl.classList.remove('hidden')
-  inlineErrorEl.style.display = ''
-}
-
-const clearInlineError = () => {
-  inlineErrorMessageEl.textContent = ''
-  inlineErrorEl.classList.add('hidden')
-  inlineErrorEl.style.display = 'none'
-}
-
-const setPhase = (phase: PanelPhase, opts?: { error?: string | null }) => {
-  panelState.phase = phase
-  panelState.error = phase === 'error' ? (opts?.error ?? panelState.error) : null
-  if (phase === 'error') {
-    const message =
-      panelState.error && panelState.error.trim().length > 0
-        ? panelState.error
-        : 'Something went wrong.'
-    showError(message)
-    showInlineError(message)
-    setSlidesBusy(false)
-  } else {
-    clearError()
-    clearInlineError()
-    if (phase !== 'streaming' && phase !== 'connecting') {
-      setSlidesBusy(false)
-    }
-  }
-  if (phase !== 'connecting' && phase !== 'streaming') {
-    headerController.stopProgress()
-  }
+  void send({ type: 'panel:openOptions' })
 }
 
 const headerController = createHeaderController({
@@ -769,6 +735,42 @@ const headerController = createHeaderController({
 
 headerController.updateHeaderOffset()
 window.addEventListener('resize', headerController.updateHeaderOffset)
+
+const errorController = createErrorController({
+  panelEl: errorEl,
+  panelMessageEl: errorMessageEl,
+  panelRetryBtn: errorRetryBtn,
+  panelLogsBtn: errorLogsBtn,
+  inlineEl: inlineErrorEl,
+  inlineMessageEl: inlineErrorMessageEl,
+  inlineRetryBtn: inlineErrorRetryBtn,
+  inlineLogsBtn: inlineErrorLogsBtn,
+  inlineCloseBtn: inlineErrorCloseBtn,
+  onRetry: () => retryLastAction(),
+  onOpenLogs: () => openOptionsTab('logs'),
+  onPanelVisibilityChange: () => headerController.updateHeaderOffset(),
+})
+
+const setPhase = (phase: PanelPhase, opts?: { error?: string | null }) => {
+  panelState.phase = phase
+  panelState.error = phase === 'error' ? (opts?.error ?? panelState.error) : null
+  if (phase === 'error') {
+    const message =
+      panelState.error && panelState.error.trim().length > 0
+        ? panelState.error
+        : 'Something went wrong.'
+    errorController.showPanelError(message)
+    setSlidesBusy(false)
+  } else {
+    errorController.clearPanelError()
+    if (phase !== 'streaming' && phase !== 'connecting') {
+      setSlidesBusy(false)
+    }
+  }
+  if (phase !== 'connecting' && phase !== 'streaming') {
+    headerController.stopProgress()
+  }
+}
 
 chrome.runtime.onMessage.addListener((raw, _sender, sendResponse) => {
   if (!raw || typeof raw !== 'object') return
@@ -1000,6 +1002,19 @@ function resetSummaryView({
   if (!preserveChat) {
     resetChatState()
   }
+}
+
+async function clearCurrentView() {
+  if (panelState.chatStreaming) {
+    requestAgentAbort('Cleared')
+  }
+  streamController.abort()
+  stopSlidesStream()
+  resetSummaryView({ preserveChat: false })
+  await clearChatHistoryForActiveTab()
+  panelCacheController.scheduleSync()
+  headerController.setStatus('')
+  setPhase('idle')
 }
 
 function buildPanelCachePayload(): PanelCachePayload | null {
@@ -3273,9 +3288,6 @@ function updateControls(state: UiState) {
   if (!isStreaming()) {
     headerController.setStatus(state.status)
   }
-  if (state.status.trim().length === 0 && panelState.phase !== 'error') {
-    clearInlineError()
-  }
   if (!nextMediaAvailable) {
     inputMode = 'page'
     inputModeOverride = null
@@ -3683,7 +3695,7 @@ function startChatMessage(text: string) {
   const input = text.trim()
   if (!input || !chatEnabledValue) return
 
-  clearError()
+  errorController.clearAll()
   abortAgentRequested = false
 
   chatController.addMessage(wrapMessage({ role: 'user', content: input, timestamp: Date.now() }))
@@ -3700,7 +3712,7 @@ function startChatMessage(text: string) {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       headerController.setStatus(`Error: ${message}`)
-      setPhase('error', { error: message })
+      errorController.showInlineError(message)
     } finally {
       finishStreamingMessage()
     }
@@ -3722,7 +3734,7 @@ function retryChat() {
   if (!chatEnabledValue || panelState.chatStreaming) return
   if (!chatController.hasUserMessages()) return
 
-  clearError()
+  errorController.clearAll()
   abortAgentRequested = false
   panelState.chatStreaming = true
   chatSendBtn.disabled = true
@@ -3736,7 +3748,7 @@ function retryChat() {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       headerController.setStatus(`Error: ${message}`)
-      setPhase('error', { error: message })
+      errorController.showInlineError(message)
     } finally {
       finishStreamingMessage()
     }
@@ -3776,8 +3788,9 @@ function sendChatMessage() {
 }
 
 refreshBtn.addEventListener('click', () => sendSummarize({ refresh: true }))
-errorRetryBtn.addEventListener('click', () => retryLastAction())
-inlineErrorCloseBtn.addEventListener('click', () => clearInlineError())
+clearBtn.addEventListener('click', () => {
+  void clearCurrentView()
+})
 drawerToggleBtn.addEventListener('click', () => toggleDrawer())
 advancedBtn.addEventListener('click', () => {
   void send({ type: 'panel:openOptions' })
