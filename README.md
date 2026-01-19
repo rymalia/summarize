@@ -1,6 +1,6 @@
 # Summarize — Chrome Side Panel + CLI
 
-Fast summaries from URLs, files, and media. Smart default: if content is shorter than the requested length, we return it as-is. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
+Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
 
 **0.10.0 preview (unreleased):** this README reflects the upcoming release.
 
@@ -20,6 +20,7 @@ Fast summaries from URLs, files, and media. Smart default: if content is shorter
 - Streaming output with Markdown rendering, metrics, and cache-aware status.
 - Local, paid, and free models: OpenAI‑compatible local endpoints, paid providers, plus an OpenRouter free preset.
 - Output modes: Markdown/text, JSON diagnostics, extract-only, metrics, timing, and cost estimates.
+- Smart default: if content is shorter than the requested length, we return it as-is (use `--force-summary` to override).
 
 ## Get the extension (recommended)
 
