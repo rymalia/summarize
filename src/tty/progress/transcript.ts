@@ -91,10 +91,50 @@ export function createTranscriptProgressRenderer({
     ticker = null
   }
 
-  const startTicker = (render: () => string) => {
+  const startTicker = (render: () => string, onTick?: () => void) => {
     // Callers always `stopTicker()` before `startTicker()`. Keep this simple (and avoid
     // accidentally hiding duplicate tickers during refactors).
-    ticker = setInterval(() => updateSpinner(render()), 1000)
+    ticker = setInterval(() => {
+      updateSpinner(render())
+      onTick?.()
+    }, 1000)
+  }
+
+  const resolveDownloadPercent = () => {
+    if (typeof state.totalBytes !== 'number' || state.totalBytes <= 0) return null
+    if (state.downloadedBytes <= 0) return 0
+    return (state.downloadedBytes / state.totalBytes) * 100
+  }
+
+  const updateOscForDownload = () => {
+    const percent = resolveDownloadPercent()
+    if (typeof percent === 'number') {
+      updateOscPercent(downloadTitle(), percent)
+      return
+    }
+    updateOscIndeterminate(downloadTitle())
+  }
+
+  const resolveWhisperPercent = () => {
+    if (typeof state.whisperTotalSeconds === 'number' && state.whisperTotalSeconds > 0) {
+      const processed =
+        typeof state.whisperProcessedSeconds === 'number' ? state.whisperProcessedSeconds : 0
+      return (processed / state.whisperTotalSeconds) * 100
+    }
+    if (typeof state.whisperParts === 'number' && state.whisperParts > 0) {
+      const index = typeof state.whisperPartIndex === 'number' ? state.whisperPartIndex : 0
+      return (index / state.whisperParts) * 100
+    }
+    return null
+  }
+
+  const updateOscForWhisper = () => {
+    const percent = resolveWhisperPercent()
+    if (typeof percent === 'number') {
+      updateOscPercent('Transcribing', percent)
+      return
+    }
+    updateOscIndeterminate('Transcribing')
   }
 
   const renderDownloadLine = () => {
@@ -191,9 +231,9 @@ export function createTranscriptProgressRenderer({
         state.totalBytes = event.totalBytes
         state.startedAtMs = Date.now()
         stopTicker()
-        startTicker(renderDownloadLine)
+        startTicker(renderDownloadLine, updateOscForDownload)
         updateSpinner(renderSimple(downloadTitle()), { force: true })
-        updateOscIndeterminate(downloadTitle())
+        updateOscForDownload()
         return
       }
 
@@ -204,11 +244,7 @@ export function createTranscriptProgressRenderer({
         state.downloadedBytes = event.downloadedBytes
         state.totalBytes = event.totalBytes
         updateSpinner(renderDownloadLine())
-        if (typeof state.totalBytes === 'number' && state.totalBytes > 0) {
-          updateOscPercent(downloadTitle(), (state.downloadedBytes / state.totalBytes) * 100)
-        } else {
-          updateOscIndeterminate(downloadTitle())
-        }
+        updateOscForDownload()
         return
       }
 
@@ -220,6 +256,7 @@ export function createTranscriptProgressRenderer({
         state.totalBytes = event.totalBytes
         stopTicker()
         updateSpinner(renderDownloadLine(), { force: true })
+        updateOscForDownload()
         return
       }
 
@@ -234,20 +271,9 @@ export function createTranscriptProgressRenderer({
         state.whisperParts = event.parts
         state.startedAtMs = Date.now()
         stopTicker()
-        startTicker(renderWhisperLine)
+        startTicker(renderWhisperLine, updateOscForWhisper)
         updateSpinner(renderWhisperLine(), { force: true })
-        if (typeof state.whisperTotalSeconds === 'number' && state.whisperTotalSeconds > 0) {
-          updateOscPercent('Transcribing', 0)
-        } else if (
-          typeof state.whisperPartIndex === 'number' &&
-          typeof state.whisperParts === 'number' &&
-          state.whisperPartIndex > 0 &&
-          state.whisperParts > 0
-        ) {
-          updateOscPercent('Transcribing', (state.whisperPartIndex / state.whisperParts) * 100)
-        } else {
-          updateOscIndeterminate('Transcribing')
-        }
+        updateOscForWhisper()
         return
       }
 
@@ -259,25 +285,7 @@ export function createTranscriptProgressRenderer({
         state.whisperPartIndex = event.partIndex
         state.whisperParts = event.parts
         updateSpinner(renderWhisperLine())
-        if (
-          typeof state.whisperProcessedSeconds === 'number' &&
-          typeof state.whisperTotalSeconds === 'number' &&
-          state.whisperTotalSeconds > 0
-        ) {
-          updateOscPercent(
-            'Transcribing',
-            (state.whisperProcessedSeconds / state.whisperTotalSeconds) * 100
-          )
-        } else if (
-          typeof state.whisperPartIndex === 'number' &&
-          typeof state.whisperParts === 'number' &&
-          state.whisperPartIndex > 0 &&
-          state.whisperParts > 0
-        ) {
-          updateOscPercent('Transcribing', (state.whisperPartIndex / state.whisperParts) * 100)
-        } else {
-          updateOscIndeterminate('Transcribing')
-        }
+        updateOscForWhisper()
         return
       }
 

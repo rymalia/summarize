@@ -143,4 +143,53 @@ describe('tty transcript progress renderer', () => {
 
     vi.useRealTimers()
   })
+
+  it('updates OSC progress determinately when totals are known', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(1_000)
+
+    const setText = vi.fn()
+    const setPercent = vi.fn()
+    const setIndeterminate = vi.fn()
+    const clear = vi.fn()
+    const oscProgress = { setPercent, setIndeterminate, clear }
+    const { onProgress, stop } = createTranscriptProgressRenderer({
+      spinner: { setText },
+      oscProgress,
+    })
+
+    onProgress({
+      kind: 'transcript-media-download-start',
+      url: 'https://example.com',
+      service: 'podcast',
+      mediaUrl: 'https://cdn.example/episode.mp3',
+      totalBytes: 100,
+    })
+    expect(setPercent).toHaveBeenCalledWith('Downloading audio', 0)
+
+    onProgress({
+      kind: 'transcript-whisper-start',
+      url: 'https://example.com',
+      service: 'podcast',
+      providerHint: 'openai',
+      modelId: 'whisper-1',
+      totalDurationSeconds: 100,
+      parts: 10,
+    })
+    expect(setPercent).toHaveBeenCalledWith('Transcribing', 0)
+
+    onProgress({
+      kind: 'transcript-whisper-progress',
+      url: 'https://example.com',
+      service: 'podcast',
+      processedDurationSeconds: 40,
+      totalDurationSeconds: 100,
+      partIndex: 4,
+      parts: 10,
+    })
+    expect(setPercent).toHaveBeenLastCalledWith('Transcribing', 40)
+
+    stop()
+    vi.useRealTimers()
+  })
 })

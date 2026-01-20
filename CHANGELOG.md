@@ -50,6 +50,7 @@
 - Media: refactor routing helpers and size policy (#48, thanks @steipete).
 - CLI: show determinate transcription progress percent when duration is known.
 - CLI: theme transcription progress lines and mirror part-based progress to OSC when duration is unknown.
+- CLI: show determinate OSC progress for transcription/download when totals are known.
 - CLI: theme tweet/extraction progress lines for consistent loading indicators.
 - CLI: theme file/slide spinner labels so all progress lines share the same styling.
 - CLI: simplify media download labels (avoid “media, video” duplication).
