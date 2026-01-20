@@ -177,7 +177,8 @@ export function buildLinkSummaryPrompt({
           'Intro paragraph.',
           ...Array.from(
             { length: slides.count },
-            (_, index) => `[slide:${index + 1}]\nText for this segment.`
+            (_, index) =>
+              `[slide:${index + 1}]\nTitle - Slide ${index + 1}/${slides.count} - mm:ss\nText for this segment.`
           ),
         ].join('\n')
       : ''
@@ -187,9 +188,10 @@ export function buildLinkSummaryPrompt({
           'Start with a short intro paragraph (1-3 sentences) before the first slide tag.',
           'Write a continuous narrative that covers the whole video; do not switch to a bullet list.',
           'Slides are provided as transcript excerpts tied to time spans between adjacent slides.',
+          'For each slide tag, start the segment with a short title line using this format: Title - Slide N/COUNT - mm:ss (or hh:mm:ss).',
           'Formatting is strict: insert each slide marker on its own line where that slide should appear.',
           `Required markers (use each exactly once, in order): ${slideMarkers}`,
-          'Use the exact lowercase tag format [slide:N]. Do not write "Slide N" labels or a "### Slides" heading.',
+          'Use the exact lowercase tag format [slide:N]. Do not add a "### Slides" heading.',
           slideTemplate,
           'Do not add a separate Slides section or list.',
         ].join('\n')

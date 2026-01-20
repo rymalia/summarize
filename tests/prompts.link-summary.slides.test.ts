@@ -23,6 +23,7 @@ describe('buildLinkSummaryPrompt (slides)', () => {
     expect(prompt).toContain('Formatting is strict: insert each slide marker')
     expect(prompt).toContain('Required markers (use each exactly once, in order)')
     expect(prompt).toContain('Output template (copy and fill; keep markers on their own lines)')
+    expect(prompt).toContain('Title - Slide 1/8 - mm:ss')
     expect(prompt).toContain('Do not add a separate Slides section or list')
     expect(prompt).not.toContain('Include at least 3 headings')
   })
