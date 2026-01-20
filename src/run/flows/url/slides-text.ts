@@ -58,12 +58,12 @@ export const deriveSlideTitle = (text: string): string => {
   const sentence = (sentenceMatch?.[0] ?? cleaned).trim()
   const words = sentence.split(/\s+/).filter(Boolean)
   const short = words.slice(0, 8).join(' ').trim()
-  const candidate = short.length >= 12 ? short : sentence
-  const maxLength = 80
-  if (candidate.length <= maxLength) return candidate
+  const candidate = short || sentence
+  const maxLength = 72
+  if (candidate.length <= maxLength) return candidate.replace(/[.:;,-]+$/, '')
   const truncated = candidate.slice(0, maxLength).trimEnd()
   const trimmed = truncated.replace(/\s+\S*$/, '').trim()
-  return trimmed || truncated.trim()
+  return (trimmed || truncated.trim()).replace(/[.:;,-]+$/, '')
 }
 
 export const splitSlideTitleFromText = ({

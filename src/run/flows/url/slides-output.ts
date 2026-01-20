@@ -393,30 +393,10 @@ export function createSlidesSummaryStreamHandler({
     handleMarkdownChunk(visible, prevVisible)
   }
 
-  const resolveSlideTitle = (text: string, index: number) => {
-    const meta = getSlideMeta?.(index)
-    const total = meta?.total ?? getSlideIndexOrder().length
-    const parsed = splitSlideTitleFromText({
-      text,
-      slideIndex: index,
-      total,
-    })
-    if (parsed.title) {
-      return { title: parsed.title, body: parsed.body }
-    }
-    const derived = deriveSlideTitle(parsed.body || text)
-    return { title: derived, body: parsed.body || text }
-  }
-
   const shouldResolveTitle = (text: string, force: boolean) => {
     if (!text.trim()) return false
     if (force) return true
-    const wordCount = text.trim().split(/\s+/).filter(Boolean).length
-    const hasEnough = text.trim().length >= 24 || wordCount >= 4
-    if (!hasEnough) return false
-    if (text.includes('\n')) return true
-    if (text.length >= 140) return true
-    return /[.!?]/.test(text)
+    return text.includes('\n')
   }
 
   const flushPendingSlide = async (force: boolean) => {
@@ -432,7 +412,19 @@ export function createSlidesSummaryStreamHandler({
     }
     if (!shouldResolveTitle(text, force)) return
     const index = pendingSlide.index
-    const { title, body } = resolveSlideTitle(text, index)
+    const meta = getSlideMeta?.(index)
+    const total = meta?.total ?? getSlideIndexOrder().length
+    const parsed = splitSlideTitleFromText({
+      text,
+      slideIndex: index,
+      total,
+    })
+    if (parsed.title && !parsed.body && !force) {
+      return
+    }
+    const body = parsed.body || text
+    const titleWords = parsed.title?.split(/\s+/).filter(Boolean).length ?? 0
+    const title = parsed.title && titleWords >= 1 ? parsed.title : deriveSlideTitle(body)
     pendingSlide = null
     await renderSlideBlock(index, title)
     if (body.trim()) pushVisible(body)
