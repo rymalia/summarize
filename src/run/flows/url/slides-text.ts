@@ -83,16 +83,30 @@ export const splitSlideTitleFromText = ({
     .filter(Boolean)
   if (lines.length === 0) return { title: null, body: '' }
   const firstLine = lines[0] ?? ''
-  const match = firstLine.match(
+  const headingMatch = firstLine.match(/^#{1,6}\s+(.*)$/)
+  if (headingMatch) {
+    const title = collapseLineWhitespace(headingMatch[1] ?? '').trim()
+    const body = lines.slice(1).join('\n').trim()
+    return { title: title || null, body }
+  }
+
+  const titleMatch = firstLine.match(/^title\s*:\s*(.+)$/i)
+  if (titleMatch) {
+    const title = collapseLineWhitespace(titleMatch[1] ?? '').trim()
+    const body = lines.slice(1).join('\n').trim()
+    return { title: title || null, body }
+  }
+
+  const legacyMatch = firstLine.match(
     /^(.*?)\s*[-–—]\s*Slide\s+(\d+)(?:\s*\/\s*(\d+))?(?:\s*[-–—]\s*[\d:]+)?\s*$/i
   )
-  if (match) {
-    const index = Number.parseInt(match[2] ?? '', 10)
-    const count = match[3] ? Number.parseInt(match[3], 10) : null
+  if (legacyMatch) {
+    const index = Number.parseInt(legacyMatch[2] ?? '', 10)
+    const count = legacyMatch[3] ? Number.parseInt(legacyMatch[3], 10) : null
     const indexOk = Number.isFinite(index) && index === slideIndex
     const countOk = count == null || !Number.isFinite(count) || count === total || total <= 0
     if (indexOk && countOk) {
-      const title = collapseLineWhitespace(match[1] ?? '').trim()
+      const title = collapseLineWhitespace(legacyMatch[1] ?? '').trim()
       const body = lines.slice(1).join('\n').trim()
       return { title: title || null, body }
     }
@@ -118,14 +132,16 @@ export const ensureSlideTitleLine = ({
   if (lines.length === 0) return ''
   const firstLine = lines[0] ?? ''
   if (hasSlideLabel(firstLine, slide.index, total)) return trimmed
+  const parsed = splitSlideTitleFromText({
+    text: trimmed,
+    slideIndex: slide.index,
+    total,
+  })
+  if (parsed.title) {
+    return parsed.body ? `Title: ${parsed.title}\n${parsed.body}` : `Title: ${parsed.title}`
+  }
   const title = deriveSlideTitle(trimmed)
-  const slideLabel = total > 0 ? `Slide ${slide.index}/${total}` : `Slide ${slide.index}`
-  const timestamp =
-    Number.isFinite(slide.timestamp) && typeof slide.timestamp === 'number'
-      ? formatTimestamp(slide.timestamp)
-      : null
-  const titleLine = `${title} - ${slideLabel}${timestamp ? ` - ${timestamp}` : ''}`
-  return `${titleLine}\n${trimmed}`
+  return `Title: ${title}\n${trimmed}`
 }
 
 export function findSlidesSectionStart(markdown: string): number | null {

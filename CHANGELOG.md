@@ -62,7 +62,7 @@
 - Slides: cap auto slide targets at 10 by default for long videos.
 - CLI: add themed output (24-bit ANSI), `--theme`, and config/env defaults for a consistent color scheme.
 - Cache: add media download caching with TTL/size caps + optional verification, plus `--no-media-cache`.
-- Slides: inject title lines in streaming output when missing.
+- Slides: render per-slide titles as headlines above the slide marker (prompt now asks for `Title:`).
 - Prompts: allow straight quotes and encourage 1-2 short exact quotes when relevant.
 
 ### Docs

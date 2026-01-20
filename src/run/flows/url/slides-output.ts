@@ -233,14 +233,13 @@ export function createSlidesTerminalOutput({
       ? formatOsc8Link(timestampLabel, timestampUrl, isRichTty(io.stdout) && !flags.plain)
       : null
     const slideLabelBase = total > 0 ? `Slide ${index}/${total}` : `Slide ${index}`
-    const cleanTitle = title?.replace(/\s+/g, ' ').trim()
-    const titleMax = 80
-    const shortTitle =
-      cleanTitle && cleanTitle.length > titleMax
-        ? `${cleanTitle.slice(0, titleMax - 3).trimEnd()}...`
-        : cleanTitle
-    const rawLabel = [slideLabelBase, timeLink, shortTitle].filter(Boolean).join(' · ')
+    const rawLabel = [slideLabelBase, timeLink].filter(Boolean).join(' · ')
     const label = labelTheme.dim(rawLabel)
+    const cleanTitle = title?.replace(/\s+/g, ' ').trim() ?? ''
+    const titleMax = 90
+    const shortTitle =
+      cleanTitle.length > titleMax ? `${cleanTitle.slice(0, titleMax - 3).trimEnd()}...` : cleanTitle
+    const titleLine = shortTitle ? labelTheme.heading(shortTitle) : ''
 
     clearProgressForStdout()
     io.stdout.write('\n')
@@ -256,9 +255,9 @@ export function createSlidesTerminalOutput({
           .catch(() => false)
         resolvedPath = exists ? imagePath : `${imagePath} (missing)`
       }
-      io.stdout.write(`${label}\n${resolvedPath}\n\n`)
+      io.stdout.write(`${titleLine ? `${titleLine}\n` : ''}${label}\n${resolvedPath}\n\n`)
     } else {
-      io.stdout.write(`${label}\n\n`)
+      io.stdout.write(`${titleLine ? `${titleLine}\n` : ''}${label}\n\n`)
     }
     restoreProgressAfterStdout?.()
 

@@ -121,8 +121,7 @@ describe('slides text helpers', () => {
       transcriptTimedText: null,
       lengthArg: { kind: 'preset', preset: 'short' },
     })
-    expect(coerced).toContain('Slide 1/1')
-    expect(coerced).toContain('0:04')
+    expect(coerced).toContain('Title:')
     expect(coerced).toContain('This segment explains the setup.')
   })
 
