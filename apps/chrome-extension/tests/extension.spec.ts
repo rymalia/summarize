@@ -1,10 +1,15 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { createServer as createHttpServer } from 'node:http'
+import { createServer as createNetServer } from 'node:net'
 import { fileURLToPath } from 'node:url'
 
 import type { BrowserContext, Page, Worker } from '@playwright/test'
 import { chromium, expect, firefox, test } from '@playwright/test'
+
+import { runDaemonServer } from '../../../src/daemon/server.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const consoleErrorAllowlist: RegExp[] = []
@@ -417,6 +422,16 @@ async function getActiveTabUrl(harness: ExtensionHarness) {
   })
 }
 
+async function getActiveTabId(harness: ExtensionHarness) {
+  const background =
+    harness.context.serviceWorkers()[0] ??
+    (await harness.context.waitForEvent('serviceworker', { timeout: 15_000 }))
+  return background.evaluate(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+    return tab?.id ?? null
+  })
+}
+
 async function waitForActiveTabUrl(harness: ExtensionHarness, expectedPrefix: string) {
   await expect.poll(async () => (await getActiveTabUrl(harness)) ?? '').toContain(expectedPrefix)
 }
@@ -454,6 +469,66 @@ async function openExtensionPage(
 async function closeExtension(context: BrowserContext, userDataDir: string) {
   await context.close()
   fs.rmSync(userDataDir, { recursive: true, force: true })
+}
+
+const DAEMON_PORT = 8787
+const BLOCKED_ENV_KEYS = [
+  'ANTHROPIC_API_KEY',
+  'GEMINI_API_KEY',
+  'OPENAI_API_KEY',
+  'OPENROUTER_API_KEY',
+  'XAI_API_KEY',
+  'Z_AI_API_KEY',
+  'FAL_KEY',
+]
+
+function hasFfmpeg(): boolean {
+  const result = spawnSync('ffmpeg', ['-version'], { stdio: 'ignore' })
+  return result.status === 0
+}
+
+async function isPortInUse(port: number): Promise<boolean> {
+  return await new Promise((resolve) => {
+    const server = createNetServer()
+    server.once('error', (err) => {
+      const code = (err as NodeJS.ErrnoException).code
+      resolve(code === 'EADDRINUSE' || code === 'EACCES')
+    })
+    server.once('listening', () => {
+      server.close(() => resolve(false))
+    })
+    server.listen(port, '127.0.0.1')
+  })
+}
+
+function createSampleVideo(outputPath: string) {
+  const args = [
+    '-y',
+    '-hide_banner',
+    '-loglevel',
+    'error',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=red:s=640x360:d=2',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=blue:s=640x360:d=2',
+    '-f',
+    'lavfi',
+    '-i',
+    'color=c=green:s=640x360:d=2',
+    '-filter_complex',
+    '[0:v][1:v][2:v]concat=n=3:v=1:a=0,format=yuv420p',
+    '-movflags',
+    'faststart',
+    outputPath,
+  ]
+  const result = spawnSync('ffmpeg', args, { stdio: 'pipe' })
+  if (result.status === 0) return
+  const detail = result.stderr ? result.stderr.toString().trim() : 'ffmpeg failed'
+  throw new Error(`ffmpeg failed: ${detail}`)
 }
 
 test('sidepanel loads without runtime errors', async ({ browserName: _browserName }, testInfo) => {
@@ -1238,6 +1313,190 @@ test('sidepanel loads slide images after they become ready', async ({
     assertNoErrors(harness)
   } finally {
     await closeExtension(harness.context, harness.userDataDir)
+  }
+})
+
+test('sidepanel extracts slides from local video via daemon', async ({
+  browserName: _browserName,
+}, testInfo) => {
+  test.setTimeout(180_000)
+
+  if (testInfo.project.name === 'firefox') {
+    test.skip(true, 'Slides E2E is only validated in Chromium.')
+  }
+  if (!hasFfmpeg()) {
+    test.skip(true, 'ffmpeg is required for slide extraction.')
+  }
+  if (await isPortInUse(DAEMON_PORT)) {
+    test.skip(true, `Port ${DAEMON_PORT} is already in use.`)
+  }
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'summarize-slides-e2e-'))
+  const videoPath = path.join(tmpDir, 'sample.mp4')
+  const vttPath = path.join(tmpDir, 'sample.vtt')
+  const html = `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Slides Test</title>
+  </head>
+  <body>
+    <h1>Slides Test</h1>
+    <p>Local video with captions for transcript extraction.</p>
+    <video controls width="640" height="360" preload="metadata">
+      <source src="/sample.mp4" type="video/mp4" />
+      <track kind="captions" src="/sample.vtt" srclang="en" label="English" default />
+    </video>
+  </body>
+</html>`
+  const vtt = [
+    'WEBVTT',
+    '',
+    '00:00.000 --> 00:02.000',
+    'Intro slide.',
+    '',
+    '00:02.000 --> 00:04.000',
+    'Second slide.',
+    '',
+    '00:04.000 --> 00:06.000',
+    'Third slide.',
+    '',
+  ].join('\n')
+
+  createSampleVideo(videoPath)
+  fs.writeFileSync(vttPath, vtt, 'utf8')
+
+  const server = createHttpServer((req, res) => {
+    const url = new URL(req.url ?? '/', 'http://127.0.0.1')
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      const body = Buffer.from(html, 'utf8')
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'content-length': body.length,
+      })
+      res.end(body)
+      return
+    }
+    if (url.pathname === '/sample.vtt') {
+      const body = Buffer.from(vtt, 'utf8')
+      res.writeHead(200, {
+        'content-type': 'text/vtt; charset=utf-8',
+        'content-length': body.length,
+      })
+      res.end(body)
+      return
+    }
+    if (url.pathname === '/sample.mp4') {
+      const body = fs.readFileSync(videoPath)
+      res.writeHead(200, {
+        'content-type': 'video/mp4',
+        'content-length': body.length,
+      })
+      res.end(body)
+      return
+    }
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+    res.end('Not found')
+  })
+
+  let serverUrl = ''
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      if (!address || typeof address === 'string') {
+        reject(new Error('Failed to resolve local server port'))
+        return
+      }
+      serverUrl = `http://127.0.0.1:${address.port}`
+      resolve()
+    })
+  })
+
+  const token = 'test-token'
+  const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'summarize-daemon-e2e-'))
+  const abortController = new AbortController()
+  let resolveReady: (() => void) | null = null
+  const ready = new Promise<void>((resolve) => {
+    resolveReady = resolve
+  })
+  const env = { ...process.env, HOME: homeDir, USERPROFILE: homeDir, TESSERACT_PATH: '/nonexistent' }
+  for (const key of BLOCKED_ENV_KEYS) {
+    delete env[key]
+  }
+
+  const daemonPromise = runDaemonServer({
+    env,
+    fetchImpl: fetch,
+    config: { token, port: DAEMON_PORT, version: 1, installedAt: new Date().toISOString() },
+    port: DAEMON_PORT,
+    signal: abortController.signal,
+    onListening: () => resolveReady?.(),
+  })
+
+  const harness = await launchExtension(getBrowserFromProject(testInfo.project.name))
+
+  try {
+    await ready
+    await seedSettings(harness, {
+      token,
+      autoSummarize: false,
+      slidesEnabled: false,
+      slidesParallel: false,
+    })
+
+    const contentPage = await harness.context.newPage()
+    await contentPage.goto(`${serverUrl}/index.html`, { waitUntil: 'domcontentloaded' })
+    await maybeBringToFront(contentPage)
+    await activateTabByUrl(harness, serverUrl)
+    await waitForActiveTabUrl(harness, serverUrl)
+    await injectContentScript(harness, 'content-scripts/extract.js', serverUrl)
+    const activeTabId = await getActiveTabId(harness)
+
+    const page = await openExtensionPage(harness, 'sidepanel.html', '#title')
+    await waitForPanelPort(page)
+
+    await sendBgMessage(harness, {
+      type: 'ui:state',
+      state: buildUiState({
+        tab: { id: activeTabId, url: `${serverUrl}/index.html`, title: 'Slides Test' },
+        media: { hasVideo: true, hasAudio: false, hasCaptions: true },
+        stats: { pageWords: 24, videoDurationSeconds: 6 },
+        settings: { autoSummarize: false, slidesEnabled: false, slidesParallel: false },
+        status: '',
+      }),
+    })
+
+    const summarizeButton = page.locator('.summarizeButton')
+    await expect(summarizeButton).toBeVisible()
+    await summarizeButton.focus()
+    await summarizeButton.press('ArrowDown')
+    const pickerList = getOpenPickerList(page)
+    await expect(pickerList.getByText('Video + Slides', { exact: true })).toBeVisible({
+      timeout: 15_000,
+    })
+    await pickerList.getByText('Video + Slides', { exact: true }).click()
+    await expect(summarizeButton).toBeEnabled()
+    await summarizeButton.click()
+
+    const img = page.locator('img.slideStrip__thumbImage, img.slideInline__thumbImage')
+    await expect
+      .poll(async () => {
+        const count = await img.count()
+        if (count === 0) return false
+        const ready = await img.first().evaluate((node) => node.dataset.loaded === 'true')
+        return ready
+      }, { timeout: 120_000 })
+      .toBe(true)
+
+    assertNoErrors(harness)
+  } finally {
+    abortController.abort()
+    await daemonPromise
+    await closeExtension(harness.context, harness.userDataDir)
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+    fs.rmSync(homeDir, { recursive: true, force: true })
   }
 })
 
