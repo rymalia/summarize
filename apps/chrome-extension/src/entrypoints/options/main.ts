@@ -84,6 +84,7 @@ const processesTailEl = byId<HTMLInputElement>('processesTail')
 const processesMetaEl = byId<HTMLDivElement>('processesMeta')
 const processesTableEl = byId<HTMLTableElement>('processesTable')
 const processesLogsTitleEl = byId<HTMLDivElement>('processesLogsTitle')
+const processesLogsCopyBtn = byId<HTMLButtonElement>('processesLogsCopy')
 const processesLogsOutputEl = byId<HTMLPreElement>('processesLogsOutput')
 const tabsRoot = byId<HTMLDivElement>('tabs')
 const tabButtons = Array.from(tabsRoot.querySelectorAll<HTMLButtonElement>('[data-tab]'))
@@ -155,6 +156,7 @@ const processesViewer = createProcessesViewer({
     metaEl: processesMetaEl,
     tableEl: processesTableEl,
     logsTitleEl: processesLogsTitleEl,
+    logsCopyBtn: processesLogsCopyBtn,
     logsOutputEl: processesLogsOutputEl,
   },
   getToken: () => tokenEl.value.trim(),
@@ -1242,7 +1244,7 @@ async function load() {
   if (resolveActiveTab() === 'logs') {
     logsViewer.handleTokenChanged()
   }
-  if (resolveActiveTab() === 'advanced') {
+  if (resolveActiveTab() === 'processes') {
     processesViewer.handleTokenChanged()
   }
   isInitializing = false

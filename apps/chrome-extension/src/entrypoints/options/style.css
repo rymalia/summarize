@@ -657,6 +657,14 @@ form {
   margin-bottom: 4px;
 }
 
+.processControl input[type="checkbox"] {
+  justify-self: start;
+  align-self: center;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
 .processTableWrap {
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -732,6 +740,29 @@ form {
   letter-spacing: 0.2px;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+.processLogsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.processLogsCopy {
+  padding: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+}
+
+.processLogsCopy svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
 }
 
 .processLogsOutput {

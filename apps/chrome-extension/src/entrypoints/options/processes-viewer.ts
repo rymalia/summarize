@@ -46,6 +46,7 @@ export type ProcessesViewerElements = {
   metaEl: HTMLDivElement
   tableEl: HTMLTableElement
   logsTitleEl: HTMLDivElement
+  logsCopyBtn: HTMLButtonElement
   logsOutputEl: HTMLPreElement
 }
 
@@ -119,6 +120,7 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
     metaEl,
     tableEl,
     logsTitleEl,
+    logsCopyBtn,
     logsOutputEl,
   } = elements
 
@@ -126,6 +128,9 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
   let refreshInFlight = false
   let needsRefresh = false
   let selectedId: string | null = null
+  let logsText = ''
+
+  logsCopyBtn.disabled = true
 
   const setMeta = (text: string) => {
     metaEl.textContent = text
@@ -134,6 +139,8 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
   const clearLogs = () => {
     logsTitleEl.textContent = 'Logs'
     logsOutputEl.textContent = ''
+    logsText = ''
+    logsCopyBtn.disabled = true
   }
 
   const renderTable = (items: ProcessListItem[]) => {
@@ -217,9 +224,11 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
         return
       }
       logsTitleEl.textContent = `Logs · ${selectedId.slice(0, 8)}`
-      logsOutputEl.textContent = json.lines
+      logsText = json.lines
         .map((line) => `${line.stream === 'stderr' ? 'err' : 'out'} | ${line.line}`)
         .join('\n')
+      logsOutputEl.textContent = logsText
+      logsCopyBtn.disabled = logsText.trim().length === 0
     } catch {
       clearLogs()
     }
@@ -343,6 +352,28 @@ export function createProcessesViewer(options: ProcessesViewerOptions): Processe
 
   streamEl.addEventListener('change', () => {
     void refreshLogs()
+  })
+
+  const copyLogs = async () => {
+    if (!logsText.trim()) return
+    try {
+      await navigator.clipboard.writeText(logsText)
+      return
+    } catch {
+      // fallback
+    }
+    const selection = window.getSelection()
+    if (!selection) return
+    const range = document.createRange()
+    range.selectNodeContents(logsOutputEl)
+    selection.removeAllRanges()
+    selection.addRange(range)
+    document.execCommand('copy')
+    selection.removeAllRanges()
+  }
+
+  logsCopyBtn.addEventListener('click', () => {
+    void copyLogs()
   })
 
   tableEl.addEventListener('click', (event) => {
