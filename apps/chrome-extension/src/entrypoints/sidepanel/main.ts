@@ -1468,6 +1468,8 @@ function rebuildSlideDescriptions() {
   })
   const budget = resolveSlideTextBudget({ lengthArg, slideCount: timeline.length })
   const hasSummary = slideSummaryByIndex.size > 0
+  const allowOcrFallback =
+    !hasSummary && slidesOcrEnabledValue && slidesOcrAvailable && !slidesTranscriptAvailable
   const effectiveInputMode = inputModeOverride ?? inputMode
   const holdTranscriptFallback =
     !hasSummary &&
@@ -1499,11 +1501,16 @@ function rebuildSlideDescriptions() {
       slideDescriptions.set(slide.index, getOcrTextForSlide(slide, budget))
       continue
     }
+    const ocrFallback = allowOcrFallback ? getOcrTextForSlide(slide, budget) : ''
     if (holdTranscriptFallback) {
-      slideDescriptions.set(slide.index, '')
+      slideDescriptions.set(slide.index, ocrFallback)
       continue
     }
     const transcriptText = fallbackSummaries.get(slide.index) ?? ''
+    if (!transcriptText && ocrFallback) {
+      slideDescriptions.set(slide.index, ocrFallback)
+      continue
+    }
     slideDescriptions.set(slide.index, transcriptText)
   }
 }
@@ -3450,12 +3457,20 @@ function updateControls(state: UiState) {
   const tabChanged = nextTabId !== activeTabId
   const urlChanged =
     !tabChanged && nextTabUrl && (!activeTabUrl || !urlsMatch(nextTabUrl, activeTabUrl))
-  const nextMediaAvailable =
-    Boolean(state.media && (state.media.hasVideo || state.media.hasAudio)) || preferUrlMode
+  const hasActiveChat =
+    panelState.chatStreaming || chatQueue.length > 0 || chatController.getMessages().length > 0
+  const hasMediaInfo = state.media != null
+  const mediaFromState = Boolean(state.media && (state.media.hasVideo || state.media.hasAudio))
+  const nextMediaAvailable = hasMediaInfo
+    ? mediaFromState || preferUrlMode
+    : tabChanged || urlChanged
+      ? preferUrlMode
+      : mediaAvailable || preferUrlMode
   const nextVideoLabel = state.media?.hasAudio && !state.media.hasVideo ? 'Audio' : 'Video'
 
   if (tabChanged) {
-    const preserveChat = isRecentAgentNavigation(nextTabId, nextTabUrl)
+    const initialTabHydration = activeTabId === null && nextTabId !== null && hasActiveChat
+    const preserveChat = initialTabHydration || isRecentAgentNavigation(nextTabId, nextTabUrl)
     if (preserveChat) {
       notePreserveChatForUrl(nextTabUrl ?? lastAgentNavigation?.url ?? null)
     }
@@ -3489,8 +3504,10 @@ function updateControls(state: UiState) {
       resetSummaryView({ preserveChat })
     }
   } else if (urlChanged) {
+    const previousTabUrl = activeTabUrl
     activeTabUrl = nextTabUrl
-    const preserveChat = isRecentAgentNavigation(activeTabId, nextTabUrl)
+    const initialUrlHydration = previousTabUrl === null && nextTabUrl !== null && hasActiveChat
+    const preserveChat = initialUrlHydration || isRecentAgentNavigation(activeTabId, nextTabUrl)
     if (preserveChat) {
       notePreserveChatForUrl(nextTabUrl)
     } else if (
@@ -3619,7 +3636,7 @@ function updateControls(state: UiState) {
   if (!isStreaming()) {
     headerController.setStatus(state.status)
   }
-  if (!nextMediaAvailable) {
+  if (!nextMediaAvailable && hasMediaInfo) {
     inputMode = 'page'
     inputModeOverride = null
   }
