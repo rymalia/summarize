@@ -61,4 +61,43 @@ describe('process tracking', () => {
     expect(capture.registrations.length).toBe(1)
     expect(capture.outputs.some((line) => line.line.includes('hello'))).toBe(true)
   })
+
+  it('supports execFile callback signatures', async () => {
+    const capture = {
+      registrations: [] as ProcessRegistration[],
+      outputs: [] as Array<{ stream: 'stdout' | 'stderr'; line: string }>,
+    }
+    setProcessObserver(createObserver(capture))
+
+    await new Promise<void>((resolve, reject) => {
+      const proc = execFileTracked(
+        process.execPath,
+        ['-e', 'console.log("callback")'],
+        (error, stdout) => {
+          if (error) {
+            reject(error)
+            return
+          }
+          expect(stdout.toString()).toContain('callback')
+          resolve()
+        }
+      )
+      proc.on('error', reject)
+    })
+
+    if (process.platform !== 'win32') {
+      await new Promise<void>((resolve, reject) => {
+        const proc = execFileTracked('/usr/bin/true', (error) => {
+          if (error) {
+            reject(error)
+            return
+          }
+          resolve()
+        })
+        proc.on('error', reject)
+      })
+    }
+
+    expect(capture.registrations.length).toBeGreaterThanOrEqual(2)
+  })
 })
