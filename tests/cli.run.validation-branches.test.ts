@@ -33,7 +33,7 @@ describe('cli run.ts validation branches', () => {
     ).rejects.toThrow(/--markdown-mode is only supported with --format md/)
   })
 
-  it('rejects --extract for non-media local files', async () => {
+  it('rejects --extract for local files', async () => {
     const root = mkdtempSync(join(tmpdir(), 'summarize-extract-file-'))
     const filePath = join(root, 'input.txt')
     writeFileSync(filePath, 'hello', 'utf8')
@@ -49,26 +49,7 @@ describe('cli run.ts validation branches', () => {
         stdout: stdout.stream,
         stderr: stderr.stream,
       })
-    ).rejects.toThrow(/--extract for local files is only supported for media files/)
-  })
-
-  it('allows --extract for local media files and reaches media transcription path', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'summarize-extract-media-'))
-    const filePath = join(root, 'episode.mp3')
-    writeFileSync(filePath, 'not-real-audio', 'utf8')
-
-    const stdout = collectStream()
-    const stderr = collectStream()
-    await expect(
-      runCli(['--extract', '--timeout', '2s', filePath], {
-        env: {},
-        fetch: (() => {
-          throw new Error('unexpected fetch')
-        }) as unknown as typeof fetch,
-        stdout: stdout.stream,
-        stderr: stderr.stream,
-      })
-    ).rejects.toThrow(/Media file transcription requires one of the following/)
+    ).rejects.toThrow(/--extract .*only supported/)
   })
 
   it('rejects unsupported --cli values', async () => {

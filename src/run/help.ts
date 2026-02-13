@@ -12,7 +12,7 @@ export function buildProgram() {
   return new Command()
     .name('summarize')
     .description('Summarize web pages and YouTube links (uses direct provider API keys).')
-    .argument('[input]', 'URL or local file path to summarize')
+    .argument('[input]', 'URL, local file path, or - for stdin (text or binary) to summarize')
     .option(
       '--youtube <mode>',
       'YouTube transcript source: auto, web, no-auto (skip auto-generated captions), yt-dlp, apify',
@@ -244,6 +244,7 @@ ${heading('Examples')}
   ${cmd('summarize "https://example.com" --length 20k --max-output-tokens 2k --timeout 2m --model openai/gpt-5-mini')}
   ${cmd('summarize "https://example.com" --model mymodel')} ${dim('# config preset')}
   ${cmd('summarize "https://example.com" --json --verbose')}
+  ${cmd('pbpaste | summarize -')} ${dim('# summarize clipboard content')}
 
 ${heading('Env Vars')}
   XAI_API_KEY           optional (required for xai/... models)
@@ -288,11 +289,12 @@ export function buildConciseHelp(): string {
   return [
     'summarize - Summarize web pages, files, and YouTube links.',
     '',
-    'Usage: summarize <url-or-file> [flags]',
+    'Usage: summarize <input> [flags]',
     '',
     'Examples:',
     '  summarize "https://example.com"',
     '  summarize "/path/to/file.pdf" --model google/gemini-3-flash-preview',
+    '  pbpaste | summarize -',
     '',
     'Run summarize --help for full options.',
     `Support: ${SUPPORT_URL}`,
