@@ -38,6 +38,7 @@ export type AutoModelAttempt = {
   requiredEnv:
     | "XAI_API_KEY"
     | "OPENAI_API_KEY"
+    | "NVIDIA_API_KEY"
     | "GEMINI_API_KEY"
     | "ANTHROPIC_API_KEY"
     | "OPENROUTER_API_KEY"
@@ -330,7 +331,9 @@ function requiredEnvForCandidate(modelId: string): AutoModelAttempt["requiredEnv
         ? "ANTHROPIC_API_KEY"
         : parsed.provider === "zai"
           ? "Z_AI_API_KEY"
-          : "OPENAI_API_KEY";
+          : parsed.provider === "nvidia"
+            ? "NVIDIA_API_KEY"
+            : "OPENAI_API_KEY";
 }
 
 export function envHasKey(

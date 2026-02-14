@@ -654,7 +654,9 @@ export async function summarizeExtractedUrl({
       }
       return list.map((attempt) => {
         if (attempt.transport !== "cli")
-          return model.summaryEngine.applyZaiOverrides(attempt as ModelAttempt);
+          return model.summaryEngine.applyNvidiaOverrides(
+            model.summaryEngine.applyZaiOverrides(attempt as ModelAttempt),
+          );
         const parsed = parseCliUserModelId(attempt.userModelId);
         return { ...attempt, cliProvider: parsed.provider, cliModel: parsed.model };
       });
@@ -684,7 +686,13 @@ export async function summarizeExtractedUrl({
             openaiBaseUrlOverride: model.apiStatus.zaiBaseUrl,
             forceChatCompletions: true,
           }
-        : {};
+        : model.fixedModelSpec.requiredEnv === "NVIDIA_API_KEY"
+          ? {
+              openaiApiKeyOverride: model.apiStatus.nvidiaApiKey,
+              openaiBaseUrlOverride: model.apiStatus.nvidiaBaseUrl,
+              forceChatCompletions: true,
+            }
+          : {};
     return [
       {
         transport: model.fixedModelSpec.transport === "openrouter" ? "openrouter" : "native",

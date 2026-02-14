@@ -74,8 +74,20 @@ export type GoogleConfig = {
   baseUrl?: string;
 };
 
+export type NvidiaConfig = {
+  /**
+   * Override the NVIDIA OpenAI-compatible API base URL.
+   *
+   * Default: https://integrate.api.nvidia.com/v1
+   *
+   * Prefer env `NVIDIA_BASE_URL` when you need per-run overrides.
+   */
+  baseUrl?: string;
+};
+
 export type ApiKeysConfig = {
   openai?: string;
+  nvidia?: string;
   anthropic?: string;
   google?: string;
   xai?: string;
@@ -201,6 +213,7 @@ export type SummarizeConfig = {
   };
   cli?: CliConfig;
   openai?: OpenAiConfig;
+  nvidia?: NvidiaConfig;
   anthropic?: AnthropicConfig;
   google?: GoogleConfig;
   xai?: XaiConfig;
@@ -231,6 +244,7 @@ function resolveLegacyApiKeysEnv(apiKeys: ApiKeysConfig | undefined): EnvConfig 
   if (!apiKeys) return {};
   const mapped: EnvConfig = {};
   if (typeof apiKeys.openai === "string") mapped.OPENAI_API_KEY = apiKeys.openai;
+  if (typeof apiKeys.nvidia === "string") mapped.NVIDIA_API_KEY = apiKeys.nvidia;
   if (typeof apiKeys.anthropic === "string") mapped.ANTHROPIC_API_KEY = apiKeys.anthropic;
   if (typeof apiKeys.google === "string") mapped.GEMINI_API_KEY = apiKeys.google;
   if (typeof apiKeys.xai === "string") mapped.XAI_API_KEY = apiKeys.xai;
@@ -1141,6 +1155,11 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
       : undefined;
   })();
 
+  const nvidia = parseProviderBaseUrlConfig(
+    (parsed as Record<string, unknown>).nvidia,
+    path,
+    "nvidia",
+  );
   const anthropic = parseProviderBaseUrlConfig(parsed.anthropic, path, "anthropic");
   const google = parseProviderBaseUrlConfig(parsed.google, path, "google");
   const xai = parseProviderBaseUrlConfig(parsed.xai, path, "xai");
@@ -1174,6 +1193,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
     const keys: Record<string, string> = {};
     const allowed = [
       "openai",
+      "nvidia",
       "anthropic",
       "google",
       "xai",
@@ -1211,6 +1231,7 @@ export function loadSummarizeConfig({ env }: { env: Record<string, string | unde
       ...(ui ? { ui } : {}),
       ...(cli ? { cli } : {}),
       ...(openai ? { openai } : {}),
+      ...(nvidia ? { nvidia } : {}),
       ...(anthropic ? { anthropic } : {}),
       ...(google ? { google } : {}),
       ...(xai ? { xai } : {}),

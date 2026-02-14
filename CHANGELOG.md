@@ -1,10 +1,15 @@
 # Changelog
 
-## 0.11.1 - 2026-02-14
+## 0.11.2 - Unreleased
+
+### Features
+
+- Models: add `nvidia/...` provider alias (uses `NVIDIA_API_KEY` + optional `NVIDIA_BASE_URL`) for NVIDIA OpenAI-compatible endpoints.
 
 ### Fixes
 
 - npm packaging: publish CLI with `pnpm publish` so `@steipete/summarize-core` is version-pinned in published metadata (no `workspace:*` in registry package).
+- CLI help: surface `summarize refresh-free` in `summarize help` output.
 
 ## 0.11.0 - 2026-02-14
 

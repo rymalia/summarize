@@ -395,11 +395,13 @@ type AgentApiKeys = {
   googleApiKey: string | null;
   xaiApiKey: string | null;
   zaiApiKey: string | null;
+  nvidiaApiKey: string | null;
 };
 
 const REQUIRED_ENV_BY_PROVIDER: Record<string, string> = {
   openrouter: "OPENROUTER_API_KEY",
   openai: "OPENAI_API_KEY",
+  nvidia: "NVIDIA_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
   google: "GEMINI_API_KEY",
   xai: "XAI_API_KEY",
@@ -407,18 +409,20 @@ const REQUIRED_ENV_BY_PROVIDER: Record<string, string> = {
 };
 
 function resolveApiKeyForModel({
-  model,
+  provider,
   apiKeys,
 }: {
-  model: Model<Api>;
+  provider: string;
   apiKeys: AgentApiKeys;
 }): string {
   const resolved = (() => {
-    switch (model.provider) {
+    switch (provider) {
       case "openrouter":
         return apiKeys.openrouterApiKey;
       case "openai":
         return apiKeys.openaiApiKey;
+      case "nvidia":
+        return apiKeys.nvidiaApiKey;
       case "anthropic":
         return apiKeys.anthropicApiKey;
       case "google":
@@ -433,11 +437,11 @@ function resolveApiKeyForModel({
   })();
 
   if (resolved) return resolved;
-  const requiredEnv = REQUIRED_ENV_BY_PROVIDER[model.provider];
+  const requiredEnv = REQUIRED_ENV_BY_PROVIDER[provider];
   if (requiredEnv) {
-    throw new Error(`Missing ${requiredEnv} for ${model.provider} model`);
+    throw new Error(`Missing ${requiredEnv} for ${provider} model`);
   }
-  throw new Error(`Missing API key for provider: ${model.provider}`);
+  throw new Error(`Missing API key for provider: ${provider}`);
 }
 
 async function resolveAgentModel({
@@ -461,6 +465,8 @@ async function resolveAgentModel({
     zaiApiKey,
     providerBaseUrls,
     zaiBaseUrl,
+    nvidiaApiKey,
+    nvidiaBaseUrl,
     envForAuto,
     cliAvailability,
   } = resolveRunContextState({
@@ -480,6 +486,7 @@ async function resolveAgentModel({
     googleApiKey,
     xaiApiKey,
     zaiApiKey,
+    nvidiaApiKey,
   };
 
   const overrides = resolveRunOverrides({});
@@ -499,11 +506,17 @@ async function resolveAgentModel({
     google: providerBaseUrls.google,
     xai: providerBaseUrls.xai,
     zai: zaiBaseUrl,
+    nvidia: nvidiaBaseUrl,
   };
 
   const applyBaseUrlOverride = (provider: string, modelId: string) => {
     const baseUrl = providerBaseUrlMap[provider] ?? null;
-    return resolveModelWithFallback({ provider, modelId, baseUrl });
+    // pi-ai doesn't know "nvidia" as a provider, but the endpoint is OpenAI-compatible.
+    const providerForPiAi = provider === "nvidia" ? "openai" : provider;
+    return {
+      provider,
+      model: resolveModelWithFallback({ provider: providerForPiAi, modelId, baseUrl }),
+    };
   };
 
   if (requestedModel.kind === "fixed") {
@@ -513,11 +526,13 @@ async function resolveAgentModel({
     if (requestedModel.transport === "openrouter") {
       const provider = "openrouter";
       const modelId = requestedModel.openrouterModelId;
-      return { model: applyBaseUrlOverride(provider, modelId), maxOutputTokens, apiKeys };
+      const resolved = applyBaseUrlOverride(provider, modelId);
+      return { ...resolved, maxOutputTokens, apiKeys };
     }
 
     const { provider, model } = parseProviderModelId(requestedModel.userModelId);
-    return { model: applyBaseUrlOverride(provider, model), maxOutputTokens, apiKeys };
+    const resolved = applyBaseUrlOverride(provider, model);
+    return { ...resolved, maxOutputTokens, apiKeys };
   }
 
   if (!isFallbackModel) {
@@ -542,10 +557,12 @@ async function resolveAgentModel({
     if (!envHasKey(envForAuto, attempt.requiredEnv)) continue;
     if (attempt.transport === "openrouter") {
       const modelId = attempt.userModelId.replace(/^openrouter\//i, "");
-      return { model: applyBaseUrlOverride("openrouter", modelId), maxOutputTokens, apiKeys };
+      const resolved = applyBaseUrlOverride("openrouter", modelId);
+      return { ...resolved, maxOutputTokens, apiKeys };
     }
     const { provider, model } = parseProviderModelId(attempt.userModelId);
-    return { model: applyBaseUrlOverride(provider, model), maxOutputTokens, apiKeys };
+    const resolved = applyBaseUrlOverride(provider, model);
+    return { ...resolved, maxOutputTokens, apiKeys };
   }
 
   throw new Error("No model available for agent");
@@ -590,12 +607,12 @@ export async function streamAgentResponse({
     automationEnabled,
   });
 
-  const { model, maxOutputTokens, apiKeys } = await resolveAgentModel({
+  const { provider, model, maxOutputTokens, apiKeys } = await resolveAgentModel({
     env,
     pageContent,
     modelOverride,
   });
-  const apiKey = resolveApiKeyForModel({ model, apiKeys });
+  const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
   const stream = streamSimple(
     model,
@@ -668,12 +685,12 @@ export async function completeAgentResponse({
     automationEnabled,
   });
 
-  const { model, maxOutputTokens, apiKeys } = await resolveAgentModel({
+  const { provider, model, maxOutputTokens, apiKeys } = await resolveAgentModel({
     env,
     pageContent,
     modelOverride,
   });
-  const apiKey = resolveApiKeyForModel({ model, apiKeys });
+  const apiKey = resolveApiKeyForModel({ provider, apiKeys });
 
   const assistant = await completeSimple(
     model,

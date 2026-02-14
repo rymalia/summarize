@@ -172,6 +172,8 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     anthropicApiKey,
     zaiApiKey,
     zaiBaseUrl,
+    nvidiaApiKey,
+    nvidiaBaseUrl,
     providerBaseUrls,
     firecrawlApiKey,
     firecrawlConfigured,
@@ -264,6 +266,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
       openrouterConfigured,
     },
     zai: { apiKey: zaiApiKey, baseUrl: zaiBaseUrl },
+    nvidia: { apiKey: nvidiaApiKey, baseUrl: nvidiaBaseUrl },
     providerBaseUrls,
   });
 
@@ -339,6 +342,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
     apiStatus: {
       xaiApiKey,
       apiKey,
+      nvidiaApiKey,
       openrouterApiKey,
       apifyToken,
       firecrawlConfigured,
@@ -347,6 +351,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
       providerBaseUrls,
       zaiApiKey,
       zaiBaseUrl,
+      nvidiaBaseUrl,
     },
   };
 
@@ -415,6 +420,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
       apiStatus: {
         xaiApiKey,
         apiKey,
+        nvidiaApiKey,
         openrouterApiKey,
         openrouterConfigured,
         googleApiKey,
@@ -424,6 +430,7 @@ export function createDaemonUrlFlowContext(args: DaemonUrlFlowContextArgs): UrlF
         providerBaseUrls,
         zaiApiKey,
         zaiBaseUrl,
+        nvidiaBaseUrl,
         firecrawlConfigured,
         firecrawlApiKey,
         apifyToken,

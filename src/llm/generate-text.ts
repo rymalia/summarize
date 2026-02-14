@@ -16,6 +16,7 @@ import {
   resolveGoogleModel,
   resolveOpenAiModel,
   resolveXaiModel,
+  resolveNvidiaModel,
   resolveZaiModel,
 } from "./providers/models.js";
 import {
@@ -185,7 +186,7 @@ export async function generateTextWithModelId({
 }): Promise<{
   text: string;
   canonicalModelId: string;
-  provider: "xai" | "openai" | "google" | "anthropic" | "zai";
+  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
   usage: LlmTokenUsage | null;
 }> {
   const parsed = parseGatewayStyleModelId(modelId);
@@ -401,6 +402,32 @@ export async function generateTextWithModelId({
         };
       }
 
+      if (parsed.provider === "nvidia") {
+        const apiKey = apiKeys.openaiApiKey;
+        if (!apiKey) throw new Error("Missing NVIDIA_API_KEY for nvidia/... model");
+        const model = resolveNvidiaModel({
+          modelId: parsed.model,
+          context,
+          openaiBaseUrlOverride,
+        });
+        const result = await completeSimple(model, context, {
+          ...(typeof effectiveTemperature === "number"
+            ? { temperature: effectiveTemperature }
+            : {}),
+          ...(typeof maxOutputTokens === "number" ? { maxTokens: maxOutputTokens } : {}),
+          apiKey,
+          signal: controller.signal,
+        });
+        const text = extractText(result);
+        if (!text) throw new Error(`LLM returned an empty summary (model ${parsed.canonical}).`);
+        return {
+          text,
+          canonicalModelId: parsed.canonical,
+          provider: parsed.provider,
+          usage: normalizeTokenUsage(result.usage),
+        };
+      }
+
       if (!openaiConfig) {
         throw new Error("Missing OPENAI_API_KEY for openai/... model");
       }
@@ -474,7 +501,7 @@ export async function streamTextWithModelId({
 }): Promise<{
   textStream: AsyncIterable<string>;
   canonicalModelId: string;
-  provider: "xai" | "openai" | "google" | "anthropic" | "zai";
+  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
   usage: Promise<LlmTokenUsage | null>;
   lastError: () => unknown;
 }> {
@@ -527,7 +554,7 @@ export async function streamTextWithContext({
 }): Promise<{
   textStream: AsyncIterable<string>;
   canonicalModelId: string;
-  provider: "xai" | "openai" | "google" | "anthropic" | "zai";
+  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
   usage: Promise<LlmTokenUsage | null>;
   lastError: () => unknown;
 }> {
@@ -620,6 +647,40 @@ export async function streamTextWithContext({
         signal: controller.signal,
       });
 
+      const textStream: AsyncIterable<string> = {
+        async *[Symbol.asyncIterator]() {
+          for await (const event of stream) {
+            if (event.type === "text_delta") yield event.delta;
+            if (event.type === "error") {
+              lastError = event.error;
+              break;
+            }
+          }
+        },
+      };
+      return {
+        textStream: wrapTextStream(textStream),
+        canonicalModelId: parsed.canonical,
+        provider: parsed.provider,
+        usage: streamUsageWithTimeout({ result: stream.result(), timeoutMs }),
+        lastError: () => lastError,
+      };
+    }
+
+    if (parsed.provider === "nvidia") {
+      const apiKey = apiKeys.openaiApiKey;
+      if (!apiKey) throw new Error("Missing NVIDIA_API_KEY for nvidia/... model");
+      const model = resolveNvidiaModel({
+        modelId: parsed.model,
+        context,
+        openaiBaseUrlOverride,
+      });
+      const stream = streamSimple(model, context, {
+        ...(typeof effectiveTemperature === "number" ? { temperature: effectiveTemperature } : {}),
+        ...(typeof maxOutputTokens === "number" ? { maxTokens: maxOutputTokens } : {}),
+        apiKey,
+        signal: controller.signal,
+      });
       const textStream: AsyncIterable<string> = {
         async *[Symbol.asyncIterator]() {
           for await (const event of stream) {

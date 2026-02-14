@@ -23,7 +23,7 @@ export type MarkdownConverters = {
   markdownRequested: boolean;
   transcriptMarkdownRequested: boolean;
   effectiveMarkdownMode: "off" | "auto" | "llm" | "readability";
-  markdownProvider: "none" | "xai" | "openai" | "google" | "anthropic" | "zai";
+  markdownProvider: "none" | "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
   markdownModel: MarkdownModel | null;
   convertHtmlToMarkdown:
     | ((args: {
@@ -74,6 +74,16 @@ export function createMarkdownConverters(
           requiredEnv: ctx.model.fixedModelSpec.requiredEnv,
           openaiApiKeyOverride: ctx.model.apiStatus.zaiApiKey,
           openaiBaseUrlOverride: ctx.model.apiStatus.zaiBaseUrl,
+          forceChatCompletions: true,
+        };
+      }
+      if (ctx.model.fixedModelSpec?.requiredEnv === "NVIDIA_API_KEY") {
+        return {
+          llmModelId: ctx.model.requestedModel.llmModelId,
+          forceOpenRouter: false,
+          requiredEnv: ctx.model.fixedModelSpec.requiredEnv,
+          openaiApiKeyOverride: ctx.model.apiStatus.nvidiaApiKey,
+          openaiBaseUrlOverride: ctx.model.apiStatus.nvidiaBaseUrl,
           forceChatCompletions: true,
         };
       }
@@ -136,6 +146,8 @@ export function createMarkdownConverters(
     if (!markdownModel) return false;
     if (markdownModel.forceOpenRouter) return ctx.model.apiStatus.openrouterConfigured;
     if (markdownModel.requiredEnv === "Z_AI_API_KEY") return Boolean(ctx.model.apiStatus.zaiApiKey);
+    if (markdownModel.requiredEnv === "NVIDIA_API_KEY")
+      return Boolean(ctx.model.apiStatus.nvidiaApiKey);
     if (markdownModel.openaiApiKeyOverride) return true;
     const parsed = parseGatewayStyleModelId(markdownModel.llmModelId);
     return parsed.provider === "xai"
@@ -146,7 +158,9 @@ export function createMarkdownConverters(
           ? ctx.model.apiStatus.anthropicConfigured
           : parsed.provider === "zai"
             ? Boolean(ctx.model.apiStatus.zaiApiKey)
-            : Boolean(ctx.model.apiStatus.apiKey);
+            : parsed.provider === "nvidia"
+              ? Boolean(ctx.model.apiStatus.nvidiaApiKey)
+              : Boolean(ctx.model.apiStatus.apiKey);
   })();
 
   if (
@@ -157,6 +171,7 @@ export function createMarkdownConverters(
     const required = (() => {
       if (markdownModel?.forceOpenRouter) return "OPENROUTER_API_KEY";
       if (markdownModel?.requiredEnv === "Z_AI_API_KEY") return "Z_AI_API_KEY";
+      if (markdownModel?.requiredEnv === "NVIDIA_API_KEY") return "NVIDIA_API_KEY";
       if (markdownModel) {
         const parsed = parseGatewayStyleModelId(markdownModel.llmModelId);
         return parsed.provider === "xai"
@@ -167,7 +182,9 @@ export function createMarkdownConverters(
               ? "ANTHROPIC_API_KEY"
               : parsed.provider === "zai"
                 ? "Z_AI_API_KEY"
-                : "OPENAI_API_KEY";
+                : parsed.provider === "nvidia"
+                  ? "NVIDIA_API_KEY"
+                  : "OPENAI_API_KEY";
       }
       return "GEMINI_API_KEY (or GOOGLE_GENERATIVE_AI_API_KEY / GOOGLE_API_KEY)";
     })();

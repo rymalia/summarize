@@ -78,5 +78,12 @@ describe("model spec parsing", () => {
     expect(zai.transport).toBe("native");
     expect(zai.requiredEnv).toBe("Z_AI_API_KEY");
     expect(zai.llmModelId).toBe("zai/glm-4.7");
+
+    const nvidia = parseRequestedModelId("nvidia/z-ai/glm5");
+    expect(nvidia.kind).toBe("fixed");
+    expect(nvidia.transport).toBe("native");
+    expect(nvidia.provider).toBe("nvidia");
+    expect(nvidia.requiredEnv).toBe("NVIDIA_API_KEY");
+    expect(nvidia.llmModelId).toBe("nvidia/z-ai/glm5");
   });
 });

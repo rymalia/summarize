@@ -38,7 +38,7 @@ export function canStream({
   prompt,
   transport,
 }: {
-  provider: "xai" | "openai" | "google" | "anthropic" | "zai";
+  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
   prompt: { attachments?: Array<{ kind: "text" | "image" | "document" }> };
   transport: "cli" | "native" | "openrouter";
 }): boolean {
@@ -51,6 +51,7 @@ export function canStream({
     "google",
     "anthropic",
     "zai",
+    "nvidia",
   ]);
   return streamableProviders.has(provider);
 }

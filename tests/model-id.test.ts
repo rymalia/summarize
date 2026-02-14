@@ -11,6 +11,7 @@ describe("model id parsing", () => {
     expect(normalizeGatewayStyleModelId("anthropic/claude-sonnet-4-5")).toBe(
       "anthropic/claude-sonnet-4-5",
     );
+    expect(normalizeGatewayStyleModelId("nvidia/z-ai/glm5")).toBe("nvidia/z-ai/glm5");
   });
 
   it("resolves short Anthropic model aliases to versioned form", () => {

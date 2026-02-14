@@ -110,7 +110,7 @@ export function buildProgram() {
     .option("--retries <count>", "LLM retry attempts on timeout (default: 1).", "1")
     .option(
       "--model <model>",
-      "LLM model id: auto, <name>, cli/<provider>/<model>, xai/..., openai/..., google/..., anthropic/..., zai/... or openrouter/<author>/<slug> (default: auto)",
+      "LLM model id: auto, <name>, cli/<provider>/<model>, xai/..., openai/..., nvidia/..., google/..., anthropic/..., zai/... or openrouter/<author>/<slug> (default: auto)",
       undefined,
     )
     .option(
@@ -245,6 +245,7 @@ ${heading("Examples")}
   ${cmd('summarize "https://example.com" --model mymodel')} ${dim("# config preset")}
   ${cmd('summarize "https://example.com" --json --verbose')}
   ${cmd("pbpaste | summarize -")} ${dim("# summarize clipboard content")}
+  ${cmd("summarize refresh-free")} ${dim("# scan/update working OpenRouter :free models")}
 
 ${heading("Env Vars")}
   XAI_API_KEY           optional (required for xai/... models)
@@ -253,6 +254,9 @@ ${heading("Env Vars")}
   OPENAI_WHISPER_BASE_URL optional (OpenAI-compatible Whisper endpoint override)
   OPENAI_BASE_URL       optional (OpenAI-compatible API endpoint; e.g. OpenRouter)
   OPENAI_USE_CHAT_COMPLETIONS optional (force OpenAI chat completions)
+  NVIDIA_API_KEY        optional (required for nvidia/... models)
+  NGC_API_KEY           optional (alias for NVIDIA_API_KEY)
+  NVIDIA_BASE_URL       optional (override NVIDIA OpenAI-compatible API endpoint)
   OPENROUTER_API_KEY    optional (routes openai/... models through OpenRouter)
   Z_AI_API_KEY          optional (required for zai/... models)
   Z_AI_BASE_URL         optional (override default Z.AI base URL)
@@ -279,6 +283,7 @@ ${heading("Env Vars")}
   FAL_KEY               optional FAL AI API key for audio transcription
 
 ${heading("Hint")}
+  ${cmd("summarize refresh-free")} ${dim("# refresh free-model candidates into ~/.summarize/config.json")}
   ${cmd("summarize transcriber setup")} ${dim("# set up local ONNX transcription; auto prefers it when configured")}
 
 ${heading("Support")}

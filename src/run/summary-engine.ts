@@ -39,7 +39,7 @@ export type SummaryEngineDeps = {
   resolveMaxOutputTokensForCall: (modelId: string) => Promise<number | null>;
   resolveMaxInputTokensForCall: (modelId: string) => Promise<number | null>;
   llmCalls: Array<{
-    provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "cli";
+    provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia" | "cli";
     model: string;
     usage: Awaited<ReturnType<typeof summarizeWithModelId>>["usage"] | null;
     costUsd?: number | null;
@@ -60,6 +60,10 @@ export type SummaryEngineDeps = {
     openrouterConfigured: boolean;
   };
   zai: {
+    apiKey: string | null;
+    baseUrl: string;
+  };
+  nvidia: {
     apiKey: string | null;
     baseUrl: string;
   };
@@ -91,6 +95,16 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     };
   };
 
+  const applyNvidiaOverrides = (attempt: ModelAttempt): ModelAttempt => {
+    if (!attempt.userModelId.toLowerCase().startsWith("nvidia/")) return attempt;
+    return {
+      ...attempt,
+      openaiApiKeyOverride: deps.nvidia.apiKey,
+      openaiBaseUrlOverride: deps.nvidia.baseUrl,
+      forceChatCompletions: true,
+    };
+  };
+
   const envHasKeyFor = (requiredEnv: ModelAttempt["requiredEnv"]) => {
     if (requiredEnv === "CLI_CLAUDE") {
       return Boolean(deps.cliAvailability.claude);
@@ -112,6 +126,9 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
     }
     if (requiredEnv === "OPENAI_API_KEY") {
       return Boolean(deps.apiKeys.openaiApiKey);
+    }
+    if (requiredEnv === "NVIDIA_API_KEY") {
+      return Boolean(deps.nvidia.apiKey);
     }
     if (requiredEnv === "Z_AI_API_KEY") {
       return Boolean(deps.zai.apiKey);
@@ -561,6 +578,7 @@ export function createSummaryEngine(deps: SummaryEngineDeps) {
 
   return {
     applyZaiOverrides,
+    applyNvidiaOverrides,
     envHasKeyFor,
     formatMissingModelError,
     runSummaryAttempt,

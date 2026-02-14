@@ -64,4 +64,26 @@ describe("daemon /v1/models", () => {
     expect(result.providers.cliClaude).toBe(true);
     expect(result.options.some((o) => o.id === "cli/claude")).toBe(true);
   });
+
+  it("includes NVIDIA models when NVIDIA_API_KEY is set", async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      expect(url).toBe("https://integrate.api.nvidia.com/v1/models");
+      expect(init?.headers).toEqual({ authorization: "Bearer nvidia-test" });
+      return {
+        ok: true,
+        json: async () => ({ data: [{ id: "z-ai/glm5" }] }),
+      } as Response;
+    }) as unknown as typeof fetch;
+
+    const result = await buildModelPickerOptions({
+      env: {},
+      envForRun: { NVIDIA_API_KEY: "nvidia-test" },
+      configForCli: null,
+      fetchImpl,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.providers.nvidia).toBe(true);
+    expect(result.options.some((o) => o.id === "nvidia/z-ai/glm5")).toBe(true);
+  });
 });

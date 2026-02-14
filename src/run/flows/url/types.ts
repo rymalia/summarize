@@ -86,6 +86,7 @@ export type UrlFlowModel = {
   apiStatus: {
     xaiApiKey: string | null;
     apiKey: string | null;
+    nvidiaApiKey: string | null;
     openrouterApiKey: string | null;
     openrouterConfigured: boolean;
     googleApiKey: string | null;
@@ -94,12 +95,14 @@ export type UrlFlowModel = {
     anthropicConfigured: boolean;
     providerBaseUrls: {
       openai: string | null;
+      nvidia: string | null;
       anthropic: string | null;
       google: string | null;
       xai: string | null;
     };
     zaiApiKey: string | null;
     zaiBaseUrl: string;
+    nvidiaBaseUrl: string;
     firecrawlConfigured: boolean;
     firecrawlApiKey: string | null;
     apifyToken: string | null;

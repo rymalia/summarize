@@ -13,6 +13,8 @@ export type EnvState = {
   anthropicApiKey: string | null;
   zaiApiKey: string | null;
   zaiBaseUrl: string;
+  nvidiaApiKey: string | null;
+  nvidiaBaseUrl: string;
   firecrawlApiKey: string | null;
   firecrawlConfigured: boolean;
   googleConfigured: boolean;
@@ -25,6 +27,7 @@ export type EnvState = {
   envForAuto: Record<string, string | undefined>;
   providerBaseUrls: {
     openai: string | null;
+    nvidia: string | null;
     anthropic: string | null;
     google: string | null;
     xai: string | null;
@@ -44,6 +47,10 @@ export function resolveEnvState({
   const openaiBaseUrl = resolveConfiguredBaseUrl({
     envValue: envForRun.OPENAI_BASE_URL,
     configValue: configForCli?.openai?.baseUrl,
+  });
+  const nvidiaBaseUrl = resolveConfiguredBaseUrl({
+    envValue: envForRun.NVIDIA_BASE_URL,
+    configValue: configForCli?.nvidia?.baseUrl,
   });
   const anthropicBaseUrl = resolveConfiguredBaseUrl({
     envValue: envForRun.ANTHROPIC_BASE_URL,
@@ -73,6 +80,12 @@ export function resolveEnvState({
     typeof envForRun.OPENROUTER_API_KEY === "string" ? envForRun.OPENROUTER_API_KEY : null;
   const openaiKeyRaw =
     typeof envForRun.OPENAI_API_KEY === "string" ? envForRun.OPENAI_API_KEY : null;
+  const nvidiaKeyRaw =
+    typeof envForRun.NVIDIA_API_KEY === "string"
+      ? envForRun.NVIDIA_API_KEY
+      : typeof envForRun.NGC_API_KEY === "string"
+        ? envForRun.NGC_API_KEY
+        : null;
   const apiKey =
     typeof openaiBaseUrl === "string" && isOpenRouterBaseUrl(openaiBaseUrl)
       ? (openRouterKeyRaw ?? openaiKeyRaw)
@@ -115,6 +128,9 @@ export function resolveEnvState({
   const xaiApiKey = xaiKeyRaw?.trim() ?? null;
   const zaiApiKey = zaiKeyRaw?.trim() ?? null;
   const zaiBaseUrl = (zaiBaseUrlRaw?.trim() ?? "") || "https://api.z.ai/api/paas/v4";
+  const nvidiaApiKey = nvidiaKeyRaw?.trim() ?? null;
+  const nvidiaBaseUrlEffective =
+    (nvidiaBaseUrl?.trim() ?? "") || "https://integrate.api.nvidia.com/v1";
   const googleApiKey = googleKeyRaw?.trim() ?? null;
   const anthropicApiKey = anthropicKeyRaw?.trim() ?? null;
   const openrouterApiKey = (() => {
@@ -135,6 +151,7 @@ export function resolveEnvState({
   const envForAuto = openrouterApiKey ? { ...env, OPENROUTER_API_KEY: openrouterApiKey } : env;
   const providerBaseUrls = {
     openai: openaiBaseUrl,
+    nvidia: nvidiaBaseUrl,
     anthropic: anthropicBaseUrl,
     google: googleBaseUrl,
     xai: xaiBaseUrl,
@@ -151,6 +168,8 @@ export function resolveEnvState({
     anthropicApiKey,
     zaiApiKey,
     zaiBaseUrl,
+    nvidiaApiKey,
+    nvidiaBaseUrl: nvidiaBaseUrlEffective,
     firecrawlApiKey,
     firecrawlConfigured,
     googleConfigured,

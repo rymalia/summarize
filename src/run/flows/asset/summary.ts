@@ -267,6 +267,7 @@ export type AssetSummaryContext = {
   apiStatus: {
     xaiApiKey: string | null;
     apiKey: string | null;
+    nvidiaApiKey: string | null;
     openrouterApiKey: string | null;
     apifyToken: string | null;
     firecrawlConfigured: boolean;
@@ -274,12 +275,14 @@ export type AssetSummaryContext = {
     anthropicConfigured: boolean;
     providerBaseUrls: {
       openai: string | null;
+      nvidia: string | null;
       anthropic: string | null;
       google: string | null;
       xai: string | null;
     };
     zaiApiKey: string | null;
     zaiBaseUrl: string;
+    nvidiaBaseUrl: string;
   };
 };
 
@@ -387,7 +390,9 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
       });
       const mapped: ModelAttempt[] = all.map((attempt) => {
         if (attempt.transport !== "cli")
-          return ctx.summaryEngine.applyZaiOverrides(attempt as ModelAttempt);
+          return ctx.summaryEngine.applyNvidiaOverrides(
+            ctx.summaryEngine.applyZaiOverrides(attempt as ModelAttempt),
+          );
         const parsed = parseCliUserModelId(attempt.userModelId);
         return { ...attempt, cliProvider: parsed.provider, cliModel: parsed.model };
       });
@@ -418,7 +423,13 @@ export async function summarizeAsset(ctx: AssetSummaryContext, args: SummarizeAs
             openaiBaseUrlOverride: ctx.apiStatus.zaiBaseUrl,
             forceChatCompletions: true,
           }
-        : {};
+        : ctx.fixedModelSpec.requiredEnv === "NVIDIA_API_KEY"
+          ? {
+              openaiApiKeyOverride: ctx.apiStatus.nvidiaApiKey,
+              openaiBaseUrlOverride: ctx.apiStatus.nvidiaBaseUrl,
+              forceChatCompletions: true,
+            }
+          : {};
     return [
       {
         transport: ctx.fixedModelSpec.transport === "openrouter" ? "openrouter" : "native",

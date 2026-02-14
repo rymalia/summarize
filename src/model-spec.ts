@@ -13,7 +13,7 @@ export type FixedModelSpec =
       transport: "native";
       userModelId: string;
       llmModelId: string;
-      provider: "xai" | "openai" | "google" | "anthropic" | "zai";
+      provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia";
       openrouterProviders: string[] | null;
       forceOpenRouter: false;
       requiredEnv:
@@ -21,7 +21,8 @@ export type FixedModelSpec =
         | "OPENAI_API_KEY"
         | "GEMINI_API_KEY"
         | "ANTHROPIC_API_KEY"
-        | "Z_AI_API_KEY";
+        | "Z_AI_API_KEY"
+        | "NVIDIA_API_KEY";
       openaiBaseUrlOverride?: string | null;
       forceChatCompletions?: boolean;
     }
@@ -95,6 +96,26 @@ export function parseRequestedModelId(raw: string): RequestedModel {
     };
   }
 
+  if (lower.startsWith("nvidia/")) {
+    const model = trimmed.slice("nvidia/".length).trim();
+    if (model.length === 0) {
+      throw new Error("Invalid model id: nvidia/… is missing the model id");
+    }
+    return {
+      kind: "fixed",
+      transport: "native",
+      userModelId: `nvidia/${model}`,
+      llmModelId: `nvidia/${model}`,
+      provider: "nvidia",
+      openrouterProviders: null,
+      forceOpenRouter: false,
+      requiredEnv: "NVIDIA_API_KEY",
+      // Default; can be overridden at runtime via NVIDIA_BASE_URL / config.nvidia.baseUrl.
+      openaiBaseUrlOverride: "https://integrate.api.nvidia.com/v1",
+      forceChatCompletions: true,
+    };
+  }
+
   if (lower.startsWith("cli/")) {
     const parts = trimmed
       .split("/")
@@ -151,7 +172,9 @@ export function parseRequestedModelId(raw: string): RequestedModel {
           ? "ANTHROPIC_API_KEY"
           : parsed.provider === "zai"
             ? "Z_AI_API_KEY"
-            : "OPENAI_API_KEY";
+            : parsed.provider === "nvidia"
+              ? "NVIDIA_API_KEY"
+              : "OPENAI_API_KEY";
   return {
     kind: "fixed",
     transport: "native",

@@ -24,6 +24,8 @@ installed, auto mode can use local CLI models via `cli.enabled` or implicit auto
 - `OPENAI_API_KEY` (required for `openai/...` models)
 - `OPENAI_BASE_URL` (optional; OpenAI-compatible API endpoint, e.g. OpenRouter)
 - `OPENAI_USE_CHAT_COMPLETIONS` (optional; force OpenAI chat completions)
+- `NVIDIA_API_KEY` (required for `nvidia/...` models; alias: `NGC_API_KEY`)
+- `NVIDIA_BASE_URL` (optional; override NVIDIA OpenAI-compatible API endpoint; default: `https://integrate.api.nvidia.com/v1`)
 - `OPENROUTER_API_KEY` (optional; required for `openrouter/...` models; also used when `OPENAI_BASE_URL` points to OpenRouter)
 - `Z_AI_API_KEY` (required for `zai/...` models; supports `ZAI_API_KEY` alias)
 - `Z_AI_BASE_URL` (optional; override default Z.AI base URL)
@@ -44,6 +46,7 @@ installed, auto mode can use local CLI models via `cli.enabled` or implicit auto
     - `cli/agent/gpt-5.2`
     - `google/gemini-3-flash-preview`
     - `openai/gpt-5-mini`
+    - `nvidia/z-ai/glm5`
     - `zai/glm-4.7`
     - `xai/grok-4-fast-non-reasoning`
     - `google/gemini-2.0-flash`

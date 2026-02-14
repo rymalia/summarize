@@ -3,6 +3,7 @@ import type { CliProvider } from "../config.js";
 export type ModelAttemptRequiredEnv =
   | "XAI_API_KEY"
   | "OPENAI_API_KEY"
+  | "NVIDIA_API_KEY"
   | "GEMINI_API_KEY"
   | "ANTHROPIC_API_KEY"
   | "OPENROUTER_API_KEY"
@@ -27,7 +28,7 @@ export type ModelAttempt = {
 };
 
 export type ModelMeta = {
-  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "cli";
+  provider: "xai" | "openai" | "google" | "anthropic" | "zai" | "nvidia" | "cli";
   canonical: string;
 };
 

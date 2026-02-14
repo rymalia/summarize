@@ -72,6 +72,7 @@ const createContext = (overrides: Partial<Parameters<typeof summarizeAsset>[0]> 
     plain: true,
     summaryEngine: {
       applyZaiOverrides: (attempt) => attempt,
+      applyNvidiaOverrides: (attempt) => attempt,
     } as Parameters<typeof summarizeAsset>[0]["summaryEngine"],
     trackedFetch: globalThis.fetch.bind(globalThis),
     writeViaFooter,
@@ -85,14 +86,16 @@ const createContext = (overrides: Partial<Parameters<typeof summarizeAsset>[0]> 
     apiStatus: {
       xaiApiKey: null,
       apiKey: null,
+      nvidiaApiKey: null,
       openrouterApiKey: null,
       apifyToken: null,
       firecrawlConfigured: false,
       googleConfigured: false,
       anthropicConfigured: false,
-      providerBaseUrls: { openai: null, anthropic: null, google: null, xai: null },
+      providerBaseUrls: { openai: null, nvidia: null, anthropic: null, google: null, xai: null },
       zaiApiKey: null,
       zaiBaseUrl: "",
+      nvidiaBaseUrl: "",
     },
   };
   return {

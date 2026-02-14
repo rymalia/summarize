@@ -552,6 +552,7 @@ Set the key matching your chosen `--model`:
   - legacy `"apiKeys"` still works (mapped to env names)
 
 - `OPENAI_API_KEY` (for `openai/...`)
+- `NVIDIA_API_KEY` (for `nvidia/...`)
 - `ANTHROPIC_API_KEY` (for `anthropic/...`)
 - `XAI_API_KEY` (for `xai/...`)
 - `Z_AI_API_KEY` (for `zai/...`; supports `ZAI_API_KEY` alias)
@@ -616,6 +617,18 @@ If your OpenRouter account enforces an allowed-provider list, make sure at least
 is allowed for the selected model. When routing fails, `summarize` prints the exact providers to allow.
 
 Legacy: `OPENAI_BASE_URL=https://openrouter.ai/api/v1` (and either `OPENAI_API_KEY` or `OPENROUTER_API_KEY`) also works.
+
+NVIDIA API Catalog (OpenAI-compatible; free credits):
+
+- Set `NVIDIA_API_KEY=...`
+- Optional: `NVIDIA_BASE_URL=https://integrate.api.nvidia.com/v1`
+- Credits: API Catalog trial starts with 1000 free API credits on signup (up to 5000 total via “Request More” in the API Catalog profile)
+- Pick a model id from `/v1/models` (examples: fast `stepfun-ai/step-3.5-flash`, strong but slower `z-ai/glm5`)
+
+```bash
+export NVIDIA_API_KEY="nvapi-..."
+summarize "https://example.com" --model nvidia/stepfun-ai/step-3.5-flash
+```
 
 Z.AI (OpenAI-compatible):
 

@@ -405,6 +405,8 @@ export async function runCli(
     anthropicApiKey,
     zaiApiKey,
     zaiBaseUrl,
+    nvidiaApiKey,
+    nvidiaBaseUrl,
     providerBaseUrls,
     firecrawlApiKey,
     firecrawlConfigured,
@@ -643,6 +645,10 @@ export async function runCli(
         apiKey: zaiApiKey,
         baseUrl: zaiBaseUrl,
       },
+      nvidia: {
+        apiKey: nvidiaApiKey,
+        baseUrl: nvidiaBaseUrl,
+      },
       providerBaseUrls,
     });
     const writeViaFooter = (parts: string[]) => {
@@ -717,6 +723,8 @@ export async function runCli(
         providerBaseUrls,
         zaiApiKey,
         zaiBaseUrl,
+        nvidiaApiKey,
+        nvidiaBaseUrl,
       },
     };
 
@@ -893,6 +901,7 @@ export async function runCli(
         apiStatus: {
           xaiApiKey,
           apiKey,
+          nvidiaApiKey,
           openrouterApiKey,
           openrouterConfigured,
           googleApiKey,
@@ -902,6 +911,7 @@ export async function runCli(
           providerBaseUrls,
           zaiApiKey,
           zaiBaseUrl,
+          nvidiaBaseUrl,
           firecrawlConfigured,
           firecrawlApiKey,
           apifyToken,

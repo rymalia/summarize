@@ -129,6 +129,7 @@ export async function buildModelPickerOptions({
   providers: {
     xai: boolean;
     openai: boolean;
+    nvidia: boolean;
     google: boolean;
     anthropic: boolean;
     openrouter: boolean;
@@ -146,6 +147,7 @@ export async function buildModelPickerOptions({
   const providers = {
     xai: Boolean(envState.xaiApiKey),
     openai: Boolean(envState.apiKey),
+    nvidia: Boolean(envState.nvidiaApiKey),
     google: envState.googleConfigured,
     anthropic: envState.anthropicConfigured,
     openrouter: envState.openrouterConfigured,
@@ -229,6 +231,22 @@ export async function buildModelPickerOptions({
       prefix: "zai/",
       labelPrefix: "Z.AI: ",
     });
+  }
+
+  if (providers.nvidia) {
+    const baseUrl = envState.nvidiaBaseUrl;
+    const baseUrlHost = describeBaseUrlHost(baseUrl);
+    if (baseUrlHost) {
+      const discovered = await discoverOpenAiCompatibleModelIds({
+        baseUrl,
+        apiKey: envState.nvidiaApiKey,
+        fetchImpl,
+        timeoutMs: 1200,
+      });
+      for (const id of discovered) {
+        options.push({ id: `nvidia/${id}`, label: `NVIDIA (${baseUrlHost}): ${id}` });
+      }
+    }
   }
 
   const openaiBaseUrl = (() => {
