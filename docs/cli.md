@@ -1,7 +1,7 @@
 ---
-summary: "CLI model providers and config for Claude, Codex, Gemini, and Cursor Agent."
+summary: 'CLI model providers and config for Claude, Codex, Gemini, and Cursor Agent.'
 read_when:
-  - "When changing CLI model integration."
+  - 'When changing CLI model integration.'
 ---
 
 # CLI models

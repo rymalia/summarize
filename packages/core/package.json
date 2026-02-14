@@ -2,6 +2,10 @@
   "name": "@steipete/summarize-core",
   "version": "0.10.0",
   "description": "Summarize core library (content extraction + prompts).",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/esm/index.js",
   "module": "./dist/esm/index.js",
@@ -32,14 +36,6 @@
       "import": "./dist/esm/language.js"
     }
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "packageManager": "pnpm@10.25.0+sha512.5e82639027af37cf832061bcc6d639c219634488e0f2baebe785028a793de7b525ffcd3f7ff574f5e9860654e098fe852ba8ac5dd5cefe1767d23a020a92f501",
-  "engines": {
-    "node": ">=22"
-  },
   "scripts": {
     "clean": "rimraf dist",
     "build": "pnpm clean && tsc -p tsconfig.build.json",
@@ -59,5 +55,9 @@
     "@types/sanitize-html": "^2.16.0",
     "rimraf": "^6.1.2",
     "typescript": "^5.9.3"
-  }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.25.0+sha512.5e82639027af37cf832061bcc6d639c219634488e0f2baebe785028a793de7b525ffcd3f7ff574f5e9860654e098fe852ba8ac5dd5cefe1767d23a020a92f501"
 }

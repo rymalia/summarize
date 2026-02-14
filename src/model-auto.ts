@@ -245,14 +245,14 @@ function hasAnyApiKeysConfigured(env: Record<string, string | undefined>): boole
   const has = (value: string | undefined) => typeof value === 'string' && value.trim().length > 0
   return Boolean(
     has(env.OPENAI_API_KEY) ||
-      has(env.GEMINI_API_KEY) ||
-      has(env.GOOGLE_GENERATIVE_AI_API_KEY) ||
-      has(env.GOOGLE_API_KEY) ||
-      has(env.ANTHROPIC_API_KEY) ||
-      has(env.XAI_API_KEY) ||
-      has(env.OPENROUTER_API_KEY) ||
-      has(env.Z_AI_API_KEY) ||
-      has(env.ZAI_API_KEY)
+    has(env.GEMINI_API_KEY) ||
+    has(env.GOOGLE_GENERATIVE_AI_API_KEY) ||
+    has(env.GOOGLE_API_KEY) ||
+    has(env.ANTHROPIC_API_KEY) ||
+    has(env.XAI_API_KEY) ||
+    has(env.OPENROUTER_API_KEY) ||
+    has(env.Z_AI_API_KEY) ||
+    has(env.ZAI_API_KEY)
   )
 }
 
@@ -340,8 +340,8 @@ export function envHasKey(
   if (requiredEnv === 'GEMINI_API_KEY') {
     return Boolean(
       env.GEMINI_API_KEY?.trim() ||
-        env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-        env.GOOGLE_API_KEY?.trim()
+      env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+      env.GOOGLE_API_KEY?.trim()
     )
   }
   if (requiredEnv === 'Z_AI_API_KEY') {

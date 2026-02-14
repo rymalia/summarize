@@ -1,15 +1,17 @@
 ---
-summary: "Release checklist + Homebrew tap update."
+summary: 'Release checklist + Homebrew tap update.'
 ---
 
 # Releasing
 
 ## Goals
+
 - Ship npm packages (core first, then CLI).
 - Tag + GitHub release.
 - Update Homebrew tap so `brew install steipete/tap/summarize` matches latest tag.
 
 ## Checklist
+
 1. `scripts/release.sh all` (gates → build → verify → publish → smoke → tag → tap).
 2. Create GitHub release for the new tag (match version, attach notes/assets as needed).
 3. If you didn’t run `tap` in the script, update the Homebrew tap formula for `summarize`:
@@ -22,5 +24,6 @@ summary: "Release checklist + Homebrew tap update."
 5. If anything fails, fix and re-cut the release (no partials).
 
 ## Common failure
+
 - NPM/GitHub release updated, tap not updated → users stuck on old version.
   Fix: always do step 3–4 before announcing.

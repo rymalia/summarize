@@ -19,11 +19,11 @@
   --r2: 28px;
   --max: 1120px;
 
-  --display: "Fraunces", "Iowan Old Style", "Palatino Linotype", serif;
-  --body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --display: 'Fraunces', 'Iowan Old Style', 'Palatino Linotype', serif;
+  --body: 'IBM Plex Sans', 'Segoe UI', sans-serif;
   --mono:
-    "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+    'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
 }
 
 @media (prefers-color-scheme: light) {
@@ -65,7 +65,7 @@ body {
 }
 
 body::before {
-  content: "";
+  content: '';
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -163,7 +163,7 @@ a:hover {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.nav a[aria-current="page"] {
+.nav a[aria-current='page'] {
   color: var(--fg0);
   border-color: rgba(184, 255, 90, 0.5);
   background: rgba(184, 255, 90, 0.1);
@@ -187,7 +187,7 @@ a:hover {
 }
 
 .hero__frame::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background: linear-gradient(140deg, rgba(184, 255, 90, 0.08), transparent 40%);
@@ -658,7 +658,7 @@ code {
   color: var(--fg0);
 }
 
-.side a[aria-current="page"] {
+.side a[aria-current='page'] {
   border-color: rgba(184, 255, 90, 0.4);
   background: rgba(184, 255, 90, 0.1);
   color: var(--fg0);

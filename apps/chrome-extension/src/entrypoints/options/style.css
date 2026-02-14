@@ -4,24 +4,24 @@
   --ui-focus: color-mix(in srgb, var(--accent) 70%, var(--text));
 
   --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
 }
 
-:root[data-mode="light"] {
+:root[data-mode='light'] {
   color-scheme: light;
 }
 
-:root[data-mode="dark"] {
+:root[data-mode='dark'] {
   color-scheme: dark;
 }
 
-:root[data-mode="system"] {
+:root[data-mode='system'] {
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: light) {
   :root,
-  :root[data-theme="slate"][data-mode="system"] {
+  :root[data-theme='slate'][data-mode='system'] {
     --bg0: #f5f7fb;
     --bg1: #ffffff;
     --bg2: #eaf0f8;
@@ -36,7 +36,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root,
-  :root[data-theme="slate"][data-mode="system"] {
+  :root[data-theme='slate'][data-mode='system'] {
     --bg0: #151a22;
     --bg1: #1a2230;
     --bg2: #0f141b;
@@ -49,7 +49,7 @@
   }
 }
 
-:root[data-theme="slate"][data-mode="light"] {
+:root[data-theme='slate'][data-mode='light'] {
   --bg0: #f5f7fb;
   --bg1: #ffffff;
   --bg2: #eaf0f8;
@@ -61,7 +61,7 @@
   --accent: #4f76ff;
 }
 
-:root[data-theme="slate"][data-mode="dark"] {
+:root[data-theme='slate'][data-mode='dark'] {
   --bg0: #151a22;
   --bg1: #1a2230;
   --bg2: #0f141b;
@@ -74,7 +74,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-theme="cedar"][data-mode="system"] {
+  :root[data-theme='cedar'][data-mode='system'] {
     --bg0: #fbf6f1;
     --bg1: #fffdf9;
     --bg2: #f1e8dd;
@@ -88,7 +88,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="cedar"][data-mode="system"] {
+  :root[data-theme='cedar'][data-mode='system'] {
     --bg0: #1c1713;
     --bg1: #221b16;
     --bg2: #120f0c;
@@ -101,7 +101,7 @@
   }
 }
 
-:root[data-theme="cedar"][data-mode="light"] {
+:root[data-theme='cedar'][data-mode='light'] {
   --bg0: #fbf6f1;
   --bg1: #fffdf9;
   --bg2: #f1e8dd;
@@ -113,7 +113,7 @@
   --accent: #c46b2a;
 }
 
-:root[data-theme="cedar"][data-mode="dark"] {
+:root[data-theme='cedar'][data-mode='dark'] {
   --bg0: #1c1713;
   --bg1: #221b16;
   --bg2: #120f0c;
@@ -126,7 +126,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-theme="mint"][data-mode="system"] {
+  :root[data-theme='mint'][data-mode='system'] {
     --bg0: #f1faf7;
     --bg1: #fbfffd;
     --bg2: #e4f3ef;
@@ -140,7 +140,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="mint"][data-mode="system"] {
+  :root[data-theme='mint'][data-mode='system'] {
     --bg0: #0f1917;
     --bg1: #14201e;
     --bg2: #0a1211;
@@ -153,7 +153,7 @@
   }
 }
 
-:root[data-theme="mint"][data-mode="light"] {
+:root[data-theme='mint'][data-mode='light'] {
   --bg0: #f1faf7;
   --bg1: #fbfffd;
   --bg2: #e4f3ef;
@@ -165,7 +165,7 @@
   --accent: #2a9d8f;
 }
 
-:root[data-theme="mint"][data-mode="dark"] {
+:root[data-theme='mint'][data-mode='dark'] {
   --bg0: #0f1917;
   --bg1: #14201e;
   --bg2: #0a1211;
@@ -178,7 +178,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-theme="ocean"][data-mode="system"] {
+  :root[data-theme='ocean'][data-mode='system'] {
     --bg0: #f1f7fb;
     --bg1: #fdfefe;
     --bg2: #e0edf6;
@@ -192,7 +192,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="ocean"][data-mode="system"] {
+  :root[data-theme='ocean'][data-mode='system'] {
     --bg0: #101c23;
     --bg1: #14222b;
     --bg2: #0a1419;
@@ -205,7 +205,7 @@
   }
 }
 
-:root[data-theme="ocean"][data-mode="light"] {
+:root[data-theme='ocean'][data-mode='light'] {
   --bg0: #f1f7fb;
   --bg1: #fdfefe;
   --bg2: #e0edf6;
@@ -217,7 +217,7 @@
   --accent: #2b8db8;
 }
 
-:root[data-theme="ocean"][data-mode="dark"] {
+:root[data-theme='ocean'][data-mode='dark'] {
   --bg0: #101c23;
   --bg1: #14222b;
   --bg2: #0a1419;
@@ -230,7 +230,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-theme="ember"][data-mode="system"] {
+  :root[data-theme='ember'][data-mode='system'] {
     --bg0: #fbf2ee;
     --bg1: #fffaf7;
     --bg2: #f3e4dc;
@@ -244,7 +244,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="ember"][data-mode="system"] {
+  :root[data-theme='ember'][data-mode='system'] {
     --bg0: #201512;
     --bg1: #261916;
     --bg2: #140d0b;
@@ -257,7 +257,7 @@
   }
 }
 
-:root[data-theme="ember"][data-mode="light"] {
+:root[data-theme='ember'][data-mode='light'] {
   --bg0: #fbf2ee;
   --bg1: #fffaf7;
   --bg2: #f3e4dc;
@@ -269,7 +269,7 @@
   --accent: #d66a4a;
 }
 
-:root[data-theme="ember"][data-mode="dark"] {
+:root[data-theme='ember'][data-mode='dark'] {
   --bg0: #201512;
   --bg1: #261916;
   --bg2: #140d0b;
@@ -282,7 +282,7 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-theme="iris"][data-mode="system"] {
+  :root[data-theme='iris'][data-mode='system'] {
     --bg0: #f6f3fb;
     --bg1: #fefcff;
     --bg2: #ece6f6;
@@ -296,7 +296,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root[data-theme="iris"][data-mode="system"] {
+  :root[data-theme='iris'][data-mode='system'] {
     --bg0: #181420;
     --bg1: #1e1928;
     --bg2: #0f0c14;
@@ -309,7 +309,7 @@
   }
 }
 
-:root[data-theme="iris"][data-mode="light"] {
+:root[data-theme='iris'][data-mode='light'] {
   --bg0: #f6f3fb;
   --bg1: #fefcff;
   --bg2: #ece6f6;
@@ -321,7 +321,7 @@
   --accent: #7b6cf6;
 }
 
-:root[data-theme="iris"][data-mode="dark"] {
+:root[data-theme='iris'][data-mode='dark'] {
   --bg0: #181420;
   --bg1: #1e1928;
   --bg2: #0f0c14;
@@ -433,7 +433,7 @@ form {
     transform 160ms ease;
 }
 
-.tabButton[aria-selected="true"] {
+.tabButton[aria-selected='true'] {
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
@@ -658,7 +658,7 @@ form {
   margin-bottom: 4px;
 }
 
-.processControl input[type="checkbox"] {
+.processControl input[type='checkbox'] {
   justify-self: start;
   align-self: center;
   width: 18px;
@@ -802,13 +802,13 @@ form {
 }
 
 .sectionToggle::after {
-  content: "+";
+  content: '+';
   color: var(--muted);
   font-size: 14px;
 }
 
-.sectionToggle[aria-expanded="true"]::after {
-  content: "-";
+.sectionToggle[aria-expanded='true']::after {
+  content: '-';
 }
 
 .section h2 {
@@ -1064,8 +1064,8 @@ label > span {
   text-decoration: underline;
 }
 
-input[type="text"],
-input[type="number"],
+input[type='text'],
+input[type='number'],
 textarea,
 select {
   border: 1px solid var(--border);
@@ -1080,8 +1080,8 @@ select {
   box-sizing: border-box;
 }
 
-input[type="text"],
-input[type="number"],
+input[type='text'],
+input[type='number'],
 select {
   min-width: 0;
   overflow: hidden;
@@ -1127,7 +1127,7 @@ select {
   white-space: nowrap;
 }
 
-.pickerTrigger[data-state="open"] {
+.pickerTrigger[data-state='open'] {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
 
@@ -1137,7 +1137,7 @@ select {
 }
 
 .pickerTrigger::after {
-  content: "";
+  content: '';
   width: 6px;
   height: 6px;
   border-right: 2px solid var(--muted);
@@ -1203,7 +1203,7 @@ select {
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
-.pickerOption[data-state="checked"] {
+.pickerOption[data-state='checked'] {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
@@ -1353,7 +1353,7 @@ textarea {
     transform 160ms ease;
 }
 
-.checkboxControl[data-state="checked"] {
+.checkboxControl[data-state='checked'] {
   border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   background: color-mix(in srgb, var(--accent) 75%, transparent);
   color: #fff;
@@ -1373,7 +1373,7 @@ textarea {
     transform 160ms ease;
 }
 
-.checkboxControl[data-state="checked"] .checkboxIndicator {
+.checkboxControl[data-state='checked'] .checkboxIndicator {
   opacity: 1;
   transform: scale(1);
 }
@@ -1439,15 +1439,15 @@ button:hover {
   background: color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
-.daemonStatus[data-state="ok"] {
+.daemonStatus[data-state='ok'] {
   color: color-mix(in srgb, #16a34a 80%, var(--text));
 }
 
-.daemonStatus[data-state="warn"] {
+.daemonStatus[data-state='warn'] {
   color: color-mix(in srgb, #b45309 85%, var(--text));
 }
 
-.daemonStatus[data-state="error"] {
+.daemonStatus[data-state='error'] {
   color: color-mix(in srgb, #dc2626 90%, var(--text));
 }
 

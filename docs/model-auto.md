@@ -1,7 +1,7 @@
 ---
-summary: "Auto model selection logic and config rules."
+summary: 'Auto model selection logic and config rules.'
 read_when:
-  - "When changing auto selection behavior."
+  - 'When changing auto selection behavior.'
 ---
 
 # Auto model selection (`--model auto`)

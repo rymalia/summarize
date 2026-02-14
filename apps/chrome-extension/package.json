@@ -1,7 +1,7 @@
 {
   "name": "@steipete/summarize-chrome-extension",
-  "private": true,
   "version": "0.8.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "wxt dev",

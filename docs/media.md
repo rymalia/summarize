@@ -1,7 +1,7 @@
 ---
-summary: "Embedded media detection + transcript-first pipeline."
+summary: 'Embedded media detection + transcript-first pipeline.'
 read_when:
-  - "When changing media detection, embedded captions, or video-mode behavior."
+  - 'When changing media detection, embedded captions, or video-mode behavior.'
 ---
 
 # Media detection + transcript-first
@@ -13,8 +13,8 @@ read_when:
 
 ## Transcript resolution order
 
-1) Embedded captions (VTT/JSON) when available.
-2) yt-dlp download + Whisper transcription (Groq first; then ONNX/local/OpenAI/FAL fallback).
+1. Embedded captions (VTT/JSON) when available.
+2. yt-dlp download + Whisper transcription (Groq first; then ONNX/local/OpenAI/FAL fallback).
 
 ## CLI behavior
 
@@ -22,9 +22,9 @@ read_when:
 - Direct media URLs (mp4/webm/m4a/etc) skip HTML and transcribe.
 - Local audio/video files are routed through the same transcript-first pipeline.
 - YouTube still uses the YouTube transcript pipeline (captions → yt-dlp fallback).
- - X/Twitter status URLs with detected video auto-switch to transcript-first (yt-dlp), even in auto mode.
- - X broadcasts (`/i/broadcasts/...`) are treated as media-only and go transcript-first by default.
- - Local media files are capped at 2 GB; remote media URLs are best-effort via yt-dlp (no explicit size limit).
+- X/Twitter status URLs with detected video auto-switch to transcript-first (yt-dlp), even in auto mode.
+- X broadcasts (`/i/broadcasts/...`) are treated as media-only and go transcript-first by default.
+- Local media files are capped at 2 GB; remote media URLs are best-effort via yt-dlp (no explicit size limit).
 
 ## Chrome extension behavior
 

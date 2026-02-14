@@ -8,7 +8,10 @@
     <link rel="canonical" href="https://summarize.sh/docs/website" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="../assets/site.css" />
   </head>
   <body>
@@ -42,9 +45,19 @@
         <article class="doc reveal">
           <p class="kicker">mode</p>
           <h1>Website mode</h1>
-          <p>Fetch HTML → extract “article-ish” content → normalize to clean text. If extraction looks blocked or too thin, retry via Firecrawl Markdown (optional). With <code>--format md</code>, the CLI prefers Firecrawl Markdown when configured and can also convert HTML → Markdown via <code>--markdown-mode</code> (LLM) or <code>uvx markitdown</code>.</p>
+          <p>
+            Fetch HTML → extract “article-ish” content → normalize to clean text. If extraction
+            looks blocked or too thin, retry via Firecrawl Markdown (optional). With
+            <code>--format md</code>, the CLI prefers Firecrawl Markdown when configured and can
+            also convert HTML → Markdown via <code>--markdown-mode</code> (LLM) or
+            <code>uvx markitdown</code>.
+          </p>
 
-          <p>Podcast pages are supported (Apple Podcasts, Spotify episodes, RSS feeds, Podbean, Podchaser, embedded YouTube). Summaries use published transcripts when available, otherwise Whisper.</p>
+          <p>
+            Podcast pages are supported (Apple Podcasts, Spotify episodes, RSS feeds, Podbean,
+            Podchaser, embedded YouTube). Summaries use published transcripts when available,
+            otherwise Whisper.
+          </p>
 
           <h2>Flags</h2>
           <ul>
@@ -52,22 +65,29 @@
             <li><code>--timeout 30s|2m|5000ms</code> (default <code>2m</code>)</li>
             <li><code>--extract</code> (print extracted content; no summary call)</li>
             <li><code>--format md|text</code> (default <code>text</code>)</li>
-            <li><code>--markdown-mode off|auto|llm|readability</code> (only with <code>--format md</code>)</li>
-            <li><code>--preprocess off|auto|always</code> (default <code>auto</code>; controls markitdown usage)</li>
+            <li>
+              <code>--markdown-mode off|auto|llm|readability</code> (only with
+              <code>--format md</code>)
+            </li>
+            <li>
+              <code>--preprocess off|auto|always</code> (default <code>auto</code>; controls
+              markitdown usage)
+            </li>
             <li><code>--json</code> (emit a single JSON object)</li>
             <li><code>--verbose</code> (progress + which extractor was used)</li>
             <li><code>--metrics off|on|detailed</code></li>
           </ul>
 
-          <div class="note">
-            Plain-text mode: <code>--extract --format text</code>.
-          </div>
+          <div class="note">Plain-text mode: <code>--extract --format text</code>.</div>
         </article>
       </section>
 
       <footer class="footer">
         <span>summarize — Link → clean text → summary.</span>
-        <span><a href="./index.html">Docs</a> · <a href="https://github.com/steipete/summarize">Repo</a></span>
+        <span
+          ><a href="./index.html">Docs</a> ·
+          <a href="https://github.com/steipete/summarize">Repo</a></span
+        >
       </footer>
     </main>
 

@@ -1,7 +1,7 @@
 ---
-summary: "Config file location, precedence, and schema."
+summary: 'Config file location, precedence, and schema.'
 read_when:
-  - "When adding config keys or defaults."
+  - 'When adding config keys or defaults.'
 ---
 
 # Config
@@ -49,6 +49,7 @@ For UI theme:
 2. Env `SUMMARIZE_THEME`
 3. Config file `ui.theme`
 4. Built-in default (`aurora`)
+
 ## Format
 
 `~/.summarize/config.json`:
@@ -366,9 +367,9 @@ Override API endpoints for any provider to use proxies, gateways, or compatible 
 
 Or via environment variables (which take precedence over config):
 
-| Provider   | Environment Variable(s)                |
-| ---------- | -------------------------------------- |
-| OpenAI     | `OPENAI_BASE_URL`                      |
-| Anthropic  | `ANTHROPIC_BASE_URL`                   |
-| Google     | `GOOGLE_BASE_URL` (alias: `GEMINI_BASE_URL`) |
-| xAI        | `XAI_BASE_URL`                         |
+| Provider  | Environment Variable(s)                      |
+| --------- | -------------------------------------------- |
+| OpenAI    | `OPENAI_BASE_URL`                            |
+| Anthropic | `ANTHROPIC_BASE_URL`                         |
+| Google    | `GOOGLE_BASE_URL` (alias: `GEMINI_BASE_URL`) |
+| xAI       | `XAI_BASE_URL`                               |

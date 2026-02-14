@@ -12,9 +12,8 @@ vi.mock('../src/llm/generate-text.js', () => ({
 }))
 
 describe('Transcript→Markdown converter', async () => {
-  const { createTranscriptToMarkdownConverter } = await import(
-    '../src/llm/transcript-to-markdown.js'
-  )
+  const { createTranscriptToMarkdownConverter } =
+    await import('../src/llm/transcript-to-markdown.js')
 
   it('passes system + prompt to generateTextWithModelId', async () => {
     generateTextWithModelIdMock.mockClear()

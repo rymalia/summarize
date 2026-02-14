@@ -1,7 +1,7 @@
 ---
-summary: "YouTube transcript extraction modes and fallbacks."
+summary: 'YouTube transcript extraction modes and fallbacks.'
 read_when:
-  - "When changing YouTube handling."
+  - 'When changing YouTube handling.'
 ---
 
 # YouTube mode
@@ -58,4 +58,5 @@ If yt-dlp gets a 403 from YouTube, set `SUMMARIZE_YT_DLP_COOKIES_FROM_BROWSER=ch
 `chrome:Profile 1`) to pass cookies through to yt-dlp.
 
 Relevant flags:
+
 - `--slides-scene-threshold <value>`: starting threshold for scene detection (auto-tuned as needed)

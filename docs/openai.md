@@ -1,7 +1,7 @@
 ---
-summary: "OpenAI model usage and flags."
+summary: 'OpenAI model usage and flags.'
 read_when:
-  - "When changing OpenAI integration."
+  - 'When changing OpenAI integration.'
 ---
 
 # OpenAI models
@@ -19,7 +19,7 @@ For the full model/provider matrix, see `docs/llm.md`.
 
 - `--model openai/<model>`
 - `--length short|medium|long|xl|xxl|<chars>`
-  - This is *soft guidance* to the model (no hard truncation).
+  - This is _soft guidance_ to the model (no hard truncation).
 - `--max-output-tokens <count>`
   - Hard cap for output tokens (optional).
 - `--json` (includes prompt + summary in one JSON object)

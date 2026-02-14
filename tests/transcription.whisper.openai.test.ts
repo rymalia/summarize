@@ -23,9 +23,8 @@ describe('transcription/whisper openai', () => {
     try {
       vi.stubEnv('SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP', '1')
       vi.stubGlobal('fetch', fetchMock)
-      const { transcribeMediaWithWhisper } = await import(
-        '../packages/core/src/transcription/whisper.js'
-      )
+      const { transcribeMediaWithWhisper } =
+        await import('../packages/core/src/transcription/whisper.js')
 
       const result = await transcribeMediaWithWhisper({
         bytes: new Uint8Array([1, 2, 3]),
@@ -89,9 +88,8 @@ describe('transcription/whisper openai', () => {
     try {
       vi.stubEnv('SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP', '1')
       vi.stubGlobal('fetch', fetchMock)
-      const { transcribeMediaWithWhisper } = await import(
-        '../packages/core/src/transcription/whisper.js'
-      )
+      const { transcribeMediaWithWhisper } =
+        await import('../packages/core/src/transcription/whisper.js')
 
       const result = await transcribeMediaWithWhisper({
         bytes: new Uint8Array([1, 2, 3]),
@@ -122,9 +120,8 @@ describe('transcription/whisper openai', () => {
     try {
       vi.stubEnv('SUMMARIZE_DISABLE_LOCAL_WHISPER_CPP', '1')
       vi.stubGlobal('fetch', openaiFetch)
-      const { transcribeMediaWithWhisper } = await import(
-        '../packages/core/src/transcription/whisper.js'
-      )
+      const { transcribeMediaWithWhisper } =
+        await import('../packages/core/src/transcription/whisper.js')
       const result = await transcribeMediaWithWhisper({
         bytes: new Uint8Array([1, 2, 3]),
         mediaType: 'audio/mpeg',

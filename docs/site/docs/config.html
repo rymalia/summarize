@@ -8,7 +8,10 @@
     <link rel="canonical" href="https://summarize.sh/docs/config" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="../assets/site.css" />
   </head>
   <body>
@@ -42,30 +45,48 @@
         <article class="doc reveal">
           <p class="kicker">docs</p>
           <h1>Config</h1>
-          <p>summarize is mostly flags + env vars. Keep secrets in env; keep defaults in a shell profile.</p>
+          <p>
+            summarize is mostly flags + env vars. Keep secrets in env; keep defaults in a shell
+            profile.
+          </p>
 
           <h2>Environment variables</h2>
           <ul>
-            <li><code>OPENAI_API_KEY</code>, <code>XAI_API_KEY</code>, <code>GEMINI_API_KEY</code> — provider keys (only needed when a mode actually calls an LLM).</li>
-            <li><code>FIRECRAWL_API_KEY</code> — optional extraction fallback / preferred Markdown output in extract mode.</li>
+            <li>
+              <code>OPENAI_API_KEY</code>, <code>XAI_API_KEY</code>, <code>GEMINI_API_KEY</code> —
+              provider keys (only needed when a mode actually calls an LLM).
+            </li>
+            <li>
+              <code>FIRECRAWL_API_KEY</code> — optional extraction fallback / preferred Markdown
+              output in extract mode.
+            </li>
           </ul>
 
           <h2>Tips</h2>
           <ul>
             <li>For deterministic output, pin <code>--model</code> and avoid provider fallback.</li>
-            <li>When debugging extraction, add <code>--verbose</code> and/or <code>--json</code> for structured output.</li>
-            <li>Use <code>--timeout</code> when crawling slow sites (defaults to <code>2m</code>).</li>
+            <li>
+              When debugging extraction, add <code>--verbose</code> and/or <code>--json</code> for
+              structured output.
+            </li>
+            <li>
+              Use <code>--timeout</code> when crawling slow sites (defaults to <code>2m</code>).
+            </li>
           </ul>
 
           <div class="note">
-            Want the raw content? Use <code>--extract</code> (then decide where the summary should happen).
+            Want the raw content? Use <code>--extract</code> (then decide where the summary should
+            happen).
           </div>
         </article>
       </section>
 
       <footer class="footer">
         <span>summarize — Link → clean text → summary.</span>
-        <span><a href="./index.html">Docs</a> · <a href="https://github.com/steipete/summarize">Repo</a></span>
+        <span
+          ><a href="./index.html">Docs</a> ·
+          <a href="https://github.com/steipete/summarize">Repo</a></span
+        >
       </footer>
     </main>
 

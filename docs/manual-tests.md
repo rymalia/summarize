@@ -1,7 +1,7 @@
 ---
-summary: "Manual end-to-end test checklist for model and input coverage."
+summary: 'Manual end-to-end test checklist for model and input coverage.'
 read_when:
-  - "When doing release validation."
+  - 'When doing release validation.'
 ---
 
 # Manual tests

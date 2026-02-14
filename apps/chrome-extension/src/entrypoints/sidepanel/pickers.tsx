@@ -599,9 +599,9 @@ function SummarizeControl(props: SummarizeControlProps) {
 
   const showSlidesTextToggle = Boolean(
     props.slidesEnabled &&
-      props.slidesTextToggleVisible &&
-      props.slidesTextMode &&
-      props.onSlidesTextModeChange
+    props.slidesTextToggleVisible &&
+    props.slidesTextMode &&
+    props.onSlidesTextModeChange
   )
 
   return (

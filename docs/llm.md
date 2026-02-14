@@ -1,7 +1,7 @@
 ---
-summary: "LLM usage, env vars, flags, and prompt rules."
+summary: 'LLM usage, env vars, flags, and prompt rules.'
 read_when:
-  - "When changing model selection or prompt formatting."
+  - 'When changing model selection or prompt formatting.'
 ---
 
 # LLM / summarization mode
@@ -68,7 +68,7 @@ installed, auto mode can use local CLI models via `cli.enabled` or implicit auto
 - `--video-mode auto|transcript|understand`
   - Only relevant for video inputs / video-only pages.
 - `--length short|medium|long|xl|xxl|<chars>`
-  - This is *soft guidance* to the model (no hard truncation).
+  - This is _soft guidance_ to the model (no hard truncation).
   - Minimum numeric value: 50 chars.
   - Default: `long`.
   - Output format is Markdown; use short paragraphs and only add bullets when they improve scanability.

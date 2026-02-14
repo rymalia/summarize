@@ -9,6 +9,7 @@ This document details Firefox-specific implementation notes, API compatibility f
 The following Chrome APIs are used throughout the extension and have direct Firefox equivalents via the `browser.*` namespace. WXT automatically polyfills these:
 
 #### Core Extension APIs
+
 - **`chrome.runtime`**: Message passing, extension info, connections
   - `runtime.onMessage`, `runtime.sendMessage`
   - `runtime.onConnect`, `runtime.connect`, `runtime.Port`
@@ -49,6 +50,7 @@ The following Chrome APIs are used throughout the extension and have direct Fire
 #### 1. Side Panel API (Primary Incompatibility)
 
 **Chrome usage** (`wxt.config.ts:56, 77-79`, `background.ts:1583`):
+
 ```typescript
 // Manifest
 side_panel: {
@@ -60,6 +62,7 @@ chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true })
 ```
 
 **Firefox equivalent**: `sidebar_action` API (Firefox 131+)
+
 ```typescript
 // Manifest override needed
 sidebar_action: {
@@ -70,18 +73,21 @@ sidebar_action: {
 ```
 
 **Migration notes**:
+
 - Firefox sidebar is always visible in the sidebar (not a side panel that slides in)
 - No equivalent to `setPanelBehavior` - sidebar is opened manually
 - Same HTML content can be reused (sidepanel.html)
 - UI may need minor adjustments for Firefox sidebar dimensions
 
 **Files affected**:
+
 - `wxt.config.ts` - Needs Firefox manifest override
 - `src/entrypoints/background.ts:1583` - setPanelBehavior call should be Chrome-only
 
 #### 2. Debugger API (Advanced Features)
 
 **Usage** (`background.ts:407-480`, `automation/tools.ts:336-366`):
+
 ```typescript
 chrome.debugger.attach({ tabId }, '1.3')
 chrome.debugger.sendCommand({ tabId }, method, params)
@@ -89,6 +95,7 @@ chrome.debugger.detach({ tabId })
 ```
 
 **Firefox compatibility**: ✅ **Supported** but may have behavioral differences
+
 - Firefox has `browser.debugger` with same API surface
 - Used for automation features (CDP commands)
 - Requires `debugger` permission (already declared)
@@ -97,12 +104,14 @@ chrome.debugger.detach({ tabId })
 #### 3. UserScripts API (Optional)
 
 **Usage** (`automation/userscripts.ts:14-16`, `background.ts`, `automation/repl.ts:142-171`):
+
 ```typescript
 chrome.userScripts
 chrome.permissions.contains({ permissions: ['userScripts'] })
 ```
 
 **Firefox compatibility**: ⚠️ **Limited support**
+
 - Firefox has experimental `browser.userScripts` support
 - Available in Firefox 128+ behind `extensions.userScripts.enabled` pref
 - Less mature than Chrome implementation
@@ -116,14 +125,17 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 **Current usage pattern**: Caching summaries, settings, and session data
 
 **Chrome quotas**:
+
 - `storage.local`: ~10 MB (can request more with `unlimitedStorage`)
 - `storage.session`: ~10 MB
 
 **Firefox quotas**:
+
 - `storage.local`: 10 MB default (same as Chrome)
 - `storage.session`: 10 MB (Firefox 115+)
 
 **Action required**:
+
 - Monitor cache size in production
 - Implement LRU eviction if approaching limits
 - Consider adding warnings at 80% capacity
@@ -133,6 +145,7 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 ### Required Changes for Firefox
 
 **Chrome manifest** (current):
+
 ```json
 {
   "permissions": ["sidePanel", ...],
@@ -143,6 +156,7 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 ```
 
 **Firefox manifest override** (needed):
+
 ```json
 {
   "permissions": ["tabs", "activeTab", "storage", ...],
@@ -154,6 +168,7 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 ```
 
 **Permissions to verify**:
+
 - Remove `sidePanel` (Chrome-only)
 - Verify `debugger` permission works in Firefox
 - Verify `userScripts` in `optional_permissions` is handled gracefully
@@ -163,11 +178,13 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 **Current**: Chrome MV3 service worker (`background.ts`)
 
 **Firefox MV3**: Also uses service workers (Firefox 109+)
+
 - Same lifecycle as Chrome
 - Same event-driven model
 - SSE connection handling should work identically
 
 **Testing priorities**:
+
 1. Verify service worker restarts properly
 2. Test SSE streaming during worker lifecycle
 3. Verify port-based communication (sidepanel ↔ background)
@@ -175,11 +192,13 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 ## Content Script Timing
 
 **Current injection strategy**:
+
 - `extract.content.ts`: Readability-based extraction
 - `hover.content.ts`: Hover summaries
 - `automation.content.ts`: Automation features
 
 **Firefox compatibility**: ✅ **Should work identically**
+
 - WXT handles content script registration
 - Same `run_at` timing behavior
 - Same message passing APIs
@@ -189,6 +208,7 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 **Usage**: Streaming summaries from daemon via SSE (`src/lib/sse.ts`)
 
 **Testing needed**:
+
 - Verify EventSource works in Firefox background context
 - Test reconnection logic on Firefox
 - Verify CORS headers work with Firefox origin
@@ -198,11 +218,13 @@ chrome.permissions.contains({ permissions: ['userScripts'] })
 ### 1. Sidebar vs Side Panel UX
 
 **Chrome Side Panel**:
+
 - Slides in from the right
 - Programmatically opened via `sidePanel.setPanelBehavior()`
 - Toggles on toolbar icon click
 
 **Firefox Sidebar**:
+
 - Always visible in sidebar area (left side by default)
 - Programmatically controlled via `sidebarAction.toggle()`, `open()`, `close()`
 - Toggles on toolbar icon click (implemented)
@@ -290,11 +312,13 @@ pnpm build:firefox
 ### Debugging
 
 **Console logs**:
+
 - Background script: `about:debugging` → This Firefox → Inspect
 - Content scripts: Regular DevTools Console (per-page)
 - Sidebar: Right-click sidebar → Inspect
 
 **Common issues**:
+
 - **"Error: Extension is invalid"**: Check manifest syntax
 - **"Loading failed"**: Check console for missing permissions
 - **Sidebar not rendering**: Verify `sidebar_action` in manifest
@@ -310,6 +334,7 @@ pnpm build:firefox
 ### Future: AMO (Add-ons.mozilla.org)
 
 When ready for public distribution:
+
 1. Submit to AMO for review
 2. Code signing required (automatic via AMO)
 3. Update mechanism via AMO (similar to Chrome Web Store)
@@ -377,6 +402,7 @@ Firefox **DOES support** programmatic sidebar control via the `sidebarAction` AP
   - Chrome builds continue to use `sidePanel` permission
 
 **User Experience**:
+
 1. **Click toolbar icon**: Toggles sidebar open/close
 2. **Keyboard shortcut**: `Ctrl+Shift+U` (or `Cmd+Shift+U` on Mac) toggles sidebar
 3. **Customizable**: Users can change the shortcut in Firefox's extension settings

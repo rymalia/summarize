@@ -6,7 +6,4 @@ export type {
   WhisperProgressEvent,
   WhisperTranscriptionResult,
 } from './whisper/types.js'
-export {
-  isWhisperCppReady,
-  resolveWhisperCppModelNameForDisplay,
-} from './whisper/whisper-cpp.js'
+export { isWhisperCppReady, resolveWhisperCppModelNameForDisplay } from './whisper/whisper-cpp.js'

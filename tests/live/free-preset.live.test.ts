@@ -7,8 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { runCli } from '../../src/run.js'
 
 const LIVE = process.env.SUMMARIZE_LIVE_TEST === '1'
-// biome-ignore lint/complexity/useRegexLiterals: Biome flags control chars in regex literals; keep this as a string.
-const ANSI_SGR_RE = new RegExp('\\x1b\\[[0-9;]*m')
+const ANSI_SGR_RE = /\x1b\[[0-9;]*m/
 
 function shouldSoftSkipLiveError(message: string): boolean {
   return /(rate limit exceeded|free-models-per-min|free-models-per-day|no working :free models|no :free models)/i.test(

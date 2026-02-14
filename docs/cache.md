@@ -1,7 +1,7 @@
 ---
-summary: "CLI cache design, keys, config, and eviction."
+summary: 'CLI cache design, keys, config, and eviction.'
 read_when:
-  - "When changing cache behavior, keys, or defaults."
+  - 'When changing cache behavior, keys, or defaults.'
 ---
 
 # Cache (design)

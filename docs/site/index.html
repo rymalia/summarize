@@ -11,7 +11,10 @@
     />
     <link rel="canonical" href="https://summarize.sh/" />
     <meta property="og:title" content="summarize" />
-    <meta property="og:description" content="Fast summaries, in the CLI and the Chrome Side Panel." />
+    <meta
+      property="og:description"
+      content="Fast summaries, in the CLI and the Chrome Side Panel."
+    />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://summarize.sh/" />
     <meta name="theme-color" content="#0b0f12" />
@@ -44,9 +47,10 @@
             <p class="kicker">CLI + Chrome Extension</p>
             <h1 class="title">Summaries that live where you work.</h1>
             <p class="lede">
-              Summarize turns links, files, and media into sharp summaries with a real extraction pipeline.
-              Use the <strong>CLI</strong> for automation or the <strong>Chrome Side Panel</strong> for one-click
-              summaries of the current tab. Supports <strong>local, paid, and free</strong> models.
+              Summarize turns links, files, and media into sharp summaries with a real extraction
+              pipeline. Use the <strong>CLI</strong> for automation or the
+              <strong>Chrome Side Panel</strong> for one-click summaries of the current tab.
+              Supports <strong>local, paid, and free</strong> models.
             </p>
             <div class="ctaRow">
               <a class="btn btn--primary" href="./docs/index.html">Docs</a>
@@ -71,7 +75,11 @@
               <figcaption>CLI: streaming summaries in the terminal.</figcaption>
             </figure>
             <figure class="shot shot--ext">
-              <img src="./assets/summarize-extension.png" alt="Summarize Chrome extension side panel" loading="lazy" />
+              <img
+                src="./assets/summarize-extension.png"
+                alt="Summarize Chrome extension side panel"
+                loading="lazy"
+              />
               <figcaption>Extension: a live Side Panel for the active tab.</figcaption>
             </figure>
           </div>
@@ -85,13 +93,18 @@
             <h2>Fast summaries, scripted or interactive.</h2>
           </div>
           <p>
-            Built for automation: extract clean text, summarize with your model, and output JSON or Markdown.
-            Works with URLs, PDFs, images, audio/video, YouTube, and podcasts.
+            Built for automation: extract clean text, summarize with your model, and output JSON or
+            Markdown. Works with URLs, PDFs, images, audio/video, YouTube, and podcasts.
           </p>
           <ul class="list">
             <li><strong>Extract + summarize</strong> with Firecrawl fallback.</li>
-            <li><strong>Media pipeline</strong> with transcript-first flow and Whisper fallback.</li>
-            <li><strong>Scriptable output</strong> via <code>--json</code>, <code>--extract</code>, <code>--metrics</code>.</li>
+            <li>
+              <strong>Media pipeline</strong> with transcript-first flow and Whisper fallback.
+            </li>
+            <li>
+              <strong>Scriptable output</strong> via <code>--json</code>, <code>--extract</code>,
+              <code>--metrics</code>.
+            </li>
           </ul>
           <div class="cardCode">
             <pre><code>summarize "https://example.com" --length long
@@ -110,8 +123,8 @@ summarize "/path/report.pdf" --model google/gemini-3-flash-preview</code></pre>
             <h2>Summaries in the Side Panel, one click away.</h2>
           </div>
           <p>
-            A real Chrome Side Panel with a tiny local daemon. It streams Markdown summaries for the active tab,
-            with auto-summary on navigation.
+            A real Chrome Side Panel with a tiny local daemon. It streams Markdown summaries for the
+            active tab, with auto-summary on navigation.
           </p>
           <ol class="steps">
             <li>Install the CLI + daemon.</li>
@@ -119,11 +132,14 @@ summarize "/path/report.pdf" --model google/gemini-3-flash-preview</code></pre>
             <li>Open Side Panel and connect with the token.</li>
           </ol>
           <div class="callout">
-            <strong>Runs locally</strong> on your machine. The daemon is localhost-only and token-protected.
+            <strong>Runs locally</strong> on your machine. The daemon is localhost-only and
+            token-protected.
           </div>
           <div class="ctaRow">
             <a class="btn btn--ghost" href="./docs/chrome-extension.html">Extension docs</a>
-            <a class="btn" href="https://github.com/steipete/summarize/releases/latest">Latest release</a>
+            <a class="btn" href="https://github.com/steipete/summarize/releases/latest"
+              >Latest release</a
+            >
           </div>
         </article>
       </section>
@@ -196,7 +212,10 @@ summarize "/path/report.pdf" --model google/gemini-3-flash-preview</code></pre>
 
       <footer class="footer">
         <span>Canonical: <a href="https://summarize.sh">summarize.sh</a></span>
-        <span><a href="./docs/index.html">Docs</a> · <a href="https://github.com/steipete/summarize">GitHub</a></span>
+        <span
+          ><a href="./docs/index.html">Docs</a> ·
+          <a href="https://github.com/steipete/summarize">GitHub</a></span
+        >
       </footer>
     </main>
 

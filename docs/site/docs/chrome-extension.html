@@ -46,22 +46,31 @@
           <p class="kicker">product</p>
           <h1>Chrome extension</h1>
           <p>
-            Summarize ships a Chrome Side Panel extension backed by a tiny local daemon. It streams Markdown summaries
-            for the active tab and supports auto-summarize on navigation.
+            Summarize ships a Chrome Side Panel extension backed by a tiny local daemon. It streams
+            Markdown summaries for the active tab and supports auto-summarize on navigation.
           </p>
 
           <h2>Setup</h2>
           <ul>
-            <li><code>npm i -g @steipete/summarize</code> or <code>brew install steipete/tap/summarize</code></li>
+            <li>
+              <code>npm i -g @steipete/summarize</code> or
+              <code>brew install steipete/tap/summarize</code>
+            </li>
             <li>Build extension: <code>pnpm -C apps/chrome-extension build</code></li>
             <li>Load unpacked: <code>apps/chrome-extension/.output/chrome-mv3</code></li>
-            <li>Open side panel → copy token command → run <code>summarize daemon install --token &lt;TOKEN&gt;</code></li>
+            <li>
+              Open side panel → copy token command → run
+              <code>summarize daemon install --token &lt;TOKEN&gt;</code>
+            </li>
             <li>Verify: <code>summarize daemon status</code></li>
           </ul>
 
           <h2>Dev</h2>
           <ul>
-            <li>Install daemon for dev: <code>pnpm summarize daemon install --token &lt;TOKEN&gt; --dev</code></li>
+            <li>
+              Install daemon for dev:
+              <code>pnpm summarize daemon install --token &lt;TOKEN&gt; --dev</code>
+            </li>
             <li>Dev server: <code>pnpm -C apps/chrome-extension dev</code></li>
           </ul>
 
@@ -80,7 +89,10 @@
 
       <footer class="footer">
         <span>summarize — Link → clean text → summary.</span>
-        <span><a href="./index.html">Docs</a> · <a href="https://github.com/steipete/summarize">Repo</a></span>
+        <span
+          ><a href="./index.html">Docs</a> ·
+          <a href="https://github.com/steipete/summarize">Repo</a></span
+        >
       </footer>
     </main>
 

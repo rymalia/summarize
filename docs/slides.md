@@ -1,12 +1,13 @@
 ---
-summary: "Plan for slide-first UX without model usage."
+summary: 'Plan for slide-first UX without model usage.'
 read_when:
-  - "When changing slide summaries, slide UI, or slide/seek behavior in the side panel."
+  - 'When changing slide summaries, slide UI, or slide/seek behavior in the side panel.'
 ---
 
 # Slides plan (no model)
 
 ## Goals
+
 - Expanded slides view = full-width cards, top of summary.
 - Click slide = seek video timestamp (no modal).
 - Descriptions scale with length setting.
@@ -14,11 +15,13 @@ read_when:
 - No model call for slide descriptions.
 
 ## Data sources
+
 - Primary: transcript timed text (already available with timestamps).
 - Secondary: OCR text from slides (truncate, selectable).
 - Tertiary: empty description (still render card).
 
 ## Description generation (no model)
+
 - For each slide timestamp `t`:
   - Pull transcript segments within a time window around `t`.
   - Concatenate into plain text (no bullets).
@@ -27,6 +30,7 @@ read_when:
 - Always render all slide cards; missing text → show slide only.
 
 ## Length scaling
+
 - Map summary length to per-slide target chars.
 - Use existing length presets (short/medium/long/xl/xxl + custom):
   - `short`: ~120 chars/slide
@@ -39,6 +43,7 @@ read_when:
 - Window size should expand with length (e.g. 20s → 90s).
 
 ## UI behavior
+
 - Default summary stays unchanged (no slide text).
 - Slide strip (compact) stays horizontal; no modal required.
 - Expand toggle switches to vertical full-width list:
@@ -49,6 +54,7 @@ read_when:
   (enough slides + total OCR chars); otherwise hide it.
 
 ## CLI
+
 - `summarize <url> --slides` streams a short intro paragraph and then a continuous narrative with slide images inserted inline where `[slide:N]` markers appear.
   - The model is responsible for inserting every slide marker in order; text length is still governed by `--length`.
   - If inline images are unsupported, the CLI prints text-only output and notes how to export slides to disk.
@@ -59,6 +65,7 @@ read_when:
 - Defaults to writing images under `./slides/<sourceId>/` (override via `--slides-dir` / `--output`).
 
 ## Implementation notes
+
 - Build `slideDescriptions` map in panel:
   - Use `summary.timedText` when available.
   - Split transcript into segments with timestamps (already in payload).
@@ -67,8 +74,9 @@ read_when:
 - Slide extraction downloads the media once for detect+extract; set `SLIDES_EXTRACT_STREAM=1` to allow stream fallback (lower accuracy).
 
 ## Steps
-1) Add slide-description builder in sidepanel using transcript timed text + OCR fallback.
-2) Add length-based per-slide char budget and window sizing.
-3) Render expanded card list with timestamps + text.
-4) Remove modal; click = seek only.
-5) Add tests for slide description + fallback.
+
+1. Add slide-description builder in sidepanel using transcript timed text + OCR fallback.
+2. Add length-based per-slide char budget and window sizing.
+3. Render expanded card list with timestamps + text.
+4. Remove modal; click = seek only.
+5. Add tests for slide description + fallback.

@@ -1,7 +1,7 @@
 ---
-summary: "Chrome side panel extension + daemon architecture, setup, and troubleshooting."
+summary: 'Chrome side panel extension + daemon architecture, setup, and troubleshooting.'
 read_when:
-  - "When working on the extension, daemon, or side panel UX."
+  - 'When working on the extension, daemon, or side panel UX.'
 ---
 
 # Browser Side Panel (Chrome + Firefox Extension + Daemon)
@@ -22,6 +22,7 @@ Quickstart:
   - Restart (if needed): `summarize daemon restart`
 
 Firefox notes:
+
 - Sidebar UX differs from Chrome’s side panel (persistent sidebar instead of slide-in panel).
 - Firefox testing is limited in Playwright; see `apps/chrome-extension/tests/README-firefox.md`.
 - Compatibility details: `apps/chrome-extension/docs/firefox.md`.
@@ -74,11 +75,11 @@ Dev (repo checkout):
 
 ## Data Flow
 
-1) User opens side panel (click extension icon).
-2) Panel sends a “ready” message to the background (plus periodic “ping” heartbeats while open).
-3) On nav/tab change (and auto enabled): background asks the content script to extract `{ url, title, text }` (best-effort).
-4) Background `POST`s payload to daemon `/v1/summarize` with `Authorization: Bearer <token>`.
-5) Panel opens `/v1/summarize/<id>/events` (SSE) and renders streamed Markdown.
+1. User opens side panel (click extension icon).
+2. Panel sends a “ready” message to the background (plus periodic “ping” heartbeats while open).
+3. On nav/tab change (and auto enabled): background asks the content script to extract `{ url, title, text }` (best-effort).
+4. Background `POST`s payload to daemon `/v1/summarize` with `Authorization: Bearer <token>`.
+5. Panel opens `/v1/summarize/<id>/events` (SSE) and renders streamed Markdown.
 
 ## Auto Mode (URL + Page Text)
 
@@ -229,6 +230,7 @@ Problem: daemon must be secured; extension must discover and pair with it.
   - `event: error` `data: { message }`
 
 Notes:
+
 - SSE keeps the extension simple + streaming-friendly.
 - Requests keyed by `id`; daemon keeps a small in-memory map while streaming.
 

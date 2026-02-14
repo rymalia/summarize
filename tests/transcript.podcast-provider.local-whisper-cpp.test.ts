@@ -25,9 +25,8 @@ describe('podcast transcript provider: local whisper.cpp', () => {
     }))
 
     try {
-      const { fetchTranscript } = await import(
-        '../packages/core/src/content/transcript/providers/podcast.js'
-      )
+      const { fetchTranscript } =
+        await import('../packages/core/src/content/transcript/providers/podcast.js')
 
       const enclosureUrl = 'https://example.com/episode.mp3'
       const xml = `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><item><itunes:duration>12:34</itunes:duration><enclosure url="${enclosureUrl}" type="audio/mpeg"/></item></channel></rss>`

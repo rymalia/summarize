@@ -1,7 +1,7 @@
 ---
-summary: "Firecrawl fallback modes and API key usage."
+summary: 'Firecrawl fallback modes and API key usage.'
 read_when:
-  - "When changing Firecrawl behavior."
+  - 'When changing Firecrawl behavior.'
 ---
 
 # Firecrawl mode

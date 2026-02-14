@@ -1,7 +1,7 @@
 ---
-summary: "Extract mode behavior and markdown handling."
+summary: 'Extract mode behavior and markdown handling.'
 read_when:
-  - "When changing extract pipeline or flags."
+  - 'When changing extract pipeline or flags.'
 ---
 
 # Extract mode
@@ -31,4 +31,5 @@ Deprecated alias: `--extract-only`.
 - `--markdown-mode readability` uses Readability to extract article HTML before Markdown conversion.
 
 Daemon note:
+
 - `/v1/summarize` supports `format: "markdown"` + `markdownMode` for extract-only output (use `extractOnly: true`).

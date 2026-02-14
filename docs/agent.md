@@ -1,7 +1,7 @@
 ---
-summary: "Automation agent for the Chrome side panel (daemon-backed)."
+summary: 'Automation agent for the Chrome side panel (daemon-backed).'
 read_when:
-  - "When working on automation tools, /v1/agent, or the side panel agent loop."
+  - 'When working on automation tools, /v1/agent, or the side panel agent loop.'
 ---
 
 # Automation Agent (Side Panel + Daemon)
@@ -9,6 +9,7 @@ read_when:
 Summarize can run as a **website automation agent** inside the Chrome side panel. This is **optional** and **gated by a checkbox** in Options.
 
 Scope:
+
 - **Off (default):** chat is Q&A only (no tools).
 - **On:** chat runs a tool-capable agent for web automation.
 
@@ -16,10 +17,10 @@ Explicit exclusions (per product direction): **no update checker**, **no tutoria
 
 ## Architecture (High Level)
 
-1) **Side panel** maintains the agent loop + chat UI.
-2) **Background** handles tab data, extraction, and tool execution.
-3) **Content scripts** handle element picking and native-input bridge.
-4) **Daemon** provides `/v1/agent` (SSE stream of chunks + final assistant message).
+1. **Side panel** maintains the agent loop + chat UI.
+2. **Background** handles tab data, extraction, and tool execution.
+3. **Content scripts** handle element picking and native-input bridge.
+4. **Daemon** provides `/v1/agent` (SSE stream of chunks + final assistant message).
 
 ### Data Flow (Agent Loop)
 
@@ -63,10 +64,12 @@ Defined in `apps/chrome-extension/wxt.config.ts` and requested via Options:
 ### `POST /v1/agent` (SSE)
 
 **Headers**
+
 - `Authorization: Bearer <token>`
 - `Content-Type: application/json`
 
 **Body**
+
 ```
 {
   "url": "https://...",
@@ -83,6 +86,7 @@ Defined in `apps/chrome-extension/wxt.config.ts` and requested via Options:
 ```
 
 **Response (SSE, default)**
+
 ```
 event: chunk
 data: { "text": "..." }
@@ -99,6 +103,7 @@ data: { "message": "..." }
 
 **Response (JSON)**
 Use `Accept: application/json` or `?format=json`.
+
 ```
 { "ok": true, "assistant": { /* AssistantMessage */ } }
 ```
@@ -108,6 +113,7 @@ Use `Accept: application/json` or `?format=json`.
 Returns cached chat history for the same cache key as `/v1/agent`.
 
 **Body**
+
 ```
 {
   "url": "https://...",
@@ -121,6 +127,7 @@ Returns cached chat history for the same cache key as `/v1/agent`.
 ```
 
 **Response**
+
 ```
 { "ok": true, "messages": [/* Message[] */] }
 ```
@@ -146,36 +153,44 @@ See `buildChatPageContent()` usage in `apps/chrome-extension/src/entrypoints/bac
 ## Tools
 
 ### 1) `navigate`
+
 Navigate the active tab.
 
 Params:
+
 ```
 { "url": "https://...", "newTab": false }
 ```
 
 Result:
+
 ```
 { "finalUrl": "https://...", "title": "...", "tabId": 123 }
 ```
 
 Notes:
+
 - Uses `chrome.tabs.update` or `chrome.tabs.create`.
 - Waits for tab status `complete` (15s timeout).
 
 ### 2) `repl`
+
 Execute JavaScript in a sandbox, with `browserjs()` to run in the page context.
 
 Params:
+
 ```
 { "title": "...", "code": "..." }
 ```
 
 Result:
+
 ```
 { "output": "console/return output", "files": [{ "fileName": "...", "mimeType": "...", "contentBase64": "..." }] }
 ```
 
 REPL environment:
+
 - Runs in a **sandboxed iframe** (no DOM access to the panel).
 - `browserjs(fn, ...args)` runs the function **in the page context**.
   - Uses `chrome.userScripts.execute` (main world) when available.
@@ -186,9 +201,11 @@ REPL environment:
 - `returnFile(name, content, mimeType)` or `returnFile({ fileName, content, mimeType })` attaches files to the tool result.
 
 Safety:
+
 - Navigation inside REPL code (`window.location`, `history`, etc.) is rejected. Use `navigate()` instead.
 
 Page-context helpers (via `browserjs()`):
+
 - Skills libraries are auto-injected when domain patterns match the active URL.
 - If `debugger` permission is granted, native helpers are exposed:
   - `nativeClick(selector)`
@@ -197,14 +214,17 @@ Page-context helpers (via `browserjs()`):
   - `nativeKeyDown(key)` / `nativeKeyUp(key)`
 
 ### 3) `ask_user_which_element`
+
 Shows a click-to-select overlay and returns element metadata.
 
 Params:
+
 ```
 { "message": "Optional guidance" }
 ```
 
 Result (example):
+
 ```
 {
   "selector": "#submit",
@@ -218,19 +238,23 @@ Result (example):
 ```
 
 Overlay UX:
+
 - Hover highlights element under cursor.
 - Click selects.
 - ↑ / ↓ moves up or down the DOM tree.
 - Esc cancels.
 
 ### 4) `skill`
+
 CRUD for domain-specific libraries (stored in `chrome.storage.local`).
 
 Storage keys:
+
 - `automation.skills` (map of name → skill)
 - `automation.skillsSeeded` (one-time default seed)
 
 Actions:
+
 - `list` (optionally filtered by URL)
 - `get` (optionally includes library code)
 - `create` / `rewrite`
@@ -240,30 +264,37 @@ Actions:
 Default skills seed from `apps/chrome-extension/src/automation/default-skills.json`.
 
 Matching:
+
 - Glob-like domain patterns (supports `*` and `**`).
 - Match is done against hostname + path (e.g. `github.com/*/issues`).
 
 Notes:
+
 - `update` is intended for in-place string replacements; use `rewrite` to rename.
 - Skills libraries run inside `browserjs()` and must avoid navigation.
 
 ### 5) `debugger` (optional)
+
 Runs JavaScript in the **main world** via the Chrome debugger. **Last resort** (shows Chrome debug banner).
 
 Params:
+
 ```
 { "action": "eval", "code": "..." }
 ```
 
 Result:
+
 ```
 { "text": "...", "details": { ... } }
 ```
 
 ### 6) `summarize`
+
 Run the Summarize pipeline against a URL (summary or extract-only).
 
 Params:
+
 ```
 {
   "url": "https://...",
@@ -287,16 +318,19 @@ Params:
 ```
 
 Result (summary):
+
 ```
 { "output": "..." }
 ```
 
 Result (extract-only):
+
 ```
 { "output": "...", "details": { "content": "...", "title": "...", "wordCount": 123, ... } }
 ```
 
 Notes:
+
 - URL-only (uses daemon URL pipeline).
 - Use `extractOnly: true` + `format: "markdown"` to return extracted Markdown.
 - When `format: "markdown"`, `markdownMode` defaults to `readability`.

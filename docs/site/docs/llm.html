@@ -8,7 +8,10 @@
     <link rel="canonical" href="https://summarize.sh/docs/llm" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="../assets/site.css" />
   </head>
   <body>
@@ -42,19 +45,27 @@
         <article class="doc reveal">
           <p class="kicker">summarizer</p>
           <h1>LLM</h1>
-          <p>summarize can use multiple providers. Pick one model, one provider, then make it boring and reliable.</p>
+          <p>
+            summarize can use multiple providers. Pick one model, one provider, then make it boring
+            and reliable.
+          </p>
 
           <h2>Keys</h2>
           <ul>
             <li><code>OPENAI_API_KEY</code></li>
             <li><code>XAI_API_KEY</code></li>
-            <li><code>GEMINI_API_KEY</code> (also accepts <code>GOOGLE_GENERATIVE_AI_API_KEY</code> / <code>GOOGLE_API_KEY</code>)</li>
+            <li>
+              <code>GEMINI_API_KEY</code> (also accepts <code>GOOGLE_GENERATIVE_AI_API_KEY</code> /
+              <code>GOOGLE_API_KEY</code>)
+            </li>
           </ul>
 
           <h2>Practical advice</h2>
           <ul>
             <li>Pin <code>--model</code> for stable output.</li>
-            <li>When using <code>--markdown-mode llm</code>, provider fallback is disabled by design.</li>
+            <li>
+              When using <code>--markdown-mode llm</code>, provider fallback is disabled by design.
+            </li>
             <li>For audits / tooling, prefer <code>--json</code> + fixed model.</li>
           </ul>
         </article>
@@ -62,7 +73,10 @@
 
       <footer class="footer">
         <span>summarize — Link → clean text → summary.</span>
-        <span><a href="./index.html">Docs</a> · <a href="https://github.com/steipete/summarize">Repo</a></span>
+        <span
+          ><a href="./index.html">Docs</a> ·
+          <a href="https://github.com/steipete/summarize">Repo</a></span
+        >
       </footer>
     </main>
 

@@ -1,6 +1,7 @@
 # Summarize 📝 — Chrome Side Panel + CLI
 
 ![GitHub Repo Banner](https://ghrb.waren.build/banner?header=Summarize%F0%9F%93%9D&subheader=Chrome+Side+Panel+%2B+CLI&bg=f3f4f6&color=1f2937&support=true)
+
 <!-- Created with GitHub Repo Banner by Waren Gonzaga: https://ghrb.waren.build -->
 
 Fast summaries from URLs, files, and media. Works in the terminal, a Chrome Side Panel and Firefox Sidebar.
@@ -39,14 +40,15 @@ YouTube slide screenshots (from the browser):
 
 ### Beginner quickstart (extension)
 
-1) Install the CLI (choose one):
+1. Install the CLI (choose one):
    - **npm** (cross‑platform): `npm i -g @steipete/summarize`
    - **Homebrew** (macOS arm64): `brew install steipete/tap/summarize`
-2) Install the extension (Chrome Web Store link above) and open the Side Panel.
-3) The panel shows a token + install command. Run it in Terminal:
+2. Install the extension (Chrome Web Store link above) and open the Side Panel.
+3. The panel shows a token + install command. Run it in Terminal:
    - `summarize daemon install --token <TOKEN>`
 
 Why a daemon/service?
+
 - The extension can’t run heavy extraction inside the browser. It talks to a local background service on `127.0.0.1` for fast streaming and media tools (yt‑dlp, ffmpeg, OCR, transcription).
 - The service autostarts (launchd/systemd/Scheduled Task) so the Side Panel is always ready.
 
@@ -75,15 +77,15 @@ More:
 
 ### Advanced (unpacked / dev)
 
-1) Build + load the extension (unpacked):
+1. Build + load the extension (unpacked):
    - Chrome: `pnpm -C apps/chrome-extension build`
      - `chrome://extensions` → Developer mode → Load unpacked
      - Pick: `apps/chrome-extension/.output/chrome-mv3`
    - Firefox: `pnpm -C apps/chrome-extension build:firefox`
      - `about:debugging#/runtime/this-firefox` → Load Temporary Add-on
      - Pick: `apps/chrome-extension/.output/firefox-mv3/manifest.json`
-2) Open Side Panel/Sidebar → copy token.
-3) Install daemon in dev mode:
+2. Open Side Panel/Sidebar → copy token.
+3. Install daemon in dev mode:
    - `pnpm summarize daemon install --token <TOKEN> --dev`
 
 ## CLI
@@ -156,6 +158,7 @@ cat /path/to/file.pdf | summarize -
 ```
 
 **Notes:**
+
 - Stdin has a 50MB size limit
 - The `-` argument tells summarize to read from standard input
 - Text stdin is treated as UTF-8 text (whitespace-only input is rejected as empty)
@@ -521,23 +524,23 @@ Note: `--no-cache` bypasses summary caching only (LLM output). Extract/transcrip
 
 Precedence:
 
-1) `--model`
-2) `SUMMARIZE_MODEL`
-3) `~/.summarize/config.json`
-4) default (`auto`)
+1. `--model`
+2. `SUMMARIZE_MODEL`
+3. `~/.summarize/config.json`
+4. default (`auto`)
 
 Theme precedence:
 
-1) `--theme`
-2) `SUMMARIZE_THEME`
-3) `~/.summarize/config.json` (`ui.theme`)
-4) default (`aurora`)
+1. `--theme`
+2. `SUMMARIZE_THEME`
+3. `~/.summarize/config.json` (`ui.theme`)
+4. default (`aurora`)
 
 Environment variable precedence:
 
-1) process env
-2) `~/.summarize/config.json` (`env`)
-3) `~/.summarize/config.json` (`apiKeys`, legacy)
+1. process env
+2. `~/.summarize/config.json` (`env`)
+3. `~/.summarize/config.json` (`apiKeys`, legacy)
 
 ### Environment variables
 

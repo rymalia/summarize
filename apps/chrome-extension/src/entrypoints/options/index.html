@@ -99,7 +99,13 @@
           </button>
         </div>
 
-        <div id="panel-general" class="tabPanel" role="tabpanel" data-tab-panel="general" aria-labelledby="tab-general">
+        <div
+          id="panel-general"
+          class="tabPanel"
+          role="tabpanel"
+          data-tab-panel="general"
+          aria-labelledby="tab-general"
+        >
           <section class="section">
             <div class="combo">
               <div id="autoToggle" class="row"></div>
@@ -134,7 +140,14 @@
           </section>
         </div>
 
-        <div id="panel-ui" class="tabPanel" role="tabpanel" data-tab-panel="ui" aria-labelledby="tab-ui" hidden>
+        <div
+          id="panel-ui"
+          class="tabPanel"
+          role="tabpanel"
+          data-tab-panel="ui"
+          aria-labelledby="tab-ui"
+          hidden
+        >
           <section class="section">
             <h2>UI</h2>
             <div class="uiGrid">
@@ -151,7 +164,14 @@
           </section>
         </div>
 
-        <div id="panel-model" class="tabPanel" role="tabpanel" data-tab-panel="model" aria-labelledby="tab-model" hidden>
+        <div
+          id="panel-model"
+          class="tabPanel"
+          role="tabpanel"
+          data-tab-panel="model"
+          aria-labelledby="tab-model"
+          hidden
+        >
           <section class="section">
             <h2>Prompt · Language · Model</h2>
             <label>
@@ -212,9 +232,10 @@
                 />
               </div>
               <div class="hint">
-                Tip: configure “free” models via <code>summarize refresh-free</code> (needs <code>OPENROUTER_API_KEY</code>).
-                Writes <code>~/.summarize/config.json</code> (updates <code>models.free</code>). Add <code>--set-default</code> to
-                also set your default model to <code>free</code>.
+                Tip: configure “free” models via <code>summarize refresh-free</code> (needs
+                <code>OPENROUTER_API_KEY</code>). Writes
+                <code>~/.summarize/config.json</code> (updates <code>models.free</code>). Add
+                <code>--set-default</code> to also set your default model to <code>free</code>.
               </div>
             </label>
             <label>
@@ -242,14 +263,20 @@
         >
           <section class="section">
             <h2>Automation Skills</h2>
-            <div class="hint">Manage reusable JavaScript libraries for domain-specific automation.</div>
+            <div class="hint">
+              Manage reusable JavaScript libraries for domain-specific automation.
+            </div>
             <div class="skillsActions">
               <button id="skillsExport" type="button" class="miniButton">Export skills</button>
               <button id="skillsImport" type="button" class="miniButton">Import skills</button>
             </div>
             <label>
               <span>Search</span>
-              <input id="skillsSearch" type="text" placeholder="Search by name, domain, or description" />
+              <input
+                id="skillsSearch"
+                type="text"
+                placeholder="Search by name, domain, or description"
+              />
             </label>
             <div id="skillsImportConflicts" class="skillsConflicts" hidden></div>
             <div id="skillsList" class="skillsList"></div>
@@ -267,29 +294,37 @@
         >
           <section class="section">
             <h2>Advanced Overrides</h2>
-            <div class="hint">Values set here override daemon config. Leave blank to use config.</div>
+            <div class="hint">
+              Values set here override daemon config. Leave blank to use config.
+            </div>
             <div id="advancedFields" class="advancedFields">
               <div class="advancedGrid">
                 <div class="combo span-2">
                   <div id="extendedLoggingToggle"></div>
                   <span class="subtitle">
-                    Include full input + output in daemon logs (large, only when daemon logging is enabled).
+                    Include full input + output in daemon logs (large, only when daemon logging is
+                    enabled).
                   </span>
                 </div>
                 <div class="combo span-2">
                   <div id="autoCliFallbackToggle"></div>
                   <span class="subtitle">
-                    Auto CLI fallback: when model is Auto, try coding CLIs if no API model key is configured.
+                    Auto CLI fallback: when model is Auto, try coding CLIs if no API model key is
+                    configured.
                   </span>
                 </div>
                 <label>
                   <span>Auto CLI order</span>
-                  <span class="subtitle">Comma-separated providers (claude, gemini, codex, agent).</span>
+                  <span class="subtitle"
+                    >Comma-separated providers (claude, gemini, codex, agent).</span
+                  >
                   <input id="autoCliOrder" type="text" placeholder="claude,gemini,codex,agent" />
                 </label>
                 <div class="combo span-2">
                   <div id="hoverSummariesToggle"></div>
-                  <span class="subtitle">Show hover summary tooltips in pages. Experimental, default off.</span>
+                  <span class="subtitle"
+                    >Show hover summary tooltips in pages. Experimental, default off.</span
+                  >
                 </div>
                 <div class="combo span-2">
                   <div id="summaryTimestampsToggle"></div>
@@ -315,7 +350,9 @@
                 </label>
                 <label>
                   <span>Pipeline mode</span>
-                  <span class="subtitle">Choose the input pipeline (page text vs URL extraction).</span>
+                  <span class="subtitle"
+                    >Choose the input pipeline (page text vs URL extraction).</span
+                  >
                   <select id="requestMode">
                     <option value="">Default (auto)</option>
                     <option value="page">Page (use visible text)</option>
@@ -325,7 +362,8 @@
                 <label>
                   <span>Firecrawl</span>
                   <span class="subtitle">
-                    Firecrawl fetches + cleans pages to Markdown via its API. Off, auto fallback, or always use it.
+                    Firecrawl fetches + cleans pages to Markdown via its API. Off, auto fallback, or
+                    always use it.
                   </span>
                   <select id="firecrawlMode">
                     <option value="">Default (auto)</option>
@@ -336,7 +374,9 @@
                 </label>
                 <label>
                   <span>Markdown mode</span>
-                  <span class="subtitle">How HTML is converted to Markdown before summarizing.</span>
+                  <span class="subtitle"
+                    >How HTML is converted to Markdown before summarizing.</span
+                  >
                   <select id="markdownMode">
                     <option value="">Default (readability)</option>
                     <option value="readability">Readability</option>
@@ -348,7 +388,8 @@
                 <label>
                   <span>Preprocess</span>
                   <span class="subtitle">
-                    For file inputs: convert to text/Markdown first (PDF/Doc/etc) to improve model compatibility.
+                    For file inputs: convert to text/Markdown first (PDF/Doc/etc) to improve model
+                    compatibility.
                   </span>
                   <select id="preprocessMode">
                     <option value="">Default (off)</option>
@@ -360,8 +401,8 @@
                 <label>
                   <span>YouTube mode</span>
                   <span class="subtitle">
-                    Auto picks best transcript; Web uses YouTube captions; yt-dlp extracts audio for transcription; Apify
-                    is fallback; No-auto skips auto captions.
+                    Auto picks best transcript; Web uses YouTube captions; yt-dlp extracts audio for
+                    transcription; Apify is fallback; No-auto skips auto captions.
                   </span>
                   <select id="youtubeMode">
                     <option value="">Default (config)</option>
@@ -374,7 +415,9 @@
                 </label>
                 <label>
                   <span>Transcriber</span>
-                  <span class="subtitle">Override the daemon's default (whisper, parakeet, canary).</span>
+                  <span class="subtitle"
+                    >Override the daemon's default (whisper, parakeet, canary).</span
+                  >
                   <select id="transcriber">
                     <option value="">Default (daemon config)</option>
                     <option value="whisper">Whisper (default)</option>
@@ -414,7 +457,9 @@
             <div class="processHeader">
               <div>
                 <h2>Process Manager</h2>
-                <div class="hint">Track external tools spawned by the daemon (ffmpeg, yt-dlp, tesseract).</div>
+                <div class="hint">
+                  Track external tools spawned by the daemon (ffmpeg, yt-dlp, tesseract).
+                </div>
               </div>
               <div class="processActions">
                 <label class="logsToggle">
@@ -570,10 +615,16 @@
         </div>
       </form>
       <div class="pageFooter hint">
-        <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">Summarize</a> made by
-        <a href="https://steipete.me" target="_blank" rel="noopener noreferrer">Peter Steinberger</a>
+        <a href="https://summarize.sh" target="_blank" rel="noopener noreferrer">Summarize</a> made
+        by
+        <a href="https://steipete.me" target="_blank" rel="noopener noreferrer"
+          >Peter Steinberger</a
+        >
         · MIT licensed ·
-        <a href="https://github.com/steipete/summarize/issues" target="_blank" rel="noopener noreferrer"
+        <a
+          href="https://github.com/steipete/summarize/issues"
+          target="_blank"
+          rel="noopener noreferrer"
           >Report issues on GitHub</a
         >
       </div>

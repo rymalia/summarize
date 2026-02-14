@@ -71,6 +71,7 @@
 
 ### Improvements
 
+- Tooling: remove Biome and standardize on `oxfmt` + type-aware `oxlint`; `pnpm check` now enforces `format:check` before lint/tests.
 - Transcription: add auto transcriber selection (default) with ONNX-first when configured + `summarize transcriber setup`.
 - Cache: add media download caching with TTL/size caps + optional verification, plus `--no-media-cache`.
 - CLI: add themed output (24-bit ANSI), `--theme`, and config/env defaults for a consistent color scheme.
@@ -333,6 +334,7 @@
 - Add `--preprocess off|auto|always` and a `uvx markitdown` fallback for Markdown extraction and unsupported file attachments (when `--format md` is used).
 
 ## 0.3.0 - 2025-12-20
+
 ### Changes
 
 - Add yt-dlp audio transcription fallback for YouTube; prefer OpenAI Whisper with FAL fallback. Thanks @dougvk.

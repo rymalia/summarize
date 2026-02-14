@@ -8,7 +8,10 @@
     <link rel="canonical" href="https://summarize.sh/docs/openai" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="../assets/site.css" />
   </head>
   <body>
@@ -42,23 +45,33 @@
         <article class="doc reveal">
           <p class="kicker">provider</p>
           <h1>OpenAI</h1>
-          <p>Use OpenAI by setting <code>OPENAI_API_KEY</code> and picking a model via <code>--model</code>.</p>
+          <p>
+            Use OpenAI by setting <code>OPENAI_API_KEY</code> and picking a model via
+            <code>--model</code>.
+          </p>
 
           <h2>Notes</h2>
           <ul>
             <li>Some modes (like <code>--extract</code>) don’t need an LLM at all.</li>
-            <li>When output is used downstream, prefer <code>--json</code> and pin <code>--model</code>.</li>
+            <li>
+              When output is used downstream, prefer <code>--json</code> and pin
+              <code>--model</code>.
+            </li>
           </ul>
 
           <div class="note">
-            If your extraction is flaky, flip on <code>--verbose</code> and inspect which path was taken (HTML vs Firecrawl vs LLM Markdown).
+            If your extraction is flaky, flip on <code>--verbose</code> and inspect which path was
+            taken (HTML vs Firecrawl vs LLM Markdown).
           </div>
         </article>
       </section>
 
       <footer class="footer">
         <span>summarize — Link → clean text → summary.</span>
-        <span><a href="./index.html">Docs</a> · <a href="https://github.com/steipete/summarize">Repo</a></span>
+        <span
+          ><a href="./index.html">Docs</a> ·
+          <a href="https://github.com/steipete/summarize">Repo</a></span
+        >
       </footer>
     </main>
 

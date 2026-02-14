@@ -1,7 +1,7 @@
 ---
-summary: "Output language flag and config options."
+summary: 'Output language flag and config options.'
 read_when:
-  - "When changing language handling."
+  - 'When changing language handling.'
 ---
 
 # Output language
