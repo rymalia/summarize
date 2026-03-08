@@ -1,5 +1,4 @@
 import type { AssistantMessage, Message } from "@mariozechner/pi-ai";
-import { shouldPreferUrlMode } from "@steipete/summarize-core/content/url";
 import { defineBackground } from "wxt/utils/define-background";
 import type { SseSlidesData } from "../../../../src/shared/sse-events.js";
 import { buildDaemonRequestBody, buildSummarizeRequestBody } from "../lib/daemon-payload";
@@ -7,19 +6,14 @@ import { createDaemonRecovery, isDaemonUnreachableError } from "../lib/daemon-re
 import { createDaemonStatusTracker } from "../lib/daemon-status";
 import { logExtensionEvent } from "../lib/extension-logs";
 import { loadSettings, patchSettings } from "../lib/settings";
-import { isYouTubeWatchUrl } from "../lib/youtube-url";
-import {
-  canSummarizeUrl,
-  extractFromTab,
-  seekInTab,
-  type ExtractResponse,
-} from "./background/content-script-bridge";
+import { canSummarizeUrl, extractFromTab, seekInTab } from "./background/content-script-bridge";
 import { daemonHealth, daemonPing, friendlyFetchError } from "./background/daemon-client";
 import { ensureChatExtract, primeMediaHint, type CachedExtract } from "./background/extract-cache";
 import { createHoverController, type HoverToBg } from "./background/hover-controller";
 import { handlePanelAgentRequest, handlePanelChatHistoryRequest } from "./background/panel-chat";
 import { createPanelSessionStore, type PanelSession } from "./background/panel-session-store";
 import { resolvePanelState, type PanelUiState } from "./background/panel-state";
+import { summarizeActiveTab as runPanelSummarize } from "./background/panel-summarize";
 import {
   buildSlidesText,
   getActiveTab,
@@ -198,413 +192,49 @@ export default defineBackground(() => {
     }
   };
 
-  const summarizeActiveTab = async (
+  const summarizeActiveTab = (
     session: BackgroundPanelSession,
     reason: string,
     opts?: { refresh?: boolean; inputMode?: "page" | "video" },
-  ) => {
-    if (!panelSessionStore.isPanelOpen(session)) return;
-
-    const settings = await loadSettings();
-    const isManual = reason === "manual" || reason === "refresh" || reason === "length-change";
-    if (!isManual && !settings.autoSummarize) return;
-    if (!settings.token.trim()) {
-      await emitState(session, "Setup required (missing token)");
-      return;
-    }
-
-    const logPanel = (event: string, detail?: Record<string, unknown>) => {
-      if (!settings.extendedLogging) return;
-      const payload = detail ? { event, windowId: session.windowId, ...detail } : { event };
-      const detailPayload = detail
-        ? { windowId: session.windowId, ...detail }
-        : { windowId: session.windowId };
-      logExtensionEvent({
-        event,
-        detail: detailPayload,
-        scope: "panel:bg",
-        level: resolveLogLevel(event),
-      });
-      console.debug("[summarize][panel:bg]", payload);
-    };
-
-    if (reason === "spa-nav" || reason === "tab-url-change") {
-      await new Promise((resolve) => setTimeout(resolve, 220));
-    }
-
-    const tab = await getActiveTab(session.windowId);
-    if (!tab?.id || !canSummarizeUrl(tab.url)) return;
-
-    session.runController?.abort();
-    const controller = new AbortController();
-    session.runController = controller;
-
-    const prefersUrlMode = Boolean(tab.url && shouldPreferUrlMode(tab.url));
-    const wantsUrlFastPath =
-      Boolean(tab.url && isYouTubeWatchUrl(tab.url)) &&
-      opts?.inputMode !== "page" &&
-      prefersUrlMode;
-
-    let extracted: ExtractResponse & { ok: true };
-    if (wantsUrlFastPath) {
-      sendStatus(session, `Fetching transcript… (${reason})`);
-      logPanel("extract:url-fastpath:start", { reason, tabId: tab.id });
-      try {
-        const res = await fetch("http://127.0.0.1:8787/v1/summarize", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${settings.token.trim()}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            url: tab.url,
-            title: tab.title ?? null,
-            mode: "url",
-            extractOnly: true,
-            timestamps: true,
-            ...(opts?.refresh ? { noCache: true } : {}),
-            maxCharacters: null,
-            diagnostics: settings.extendedLogging ? { includeContent: true } : null,
-          }),
-          signal: controller.signal,
-        });
-        const json = (await res.json()) as {
-          ok?: boolean;
-          extracted?: {
-            url: string;
-            title: string | null;
-            content: string;
-            truncated: boolean;
-            mediaDurationSeconds?: number | null;
-            transcriptTimedText?: string | null;
-          };
-          error?: string;
-        };
-        if (!res.ok || !json.ok || !json.extracted) {
-          throw new Error(json.error || `${res.status} ${res.statusText}`);
-        }
-        const extractedUrl = json.extracted.url || tab.url;
-        extracted = {
-          ok: true,
-          url: extractedUrl,
-          title: json.extracted.title ?? tab.title ?? null,
-          text: "",
-          truncated: Boolean(json.extracted.truncated),
-          media: { hasVideo: true, hasAudio: true, hasCaptions: true },
-          mediaDurationSeconds: json.extracted.mediaDurationSeconds ?? null,
-        };
-        panelSessionStore.setCachedExtract(tab.id, {
-          url: extractedUrl,
-          title: extracted.title ?? null,
-          text: "",
-          source: "url",
-          truncated: Boolean(json.extracted.truncated),
-          totalCharacters: 0,
-          wordCount: null,
-          media: { hasVideo: true, hasAudio: true, hasCaptions: true },
-          transcriptSource: null,
-          transcriptionProvider: null,
-          transcriptCharacters: null,
-          transcriptWordCount: null,
-          transcriptLines: null,
-          transcriptTimedText: json.extracted.transcriptTimedText ?? null,
-          mediaDurationSeconds: json.extracted.mediaDurationSeconds ?? null,
-          slides: null,
-          diagnostics: null,
-        });
-        session.daemonStatus.markReady();
-        logPanel("extract:url-fastpath:ok", {
-          url: extractedUrl,
-          transcriptTimedText: Boolean(json.extracted.transcriptTimedText),
-          durationSeconds: json.extracted.mediaDurationSeconds ?? null,
-        });
-      } catch (err) {
-        logPanel("extract:url-fastpath:error", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-        extracted = {
-          ok: true,
-          url: tab.url,
-          title: tab.title ?? null,
-          text: "",
-          truncated: false,
-          media: { hasVideo: true, hasAudio: true, hasCaptions: true },
-        };
-      }
-    } else {
-      sendStatus(session, `Extracting… (${reason})`);
-      logPanel("extract:start", { reason, tabId: tab.id, maxChars: settings.maxChars });
-      const statusFromExtractEvent = (event: string) => {
-        if (!panelSessionStore.isPanelOpen(session)) return;
-        if (event === "extract:attempt") {
-          sendStatus(session, `Extracting page content… (${reason})`);
-          return;
-        }
-        if (event === "extract:inject:ok") {
-          sendStatus(session, `Extracting: injecting… (${reason})`);
-          return;
-        }
-        if (event === "extract:message:ok") {
-          sendStatus(session, `Extracting: reading… (${reason})`);
-        }
-      };
-      const extractedAttempt = await extractFromTab(tab.id, settings.maxChars, {
-        timeoutMs: 8_000,
-        log: (event, detail) => {
-          statusFromExtractEvent(event);
-          logPanel(event, detail);
-        },
-      });
-      logPanel(extractedAttempt.ok ? "extract:done" : "extract:failed", {
-        ok: extractedAttempt.ok,
-        ...(extractedAttempt.ok
-          ? { url: extractedAttempt.data.url }
-          : { error: extractedAttempt.error }),
-      });
-      extracted = extractedAttempt.ok
-        ? extractedAttempt.data
-        : {
-            ok: true,
-            url: tab.url,
-            title: tab.title ?? null,
-            text: "",
-            truncated: false,
-            media: null,
-          };
-    }
-
-    if (tab.url && extracted.url && !urlsMatch(tab.url, extracted.url)) {
-      await new Promise((resolve) => setTimeout(resolve, 180));
-      logPanel("extract:retry", { tabId: tab.id, maxChars: settings.maxChars });
-      const retry = await extractFromTab(tab.id, settings.maxChars, {
-        timeoutMs: 8_000,
-        log: (event, detail) => logPanel(event, detail),
-      });
-      if (retry.ok) {
-        extracted = retry.data;
-      }
-    }
-
-    const extractedMatchesTab = tab.url && extracted.url ? urlsMatch(tab.url, extracted.url) : true;
-    const resolvedExtracted =
-      tab.url && !extractedMatchesTab
-        ? {
-            ok: true,
-            url: tab.url,
-            title: tab.title ?? null,
-            text: "",
-            truncated: false,
-            media: null,
-          }
-        : extracted;
-
-    if (!extracted) return;
-
-    if (
-      settings.autoSummarize &&
-      ((session.lastSummarizedUrl && urlsMatch(session.lastSummarizedUrl, resolvedExtracted.url)) ||
-        (session.inflightUrl && urlsMatch(session.inflightUrl, resolvedExtracted.url))) &&
-      !isManual
-    ) {
-      sendStatus(session, "");
-      return;
-    }
-
-    const resolvedTitle = tab.title?.trim() || resolvedExtracted.title || null;
-    const resolvedPayload = { ...resolvedExtracted, title: resolvedTitle };
-    const effectiveInputMode =
-      opts?.inputMode ??
-      (resolvedPayload.url && shouldPreferUrlMode(resolvedPayload.url) ? "video" : undefined);
-    const wordCount =
-      resolvedPayload.text.length > 0
-        ? resolvedPayload.text.split(/\s+/).filter(Boolean).length
-        : 0;
-    const wantsSummaryTimestamps =
-      settings.summaryTimestamps &&
-      (effectiveInputMode === "video" ||
-        resolvedPayload.media?.hasVideo === true ||
-        resolvedPayload.media?.hasAudio === true ||
-        resolvedPayload.media?.hasCaptions === true ||
-        shouldPreferUrlMode(resolvedPayload.url));
-    const wantsSlides =
-      settings.slidesEnabled &&
-      (effectiveInputMode === "video" ||
-        resolvedPayload.media?.hasVideo === true ||
-        shouldPreferUrlMode(resolvedPayload.url));
-    const wantsParallelSlides = wantsSlides && settings.slidesParallel;
-    const summaryTimestamps = wantsSummaryTimestamps || (wantsSlides && !wantsParallelSlides);
-    const slidesTimestamps = wantsSummaryTimestamps || wantsSlides;
-
-    const resolveSlidesForLength = (
-      lengthValue: string,
-      durationSeconds: number | null | undefined,
-    ): { maxSlides: number | null; minDurationSeconds: number | null } => {
-      if (!durationSeconds || !Number.isFinite(durationSeconds) || durationSeconds <= 0) {
-        return { maxSlides: null, minDurationSeconds: null };
-      }
-      const normalized = lengthValue.trim().toLowerCase();
-      const chunkSeconds =
-        normalized === "short"
-          ? 600
-          : normalized === "medium"
-            ? 450
-            : normalized === "long"
-              ? 300
-              : normalized === "xl"
-                ? 180
-                : normalized === "xxl"
-                  ? 120
-                  : 300;
-      const target = Math.max(3, Math.round(durationSeconds / chunkSeconds));
-      const maxSlides = Math.max(3, Math.min(80, target));
-      const minDuration = Math.max(2, Math.floor(durationSeconds / maxSlides));
-      return { maxSlides, minDurationSeconds: minDuration };
-    };
-    logPanel("summarize:start", {
+  ) =>
+    runPanelSummarize({
+      session,
       reason,
-      url: resolvedPayload.url,
-      inputMode: effectiveInputMode ?? null,
-      wantsSummaryTimestamps: summaryTimestamps,
-      wantsSlides,
-      wantsParallelSlides,
-    });
-
-    panelSessionStore.setCachedExtract(tab.id, {
-      url: resolvedPayload.url,
-      title: resolvedTitle,
-      text: resolvedPayload.text,
-      source: "page",
-      truncated: resolvedPayload.truncated,
-      totalCharacters: resolvedPayload.text.length,
-      wordCount,
-      media: resolvedPayload.media ?? null,
-      transcriptSource: null,
-      transcriptionProvider: null,
-      transcriptCharacters: null,
-      transcriptWordCount: null,
-      transcriptLines: null,
-      transcriptTimedText: null,
-      mediaDurationSeconds: resolvedPayload.mediaDurationSeconds ?? null,
-      slides: null,
-      diagnostics: null,
-    });
-
-    sendStatus(session, "Connecting…");
-    session.inflightUrl = resolvedPayload.url;
-    const slideAuto = wantsSlides
-      ? resolveSlidesForLength(settings.length, resolvedPayload.mediaDurationSeconds)
-      : { maxSlides: null, minDurationSeconds: null };
-    const slidesConfig = wantsSlides
-      ? {
-          enabled: true,
-          ocr: settings.slidesOcrEnabled,
-          maxSlides: slideAuto.maxSlides,
-          minDurationSeconds: slideAuto.minDurationSeconds,
-        }
-      : { enabled: false };
-    const summarySlides = wantsParallelSlides ? { enabled: false } : slidesConfig;
-    let id: string;
-    try {
-      const body = buildSummarizeRequestBody({
-        extracted: resolvedPayload,
-        settings,
-        noCache: Boolean(opts?.refresh),
-        inputMode: effectiveInputMode,
-        timestamps: summaryTimestamps,
-        slides: summarySlides,
-      });
-      logPanel("summarize:request", {
-        url: resolvedPayload.url,
-        slides: wantsSlides && !wantsParallelSlides,
-        slidesParallel: wantsParallelSlides,
-        timestamps: summaryTimestamps,
-      });
-      const res = await fetch("http://127.0.0.1:8787/v1/summarize", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${settings.token.trim()}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      const json = (await res.json()) as { ok: boolean; id?: string; error?: string };
-      if (!res.ok || !json.ok || !json.id) {
-        throw new Error(json.error || `${res.status} ${res.statusText}`);
-      }
-      session.daemonStatus.markReady();
-      id = json.id;
-    } catch (err) {
-      if (controller.signal.aborted) return;
-      const message = friendlyFetchError(err, "Daemon request failed");
-      void send(session, { type: "run:error", message });
-      sendStatus(session, `Error: ${message}`);
-      session.inflightUrl = null;
-      if (!isManual && isDaemonUnreachableError(err)) {
-        session.daemonRecovery.recordFailure(resolvedPayload.url);
-      }
-      return;
-    }
-
-    void send(session, {
-      type: "run:start",
-      run: { id, url: resolvedPayload.url, title: resolvedTitle, model: settings.model, reason },
-    });
-
-    if (wantsParallelSlides) {
-      void (async () => {
-        try {
-          const slidesBody = buildSummarizeRequestBody({
-            extracted: resolvedPayload,
-            settings,
-            noCache: Boolean(opts?.refresh),
-            inputMode: effectiveInputMode,
-            timestamps: slidesTimestamps,
-            slides: slidesConfig,
+      opts,
+      loadSettings,
+      emitState: (currentSession, status) =>
+        emitState(currentSession as BackgroundPanelSession, status),
+      getActiveTab,
+      canSummarizeUrl,
+      panelSessionStore,
+      sendStatus: (status) => sendStatus(session, status),
+      send: (msg) => {
+        void send(session, msg as BgToPanel);
+      },
+      fetchImpl: fetch,
+      extractFromTab,
+      urlsMatch,
+      buildSummarizeRequestBody,
+      friendlyFetchError,
+      isDaemonUnreachableError,
+      logPanel: (event, detail) => {
+        void (async () => {
+          const settings = await loadSettings();
+          if (!settings.extendedLogging) return;
+          const payload = detail ? { event, windowId: session.windowId, ...detail } : { event };
+          const detailPayload = detail
+            ? { windowId: session.windowId, ...detail }
+            : { windowId: session.windowId };
+          logExtensionEvent({
+            event,
+            detail: detailPayload,
+            scope: "panel:bg",
+            level: resolveLogLevel(event),
           });
-          logPanel("slides:request", { url: resolvedPayload.url });
-          const res = await fetch("http://127.0.0.1:8787/v1/summarize", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${settings.token.trim()}`,
-              "content-type": "application/json",
-            },
-            body: JSON.stringify(slidesBody),
-            signal: controller.signal,
-          });
-          const json = (await res.json()) as { ok: boolean; id?: string; error?: string };
-          if (!res.ok || !json.ok || !json.id) {
-            throw new Error(json.error || `${res.status} ${res.statusText}`);
-          }
-          session.daemonStatus.markReady();
-          if (controller.signal.aborted) return;
-          if (
-            session.runController !== controller ||
-            (session.inflightUrl && !urlsMatch(session.inflightUrl, resolvedPayload.url))
-          ) {
-            return;
-          }
-          void send(session, {
-            type: "slides:run",
-            ok: true,
-            runId: json.id,
-            url: resolvedPayload.url,
-          });
-        } catch (err) {
-          if (controller.signal.aborted) return;
-          const message = friendlyFetchError(err, "Slides request failed");
-          if (
-            session.runController !== controller ||
-            (session.inflightUrl && !urlsMatch(session.inflightUrl, resolvedPayload.url))
-          ) {
-            return;
-          }
-          logPanel("slides:request:error", { error: message });
-          void send(session, { type: "slides:run", ok: false, error: message });
-        }
-      })();
-    }
-  };
+          console.debug("[summarize][panel:bg]", payload);
+        })();
+      },
+    });
 
   const handlePanelMessage = (session: BackgroundPanelSession, raw: PanelToBg) => {
     if (!raw || typeof raw !== "object" || typeof (raw as { type?: unknown }).type !== "string") {
