@@ -1600,6 +1600,13 @@ test("sidepanel switches between page, video, and slides modes", async ({
       ).__summarizeTestHooks = {};
     });
     await waitForPanelPort(page);
+    await page.evaluate(() => {
+      const global = window as typeof globalThis & {
+        __summarizePanelPort?: { disconnect?: () => void } | undefined;
+      };
+      global.__summarizePanelPort?.disconnect?.();
+      global.__summarizePanelPort = undefined;
+    });
 
     await page.route("http://127.0.0.1:8787/v1/tools", async (route) => {
       await route.fulfill({

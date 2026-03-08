@@ -33,6 +33,7 @@ import { createHeaderController } from "./header-controller";
 import { createMetricsController } from "./metrics-controller";
 import { createModelPresetsController } from "./model-presets";
 import { createPanelCacheController, type PanelCachePayload } from "./panel-cache";
+import { createPanelPortRuntime } from "./panel-port";
 import {
   mountSidepanelLengthPicker,
   mountSidepanelPickers,
@@ -120,46 +121,7 @@ type BgToPanel =
     }
   | { type: "ui:cache"; requestId: string; ok: boolean; cache?: PanelCachePayload };
 
-let panelPort: chrome.runtime.Port | null = null;
-let panelPortConnecting: Promise<chrome.runtime.Port | null> | null = null;
-let panelWindowId: number | null = null;
 let currentRunTabId: number | null = null;
-
-function getCurrentWindowId(): Promise<number | null> {
-  return new Promise((resolve) => {
-    chrome.windows.getCurrent((window) => {
-      resolve(typeof window?.id === "number" ? window.id : null);
-    });
-  });
-}
-
-async function ensurePanelPort(): Promise<chrome.runtime.Port | null> {
-  if (panelPort) return panelPort;
-  if (panelPortConnecting) return panelPortConnecting;
-  panelPortConnecting = (async () => {
-    const windowId = panelWindowId ?? (await getCurrentWindowId());
-    panelWindowId = windowId;
-    if (typeof windowId !== "number") return null;
-    const port = chrome.runtime.connect({ name: `sidepanel:${windowId}` });
-    panelPort = port;
-    (window as unknown as { __summarizePanelPort?: chrome.runtime.Port }).__summarizePanelPort =
-      port;
-    port.onMessage.addListener((msg) => {
-      handleBgMessage(msg as BgToPanel);
-    });
-    port.onDisconnect.addListener(() => {
-      if (panelPort !== port) return;
-      panelPort = null;
-      panelPortConnecting = null;
-      (window as unknown as { __summarizePanelPort?: chrome.runtime.Port }).__summarizePanelPort =
-        undefined;
-    });
-    return port;
-  })();
-  const resolved = await panelPortConnecting;
-  if (!resolved) panelPortConnecting = null;
-  return resolved;
-}
 
 function byId<T extends HTMLElement>(id: string): T {
   const el = document.getElementById(id);
@@ -291,6 +253,12 @@ const panelState: PanelState = {
   error: null,
   chatStreaming: false,
 };
+
+const panelPortRuntime = createPanelPortRuntime<BgToPanel>({
+  onMessage: (msg) => {
+    handleBgMessage(msg);
+  },
+});
 let drawerAnimation: Animation | null = null;
 let advancedSettingsAnimation: Animation | null = null;
 let autoValue = false;
@@ -338,6 +306,8 @@ let slidesTranscriptTimedText: string | null = null;
 let slidesTranscriptAvailable = false;
 let slidesOcrAvailable = false;
 let slidesLayoutValue: SlidesLayout = defaultSettings.slidesLayout;
+let settingsHydrated = false;
+let pendingSettingsSnapshot: Partial<typeof defaultSettings> | null = null;
 let slideDescriptions = new Map<number, string>();
 let slideSummaryByIndex = new Map<number, string>();
 let slideTitleByIndex = new Map<number, string>();
@@ -2426,13 +2396,7 @@ async function send(message: PanelToBg) {
   } else if (message.type === "panel:agent") {
     lastAction = "chat";
   }
-  const port = await ensurePanelPort();
-  if (!port) return;
-  try {
-    port.postMessage(message);
-  } catch {
-    // ignore (panel/background race while reloading)
-  }
+  await panelPortRuntime.send(message);
 }
 
 function sendSummarize(opts?: { refresh?: boolean }) {
@@ -2888,8 +2852,13 @@ modelRefreshBtn.addEventListener("click", () => {
 });
 
 void (async () => {
-  await ensurePanelPort();
-  const s = await loadSettings();
+  await panelPortRuntime.ensure();
+  const loadedSettings = await loadSettings();
+  const s = pendingSettingsSnapshot
+    ? { ...loadedSettings, ...pendingSettingsSnapshot }
+    : loadedSettings;
+  pendingSettingsSnapshot = null;
+  settingsHydrated = true;
   typographyController.setCurrentFontSize(s.fontSize);
   typographyController.setCurrentLineHeight(s.lineHeight);
   autoValue = s.autoSummarize;
@@ -2948,6 +2917,12 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
   const nextSettings = changes.settings?.newValue;
   if (!nextSettings || typeof nextSettings !== "object") return;
+  if (!settingsHydrated) {
+    pendingSettingsSnapshot = {
+      ...(pendingSettingsSnapshot ?? {}),
+      ...(nextSettings as Partial<typeof defaultSettings>),
+    };
+  }
   const nextChatEnabled = (nextSettings as { chatEnabled?: unknown }).chatEnabled;
   if (typeof nextChatEnabled === "boolean" && nextChatEnabled !== chatEnabledValue) {
     chatEnabledValue = nextChatEnabled;
