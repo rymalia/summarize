@@ -106,7 +106,9 @@ function extractPodcastTranscriptCandidatesFromItem(itemXml: string): Transcript
   return results;
 }
 
-function selectPreferredTranscriptCandidate(candidates: TranscriptCandidate[]): TranscriptCandidate | null {
+function selectPreferredTranscriptCandidate(
+  candidates: TranscriptCandidate[],
+): TranscriptCandidate | null {
   if (candidates.length === 0) return null;
   const normalized = candidates.map((candidate) => ({
     ...candidate,
@@ -157,4 +159,3 @@ function parseTranscriptBody(args: {
     segments: null,
   };
 }
-

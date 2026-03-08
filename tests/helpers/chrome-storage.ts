@@ -1,10 +1,7 @@
 type StoredValues = Record<string, unknown>;
 type StorageMode = "session" | "local" | "none";
 
-export function installChromeStorage(
-  target: StoredValues,
-  mode: StorageMode = "session",
-): void {
+export function installChromeStorage(target: StoredValues, mode: StorageMode = "session"): void {
   if (mode === "none") {
     (globalThis as unknown as { chrome: unknown }).chrome = { storage: {} };
     return;
@@ -19,4 +16,3 @@ export function installChromeStorage(
     storage: mode === "session" ? { session: store, local: store } : { local: store },
   };
 }
-

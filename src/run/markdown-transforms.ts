@@ -89,4 +89,3 @@ export function inlineReferenceStyleLinks(markdown: string): string {
     })
     .join("\n");
 }
-

@@ -17,9 +17,7 @@ export function shouldSurfaceStreamingStatus({
 }): boolean {
   const trimmed = statusText.trim().toLowerCase();
   const allowDuringStreaming =
-    trimmed.startsWith("slides:") ||
-    trimmed.startsWith("slides ") ||
-    trimmed.startsWith("slide:");
+    trimmed.startsWith("slides:") || trimmed.startsWith("slides ") || trimmed.startsWith("slide:");
   return !streamedAnyNonWhitespace || allowDuringStreaming;
 }
 
@@ -35,4 +33,3 @@ export function getTerminalStreamError(args: {
   }
   return null;
 }
-

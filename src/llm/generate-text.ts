@@ -2,8 +2,8 @@ import type { Context, Message } from "@mariozechner/pi-ai";
 import { completeSimple, streamSimple } from "@mariozechner/pi-ai";
 import { createUnsupportedFunctionalityError } from "./errors.js";
 import { parseGatewayStyleModelId } from "./model-id.js";
-import { supportsDocumentAttachments, supportsStreaming } from "./provider-capabilities.js";
 import { type Prompt, userTextAndImageMessage } from "./prompt.js";
+import { supportsDocumentAttachments, supportsStreaming } from "./provider-capabilities.js";
 import {
   completeAnthropicDocument,
   completeAnthropicText,
@@ -334,7 +334,6 @@ export async function generateTextWithModelId({
         });
       }
     }
-
   }
 
   const context = promptToContext(prompt);

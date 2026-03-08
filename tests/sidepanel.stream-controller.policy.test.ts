@@ -28,12 +28,12 @@ describe("sidepanel stream controller policy", () => {
   });
 
   it("normalizes terminal stream completion errors", () => {
-    expect(getTerminalStreamError({ sawDone: false, streamedAnyNonWhitespace: true })?.message).toBe(
-      "Stream ended unexpectedly. The daemon may have stopped.",
-    );
-    expect(getTerminalStreamError({ sawDone: true, streamedAnyNonWhitespace: false })?.message).toBe(
-      "Model returned no output.",
-    );
+    expect(
+      getTerminalStreamError({ sawDone: false, streamedAnyNonWhitespace: true })?.message,
+    ).toBe("Stream ended unexpectedly. The daemon may have stopped.");
+    expect(
+      getTerminalStreamError({ sawDone: true, streamedAnyNonWhitespace: false })?.message,
+    ).toBe("Model returned no output.");
     expect(getTerminalStreamError({ sawDone: true, streamedAnyNonWhitespace: true })).toBeNull();
   });
 });

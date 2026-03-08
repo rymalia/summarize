@@ -127,4 +127,3 @@ export function extractEnclosureUrlFromItem(xml: string): string | null {
 
   return null;
 }
-

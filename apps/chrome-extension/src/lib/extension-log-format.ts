@@ -90,4 +90,3 @@ export const parseLogMtime = (line: string | null | undefined): number | null =>
     return null;
   }
 };
-

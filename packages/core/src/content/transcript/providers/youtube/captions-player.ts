@@ -151,7 +151,8 @@ export async function fetchYoutubePlayerPayload(
   if (!apiKey) return null;
 
   const context = bootstrap?.context;
-  const clientContext = isObjectLike(context) && isObjectLike(context.client) ? context.client : null;
+  const clientContext =
+    isObjectLike(context) && isObjectLike(context.client) ? context.client : null;
 
   const requestBody: Record<string, unknown> = {
     context:

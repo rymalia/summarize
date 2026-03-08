@@ -67,7 +67,8 @@ export async function attemptRemoteFileProvider(args: {
         mediaType: args.mediaType,
         apiKey: args.assemblyaiApiKey!,
       });
-      if (text) return { kind: "result", result: { text, provider: "assemblyai", error: null, notes: [] } };
+      if (text)
+        return { kind: "result", result: { text, provider: "assemblyai", error: null, notes: [] } };
       return { kind: "error", error: new Error("AssemblyAI transcription returned empty text") };
     } catch (caught) {
       return {
@@ -87,7 +88,8 @@ export async function attemptRemoteFileProvider(args: {
         apiKey: args.geminiApiKey!,
         env: args.env,
       });
-      if (text) return { kind: "result", result: { text, provider: "gemini", error: null, notes: [] } };
+      if (text)
+        return { kind: "result", result: { text, provider: "gemini", error: null, notes: [] } };
       return { kind: "error", error: new Error("Gemini transcription returned empty text") };
     } catch (caught) {
       return {
@@ -124,7 +126,11 @@ const BYTE_PROVIDER_EXECUTORS: Record<
           error: null,
         };
       }
-      return { state, result: null, error: new Error("AssemblyAI transcription returned empty text") };
+      return {
+        state,
+        result: null,
+        error: new Error("AssemblyAI transcription returned empty text"),
+      };
     } catch (caught) {
       return {
         state,
@@ -276,4 +282,3 @@ const BYTE_PROVIDER_EXECUTORS: Record<
     }
   },
 };
-

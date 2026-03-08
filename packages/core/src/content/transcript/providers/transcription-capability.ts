@@ -1,6 +1,6 @@
 import { buildMissingTranscriptionProviderNote } from "../../../transcription/whisper/provider-setup.js";
-import type { ProviderResult, TranscriptSource } from "../types.js";
 import type { TranscriptionConfig } from "../transcription-config.js";
+import type { ProviderResult, TranscriptSource } from "../types.js";
 import {
   resolveTranscriptionAvailability,
   type TranscriptionAvailability,
@@ -43,4 +43,3 @@ export function buildMissingTranscriptionProviderResult(args: {
     notes: [buildMissingTranscriptionProviderNote(), ...notes].join("; "),
   };
 }
-

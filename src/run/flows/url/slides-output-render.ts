@@ -58,14 +58,12 @@ export function createSlidesTerminalRenderer({
   flags: { slidesDebug?: boolean };
   inlineEnabled: boolean;
   richTty: boolean;
-  inlineRenderer:
-    | {
-        renderSlide: (
-          slide: { index: number; timestamp: number; imagePath: string },
-          title?: string | null,
-        ) => Promise<boolean>;
-      }
-    | null;
+  inlineRenderer: {
+    renderSlide: (
+      slide: { index: number; timestamp: number; imagePath: string },
+      title?: string | null,
+    ) => Promise<boolean>;
+  } | null;
   labelTheme: { dim: (text: string) => string; heading: (text: string) => string };
   clearProgressForStdout: () => void;
   restoreProgressAfterStdout?: (() => void) | null;
@@ -96,9 +94,7 @@ export function createSlidesTerminalRenderer({
       typeof timestamp === "number" && Number.isFinite(timestamp)
         ? buildTimestampUrl(getSourceUrl(), timestamp)
         : null;
-    const timeLink = timestampLabel
-      ? formatOsc8Link(timestampLabel, timestampUrl, richTty)
-      : null;
+    const timeLink = timestampLabel ? formatOsc8Link(timestampLabel, timestampUrl, richTty) : null;
     const slideLabelBase = total > 0 ? `Slide ${index}/${total}` : `Slide ${index}`;
     const rawLabel = [slideLabelBase, timeLink].filter(Boolean).join(" · ");
     const label = labelTheme.dim(rawLabel);

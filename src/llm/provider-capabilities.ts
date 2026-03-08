@@ -81,8 +81,8 @@ export function envHasRequiredKey(
   if (requiredEnv === "GEMINI_API_KEY") {
     return Boolean(
       env.GEMINI_API_KEY?.trim() ||
-        env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
-        env.GOOGLE_API_KEY?.trim(),
+      env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
+      env.GOOGLE_API_KEY?.trim(),
     );
   }
   if (requiredEnv === "Z_AI_API_KEY") {
@@ -90,4 +90,3 @@ export function envHasRequiredKey(
   }
   return Boolean(env[requiredEnv]?.trim());
 }
-

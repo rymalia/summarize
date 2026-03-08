@@ -3,6 +3,7 @@ import { fetchWithTimeout } from "../../../link-preview/fetch-with-timeout.js";
 import { parseTimestampToMs } from "../../timestamps.js";
 import { decodeHtmlEntities, sanitizeYoutubeJsonResponse } from "../../utils.js";
 import { extractYoutubeiBootstrap } from "./api.js";
+import { extractInitialPlayerResponse, extractInnertubeApiKey } from "./captions-player.js";
 import {
   CaptionEventRecord,
   CaptionListRenderer,
@@ -16,7 +17,6 @@ import {
   YoutubeTranscriptContext,
   isObjectLike,
 } from "./captions-shared.js";
-import { extractInitialPlayerResponse, extractInnertubeApiKey } from "./captions-player.js";
 
 async function fetchTranscriptViaAndroidPlayer(
   fetchImpl: typeof fetch,

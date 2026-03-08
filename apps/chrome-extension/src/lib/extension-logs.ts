@@ -1,8 +1,4 @@
-import {
-  buildLogLine,
-  parseLogMtime,
-  type ExtensionLogEvent,
-} from "./extension-log-format";
+import { buildLogLine, parseLogMtime, type ExtensionLogEvent } from "./extension-log-format";
 
 type ExtensionLogResult = {
   ok: boolean;

@@ -6,6 +6,7 @@ import type {
   CliProvider,
   SummarizeConfig,
 } from "./config.js";
+import { normalizeGatewayStyleModelId, parseGatewayStyleModelId } from "./llm/model-id.js";
 import {
   DEFAULT_AUTO_CLI_ORDER,
   DEFAULT_CLI_MODELS,
@@ -15,7 +16,6 @@ import {
   requiredEnvForGatewayProvider,
   type RequiredModelEnv,
 } from "./llm/provider-capabilities.js";
-import { normalizeGatewayStyleModelId, parseGatewayStyleModelId } from "./llm/model-id.js";
 import type { LiteLlmCatalog } from "./pricing/litellm.js";
 import {
   resolveLiteLlmMaxInputTokensForModelId,
