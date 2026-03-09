@@ -28,13 +28,12 @@ describe("sidepanel session policy", () => {
       shouldAbortChatStream: false,
       shouldClearChat: false,
       shouldMigrateChat: true,
-      shouldAppendNavigationMessage: false,
       nextInputMode: "video",
       resetInputModeOverride: true,
     });
   });
 
-  it("clears chat and appends a navigation message on a same-tab url change", () => {
+  it("clears chat on a same-tab url change", () => {
     expect(
       resolvePanelNavigationDecision({
         activeTabId: 2,
@@ -53,7 +52,6 @@ describe("sidepanel session policy", () => {
       shouldAbortChatStream: false,
       shouldClearChat: true,
       shouldMigrateChat: false,
-      shouldAppendNavigationMessage: true,
       nextInputMode: "page",
       resetInputModeOverride: false,
     });

@@ -54,7 +54,6 @@ export function createChatUiRuntime({
   restoreHistory,
   resetChatController,
   resetChatSession,
-  clearLastNavigationMessage,
   ResizeObserverImpl = globalThis.ResizeObserver,
 }: {
   mainEl: ScrollEl;
@@ -81,7 +80,6 @@ export function createChatUiRuntime({
   restoreHistory: (tabId: number | null, summaryMarkdown?: string | null) => Promise<void>;
   resetChatController: () => void;
   resetChatSession: () => void;
-  clearLastNavigationMessage: () => void;
   ResizeObserverImpl?: ResizeObserverCtor;
 }) {
   let autoScrollLocked = true;
@@ -113,7 +111,6 @@ export function createChatUiRuntime({
     clearQueuedMessages();
     chatJumpBtn.classList.remove("isVisible");
     resetChatSession();
-    clearLastNavigationMessage();
   };
 
   const applyChatEnabled = () => {

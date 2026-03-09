@@ -55,7 +55,6 @@ type UiStateRuntimeOpts = {
   maybeStartPendingSlidesForUrl: (url: string | null) => void;
   applyPanelCache: (payload: PanelCachePayload, opts?: { preserveChat?: boolean }) => void;
   resetSummaryView: (opts?: { preserveChat?: boolean }) => void;
-  appendNavigationMessage: (url: string, title: string | null) => void | Promise<void>;
   hideAutomationNotice: () => void;
   hideSlideNotice: () => void;
   maybeApplyPendingSlidesSummary: () => void;
@@ -228,9 +227,6 @@ export function createUiStateRuntime(opts: UiStateRuntimeOpts) {
       }
       if (navigation.nextInputMode) {
         opts.setInputMode(navigation.nextInputMode);
-      }
-      if (navigation.shouldAppendNavigationMessage && nextTabUrl) {
-        void opts.appendNavigationMessage(nextTabUrl, state.tab.title ?? null);
       }
     }
 

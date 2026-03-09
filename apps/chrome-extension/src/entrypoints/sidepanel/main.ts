@@ -1,9 +1,8 @@
-import type { Message, ToolCall, ToolResultMessage } from "@mariozechner/pi-ai";
+import type { Message, ToolCall } from "@mariozechner/pi-ai";
 import { extractYouTubeVideoId } from "@steipete/summarize-core/content/url";
 import MarkdownIt from "markdown-it";
 import { splitSummaryFromSlides } from "../../../../../src/run/flows/url/slides-text.js";
 import type { SseSlidesData } from "../../../../../src/shared/sse-events.js";
-import { listSkills } from "../../automation/skills-store";
 import { executeToolCall, getAutomationToolNames } from "../../automation/tools";
 import type { BgToPanel, PanelToBg } from "../../lib/panel-contracts";
 import {
@@ -213,7 +212,6 @@ let activeTabId: number | null = null;
 let activeTabUrl: string | null = null;
 let lastPanelOpen = false;
 let lastAction: "summarize" | "chat" | null = null;
-let lastNavigationMessageUrl: string | null = null;
 let inputMode: "page" | "video" = "page";
 let inputModeOverride: "page" | "video" | null = null;
 let mediaAvailable = false;
@@ -651,34 +649,6 @@ async function migrateChatHistory(fromTabId: number | null, toTabId: number | nu
   await chatHistoryStore.persist(toTabId, messages, true);
 }
 
-async function appendNavigationMessage(url: string, title: string | null) {
-  if (!url || lastNavigationMessageUrl === url) return;
-  lastNavigationMessageUrl = url;
-
-  const skills = await listSkills(url);
-  const skillsText =
-    skills.length === 0
-      ? "Skills: none"
-      : `Skills:\n${skills.map((skill) => `- ${skill.name}: ${skill.shortDescription}`).join("\n")}`;
-
-  const text = ["Navigation changed", `Title: ${title || url}`, `URL: ${url}`, skillsText].join(
-    "\n",
-  );
-
-  const message: ToolResultMessage = {
-    role: "toolResult",
-    toolCallId: crypto.randomUUID(),
-    toolName: "navigation",
-    content: [{ type: "text", text }],
-    isError: false,
-    timestamp: Date.now(),
-  };
-
-  chatController.addMessage(wrapMessage(message));
-  scrollToBottom(true);
-  void persistChatHistory();
-}
-
 const syncWithActiveTab = () => navigationRuntime.syncWithActiveTab();
 
 async function clearCurrentView() {
@@ -1050,9 +1020,6 @@ chatUiRuntime = createChatUiRuntime({
   resetChatSession: () => {
     chatSession.reset();
   },
-  clearLastNavigationMessage: () => {
-    lastNavigationMessageUrl = null;
-  },
 });
 
 const setupControlsRuntime = createSetupControlsRuntime({
@@ -1225,7 +1192,6 @@ const uiStateRuntime = createUiStateRuntime({
   maybeStartPendingSlidesForUrl,
   applyPanelCache,
   resetSummaryView,
-  appendNavigationMessage,
   hideAutomationNotice,
   hideSlideNotice,
   maybeApplyPendingSlidesSummary,

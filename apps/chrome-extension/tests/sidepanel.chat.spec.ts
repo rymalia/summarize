@@ -235,6 +235,7 @@ test("sidepanel clears chat on user navigation", async ({
     });
 
     await expect(page.locator(".chatMessage")).toHaveCount(0);
+    await expect(page.locator("#chatMessages")).not.toContainText("Tool result: navigation");
     assertNoErrors(harness);
   } finally {
     await closeExtension(harness.context, harness.userDataDir);

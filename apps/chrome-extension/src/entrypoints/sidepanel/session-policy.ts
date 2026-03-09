@@ -38,7 +38,6 @@ export type PanelNavigationDecision = {
   shouldAbortChatStream: boolean;
   shouldClearChat: boolean;
   shouldMigrateChat: boolean;
-  shouldAppendNavigationMessage: boolean;
   nextInputMode: "page" | "video" | null;
   resetInputModeOverride: boolean;
 };
@@ -75,7 +74,6 @@ export function resolvePanelNavigationDecision({
       shouldAbortChatStream: false,
       shouldClearChat: false,
       shouldMigrateChat: false,
-      shouldAppendNavigationMessage: false,
       nextInputMode: null,
       resetInputModeOverride: false,
     };
@@ -88,7 +86,6 @@ export function resolvePanelNavigationDecision({
       shouldAbortChatStream: !preserveChat,
       shouldClearChat: !preserveChat,
       shouldMigrateChat: preserveChat,
-      shouldAppendNavigationMessage: false,
       nextInputMode: preferUrlMode ? "video" : "page",
       resetInputModeOverride: true,
     };
@@ -100,7 +97,6 @@ export function resolvePanelNavigationDecision({
     shouldAbortChatStream: false,
     shouldClearChat: !preserveChat && chatEnabled && hasActiveChat,
     shouldMigrateChat: false,
-    shouldAppendNavigationMessage: chatEnabled && hasActiveChat && Boolean(nextTabUrl),
     nextInputMode: inputModeOverride ? null : preferUrlMode ? "video" : "page",
     resetInputModeOverride: false,
   };

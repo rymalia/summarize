@@ -53,8 +53,6 @@ describe("sidepanel chat ui runtime", () => {
     const restoreHistory = vi.fn(async () => {});
     const resetChatController = vi.fn();
     const resetChatSession = vi.fn();
-    const clearLastNavigationMessage = vi.fn();
-
     const runtime = createChatUiRuntime({
       mainEl,
       chatJumpBtn,
@@ -74,7 +72,6 @@ describe("sidepanel chat ui runtime", () => {
       restoreHistory,
       resetChatController,
       resetChatSession,
-      clearLastNavigationMessage,
     });
 
     runtime.applyChatEnabled();
@@ -84,7 +81,6 @@ describe("sidepanel chat ui runtime", () => {
     expect(clearMetrics).toHaveBeenCalledOnce();
     expect(resetChatController).toHaveBeenCalledOnce();
     expect(resetChatSession).toHaveBeenCalledOnce();
-    expect(clearLastNavigationMessage).toHaveBeenCalledOnce();
     expect(clearQueuedMessages).toHaveBeenCalledTimes(2);
     expect(document.documentElement.style.getPropertyValue("--chat-dock-height")).toBe("48px");
   });
@@ -124,7 +120,6 @@ describe("sidepanel chat ui runtime", () => {
       restoreHistory,
       resetChatController: vi.fn(),
       resetChatSession: vi.fn(),
-      clearLastNavigationMessage: vi.fn(),
     });
 
     mainEl.dispatchEvent(new Event("scroll"));
