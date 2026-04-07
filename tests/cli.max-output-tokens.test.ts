@@ -62,7 +62,7 @@ describe("--max-output-tokens", () => {
 
     const out = collectStdout();
     await runCli(
-      ["--model", "openai/gpt-5.2", "--length", "20k", "--timeout", "2s", "https://example.com"],
+      ["--model", "openai/gpt-5-chat", "--length", "20k", "--timeout", "2s", "https://example.com"],
       {
         env: { OPENAI_API_KEY: "test" },
         fetch: fetchMock as unknown as typeof fetch,
@@ -91,7 +91,7 @@ describe("--max-output-tokens", () => {
     await runCli(
       [
         "--model",
-        "openai/gpt-5.2",
+        "openai/gpt-5-chat",
         "--max-output-tokens",
         "1234",
         "--timeout",

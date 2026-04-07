@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
     role: "assistant",
     api: "openai-responses",
     provider: "openai",
-    model: "gpt-5.2",
+    model: "gpt-5-chat",
     stopReason: "stop",
     timestamp: Date.now(),
     content: [{ type: "text", text: "SUMMARY" }],
@@ -104,7 +104,7 @@ describe("--model auto (YouTube)", () => {
 
     const out = collectStdout();
     await runCli(["--model", "auto", "--timeout", "2s", youtubeUrl], {
-      env: { OPENAI_API_KEY: "test" },
+      env: { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "not a url" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: out.stdout,
       stderr: silentStderr,

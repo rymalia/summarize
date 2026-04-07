@@ -64,7 +64,7 @@ describe("--max-output-tokens (OpenRouter)", () => {
     await runCli(
       [
         "--model",
-        "openrouter/openai/gpt-5-mini",
+        "openrouter/openai/gpt-5-chat",
         "--max-output-tokens",
         "1234",
         "--timeout",

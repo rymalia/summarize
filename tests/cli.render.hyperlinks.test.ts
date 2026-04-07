@@ -51,7 +51,7 @@ describe("cli markdown hyperlinks", () => {
     writeFileSync(
       join(cacheDir, "litellm-model_prices_and_context_window.json"),
       JSON.stringify({
-        "gpt-5.2": { input_cost_per_token: 0.00000175, output_cost_per_token: 0.000014 },
+        "gpt-5-chat": { input_cost_per_token: 0.00000175, output_cost_per_token: 0.000014 },
       }),
       "utf8",
     );
@@ -74,7 +74,7 @@ describe("cli markdown hyperlinks", () => {
     (stdout.stream as unknown as { columns?: number }).columns = 80;
     const stderr = collectStream();
 
-    await runCli(["--model", "openai/gpt-5.2", "--stream", "off", "https://example.com"], {
+    await runCli(["--model", "openai/gpt-5-chat", "--stream", "off", "https://example.com"], {
       env: { HOME: root, OPENAI_API_KEY: "test", TERM: "xterm-256color" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: stdout.stream,

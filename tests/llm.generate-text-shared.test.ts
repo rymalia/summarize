@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  isOpenAiGpt5Model,
   promptToContext,
   resolveEffectiveTemperature,
   resolveGoogleEmptyResponseFallbackModelId,
+  shouldRetryGpt5WithoutTokenCap,
 } from "../src/llm/generate-text-shared.js";
 
 describe("generate-text shared helpers", () => {
@@ -47,6 +49,38 @@ describe("generate-text shared helpers", () => {
         temperature: 0.4,
       }),
     ).toBe(0.4);
+  });
+
+  it("detects GPT-5-family retries that should drop maxOutputTokens", () => {
+    expect(isOpenAiGpt5Model("openai", "gpt-5-mini")).toBe(true);
+    expect(isOpenAiGpt5Model("openai", "openai/gpt-5-mini")).toBe(true);
+    expect(isOpenAiGpt5Model("github-copilot", "openai/gpt-5.4")).toBe(true);
+    expect(isOpenAiGpt5Model("openai", "gpt-4.1")).toBe(false);
+
+    expect(
+      shouldRetryGpt5WithoutTokenCap({
+        provider: "openai",
+        model: "gpt-5-mini",
+        maxOutputTokens: 200,
+        error: new Error("LLM returned an empty summary (model openai/gpt-5-mini)."),
+      }),
+    ).toBe(true);
+    expect(
+      shouldRetryGpt5WithoutTokenCap({
+        provider: "openai",
+        model: "gpt-5-mini",
+        maxOutputTokens: undefined,
+        error: new Error("LLM returned an empty summary"),
+      }),
+    ).toBe(false);
+    expect(
+      shouldRetryGpt5WithoutTokenCap({
+        provider: "openai",
+        model: "gpt-4.1",
+        maxOutputTokens: 200,
+        error: new Error("LLM returned an empty summary"),
+      }),
+    ).toBe(false);
   });
 
   it("only falls back preview or exp Google ids", () => {

@@ -295,20 +295,19 @@ export async function streamTextWithContext({
         forceChatCompletions,
       });
       if (parsed.provider === "github-copilot") {
-        const completion = completeOpenAiText({
+        const result = await completeOpenAiText({
           modelId: parsed.model,
           openaiConfig,
           context,
           temperature: effectiveTemperature,
           maxOutputTokens,
           signal: controller.signal,
+          fetchImpl,
         });
-        const usage = completion.then((result) => result.usage);
         return {
           textStream: createTimedTextStream({
             textStream: {
               async *[Symbol.asyncIterator]() {
-                const result = await completion;
                 yield result.text;
               },
             },
@@ -316,9 +315,11 @@ export async function streamTextWithContext({
             controller,
             setLastError,
           }),
-          canonicalModelId: parsed.canonical,
+          canonicalModelId: result.resolvedModelId
+            ? `${parsed.provider}/${result.resolvedModelId}`
+            : parsed.canonical,
           provider: parsed.provider,
-          usage,
+          usage: Promise.resolve(result.usage),
           lastError: () => lastError,
         };
       }

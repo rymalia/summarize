@@ -8,6 +8,7 @@ import {
   promptToContext,
   resolveEffectiveTemperature,
   resolveGoogleEmptyResponseFallbackModelId,
+  shouldRetryGpt5WithoutTokenCap,
   sleep,
 } from "./generate-text-shared.js";
 import { streamTextWithContext } from "./generate-text-stream.js";
@@ -309,10 +310,13 @@ export async function generateTextWithModelId({
           temperature: effectiveTemperature,
           maxOutputTokens,
           signal: controller.signal,
+          fetchImpl,
         });
         return {
           text: result.text,
-          canonicalModelId: parsed.canonical,
+          canonicalModelId: result.resolvedModelId
+            ? `${parsed.provider}/${result.resolvedModelId}`
+            : parsed.canonical,
           provider: parsed.provider,
           usage: result.usage,
         };
@@ -329,6 +333,32 @@ export async function generateTextWithModelId({
         parsed.provider === "google" &&
         isGoogleEmptySummaryError(normalizedError) &&
         resolveGoogleEmptyResponseFallbackModelId(parsed.canonical);
+      if (
+        shouldRetryGpt5WithoutTokenCap({
+          provider: parsed.provider,
+          model: parsed.model,
+          maxOutputTokens,
+          error: normalizedError,
+        })
+      ) {
+        return generateTextWithModelId({
+          modelId: parsed.canonical,
+          apiKeys,
+          prompt,
+          temperature,
+          timeoutMs,
+          fetchImpl,
+          forceOpenRouter,
+          openaiBaseUrlOverride,
+          anthropicBaseUrlOverride,
+          googleBaseUrlOverride,
+          xaiBaseUrlOverride,
+          zaiBaseUrlOverride,
+          forceChatCompletions,
+          retries: Math.max(0, maxRetries - attempt),
+          onRetry,
+        });
+      }
       if (googleFallbackModelId) {
         return generateTextWithModelId({
           modelId: googleFallbackModelId,

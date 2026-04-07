@@ -75,7 +75,7 @@ describe("cli LLM provider selection (direct keys)", () => {
     });
 
     const out = collectStdout();
-    await runCli(["--model", "openai/gpt-5.2", "--timeout", "2s", "https://example.com"], {
+    await runCli(["--model", "openai/gpt-5-chat", "--timeout", "2s", "https://example.com"], {
       env: { OPENAI_API_KEY: "test" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: out.stdout,
@@ -340,7 +340,7 @@ describe("cli LLM provider selection (direct keys)", () => {
     expect(model.baseUrl).toBe("https://anthropic-proxy.example.com");
 
     mocks.completeSimple.mockClear();
-    await runCli(["--model", "openai/gpt-5.2", "--timeout", "2s", "https://example.com"], {
+    await runCli(["--model", "openai/gpt-5-chat", "--timeout", "2s", "https://example.com"], {
       env: { HOME: home, OPENAI_API_KEY: "test" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: out.stdout,

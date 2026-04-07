@@ -56,7 +56,7 @@ describe("cli empty summary handling", () => {
     });
 
     await expect(
-      runCli(["--model", "openai/gpt-5.2", "--timeout", "10s", "https://example.com"], {
+      runCli(["--model", "openai/gpt-5-chat", "--timeout", "10s", "https://example.com"], {
         env: { OPENAI_API_KEY: "test" },
         fetch: fetchMock as unknown as typeof fetch,
         stdout,

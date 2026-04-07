@@ -61,7 +61,7 @@ describe("cli config legacy apiKeys", () => {
     writeFileSync(
       join(root, ".summarize", "config.json"),
       JSON.stringify({
-        model: { id: "openai/gpt-5.2" },
+        model: { id: "openai/gpt-5-chat" },
         apiKeys: { openai: "test-legacy-openai-key" },
       }),
       "utf8",

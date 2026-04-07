@@ -91,9 +91,13 @@ export function streamUsageWithTimeout({
   });
 }
 
-function isOpenaiGpt5Model(provider: string, model: string): boolean {
+export function isOpenAiGpt5Model(provider: string, model: string): boolean {
+  const normalized = model
+    .trim()
+    .toLowerCase()
+    .replace(/^openai\//, "");
   return (
-    (provider === "openai" && /^gpt-5([-.].+)?$/i.test(model)) ||
+    (provider === "openai" && /^gpt-5([-.].+)?$/i.test(normalized)) ||
     (provider === "github-copilot" && /^openai\/gpt-5([-.].+)?$/i.test(model))
   );
 }
@@ -108,8 +112,32 @@ export function resolveEffectiveTemperature({
   temperature?: number;
 }): number | undefined {
   if (typeof temperature !== "number") return undefined;
-  if (isOpenaiGpt5Model(provider, model)) return undefined;
+  if (isOpenAiGpt5Model(provider, model)) return undefined;
   return temperature;
+}
+
+export function shouldRetryGpt5WithoutTokenCap({
+  provider,
+  model,
+  maxOutputTokens,
+  error,
+}: {
+  provider: string;
+  model: string;
+  maxOutputTokens?: number;
+  error: unknown;
+}): boolean {
+  if (typeof maxOutputTokens !== "number") return false;
+  if (!isOpenAiGpt5Model(provider, model)) return false;
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : typeof (error as { message?: unknown })?.message === "string"
+          ? String((error as { message?: unknown }).message)
+          : "";
+  return /empty summary/i.test(message);
 }
 
 export function resolveGoogleEmptyResponseFallbackModelId(modelId: string): string | null {

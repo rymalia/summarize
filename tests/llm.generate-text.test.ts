@@ -88,7 +88,7 @@ describe("llm generate/stream", () => {
       maxOutputTokens: 7,
     });
     await generateTextWithModelId({
-      modelId: "openai/gpt-5.2",
+      modelId: "openai/gpt-5-chat",
       apiKeys: {
         openaiApiKey: "k",
         xaiApiKey: null,
@@ -113,7 +113,7 @@ describe("llm generate/stream", () => {
     mocks.streamSimple.mockClear();
 
     await generateTextWithModelId({
-      modelId: "openai/gpt-5.2",
+      modelId: "openai/gpt-5-chat",
       apiKeys: {
         openaiApiKey: "k",
         xaiApiKey: null,
@@ -127,7 +127,7 @@ describe("llm generate/stream", () => {
     });
 
     await streamTextWithModelId({
-      modelId: "openai/gpt-5.2",
+      modelId: "openai/gpt-5-chat",
       apiKeys: {
         openaiApiKey: "k",
         xaiApiKey: null,
@@ -484,6 +484,91 @@ describe("llm generate/stream", () => {
     expect(mocks.completeSimple).toHaveBeenCalledTimes(2);
   });
 
+  it("retries GPT-5-family empty outputs once without maxOutputTokens", async () => {
+    delete process.env.OPENAI_BASE_URL;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { max_output_tokens?: number };
+        expect(body.max_output_tokens).toBe(200);
+        return new Response(JSON.stringify({ output: [{ content: [{ text: "   " }] }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      })
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { max_output_tokens?: number };
+        expect(body).not.toHaveProperty("max_output_tokens");
+        return new Response(
+          JSON.stringify({ output: [{ content: [{ text: "ok without cap" }] }] }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      });
+
+    const result = await generateTextWithModelId({
+      modelId: "openai/gpt-5-mini",
+      apiKeys: {
+        openaiApiKey: "k",
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: null,
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: fetchMock as typeof fetch,
+      maxOutputTokens: 200,
+    });
+
+    expect(result.text).toBe("ok without cap");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries OpenRouter GPT-5-family empty outputs once without maxOutputTokens", async () => {
+    delete process.env.OPENAI_BASE_URL;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { max_tokens?: number };
+        expect(body.max_tokens).toBe(200);
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: null } }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      })
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { max_tokens?: number };
+        expect(body).not.toHaveProperty("max_tokens");
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "ok from openrouter without cap" } }],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      });
+
+    const result = await generateTextWithModelId({
+      modelId: "openai/openai/gpt-5-mini",
+      apiKeys: {
+        openaiApiKey: null,
+        xaiApiKey: null,
+        googleApiKey: null,
+        anthropicApiKey: null,
+        openrouterApiKey: "k",
+      },
+      prompt: { userText: "hi" },
+      timeoutMs: 2000,
+      fetchImpl: fetchMock as typeof fetch,
+      forceOpenRouter: true,
+      maxOutputTokens: 200,
+    });
+
+    expect(result.text).toBe("ok from openrouter without cap");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("falls back from empty Google preview responses to google/gemini-2.5-flash", async () => {
     mocks.completeSimple.mockClear();
     mocks.completeSimple.mockImplementationOnce(async (model: MockModel) =>
@@ -776,31 +861,44 @@ describe("llm generate/stream", () => {
 
   it("uses the GitHub Models chat-completions endpoint for github-copilot ids", async () => {
     mocks.completeSimple.mockClear();
-    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      expect(String(_input)).toBe("https://models.github.ai/inference/chat/completions");
-      expect((init?.headers as Record<string, string>)?.Accept).toBe("application/vnd.github+json");
-      expect((init?.headers as Record<string, string>)?.["X-GitHub-Api-Version"]).toBe(
-        "2026-03-10",
-      );
-      const body = JSON.parse(String(init?.body)) as {
-        model: string;
-        messages: Array<{ role: string; content: string }>;
-      };
-      expect(body.model).toBe("openai/gpt-4.1");
-      expect(body.messages.at(-1)).toEqual({ role: "user", content: "hi" });
-      return new Response(
-        JSON.stringify({
-          choices: [{ message: { role: "assistant", content: "ok from github models" } }],
-          usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
-    });
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        expect(String(_input)).toBe("https://models.github.ai/inference/chat/completions");
+        expect((init?.headers as Record<string, string>)?.Accept).toBe(
+          "application/vnd.github+json",
+        );
+        expect((init?.headers as Record<string, string>)?.["X-GitHub-Api-Version"]).toBe(
+          "2026-03-10",
+        );
+        const body = JSON.parse(String(init?.body)) as {
+          model: string;
+          messages: Array<{ role: string; content: string }>;
+        };
+        expect(body.model).toBe("openai/gpt-5.4");
+        expect(body.messages.at(-1)).toEqual({ role: "user", content: "hi" });
+        return new Response(JSON.stringify({ error: "server error" }), { status: 500 });
+      })
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as {
+          model: string;
+          messages: Array<{ role: string; content: string }>;
+        };
+        expect(body.model).toBe("openai/gpt-5-chat");
+        expect(body.messages.at(-1)).toEqual({ role: "user", content: "hi" });
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { role: "assistant", content: "ok from github models" } }],
+            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      });
 
     try {
       vi.stubGlobal("fetch", fetchMock);
       const result = await generateTextWithModelId({
-        modelId: "github-copilot/gpt-4.1",
+        modelId: "github-copilot/gpt-5.4",
         apiKeys: {
           openaiApiKey: "gh-token",
           openrouterApiKey: null,
@@ -814,6 +912,7 @@ describe("llm generate/stream", () => {
       });
 
       expect(result.text).toBe("ok from github models");
+      expect(result.canonicalModelId).toBe("github-copilot/openai/gpt-5-chat");
       expect(result.provider).toBe("github-copilot");
       expect(mocks.completeSimple).not.toHaveBeenCalled();
     } finally {

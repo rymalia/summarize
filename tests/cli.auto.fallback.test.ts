@@ -76,7 +76,7 @@ describe("cli auto fallback behavior", () => {
           rules: [
             {
               when: ["website"],
-              candidates: ["google/gemini-3-flash-preview", "openai/gpt-5-mini"],
+              candidates: ["google/gemini-3-flash-preview", "openai/gpt-5-chat"],
             },
           ],
         },
@@ -136,7 +136,7 @@ describe("cli auto fallback behavior", () => {
           rules: [
             {
               when: ["website"],
-              candidates: ["openai/gpt-5-nano", "openai/gpt-5-mini"],
+              candidates: ["openai/gpt-5-chat", "openai/gpt-4.1"],
             },
           ],
         },

@@ -337,6 +337,134 @@ describe("openai provider helpers", () => {
     }
   });
 
+  it("uses the Responses API for OpenAI GPT-5-family text models", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://api.openai.com/v1/responses");
+      const body = JSON.parse(String(init?.body)) as {
+        model: string;
+        instructions?: string;
+        input: Array<{ role: string; content: Array<{ type: string; text: string }> }>;
+      };
+      expect(body.model).toBe("gpt-5.4");
+      expect(body.instructions).toBe("system");
+      expect(body.input).toEqual([
+        { role: "user", content: [{ type: "input_text", text: "hello" }] },
+        { role: "assistant", content: [{ type: "input_text", text: "seen" }] },
+      ]);
+      return new Response(
+        JSON.stringify({
+          output: [{ content: [{ text: "Hello from responses" }] }],
+          usage: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const result = await completeOpenAiText({
+      modelId: "gpt-5.4",
+      openaiConfig: {
+        apiKey: "oa-key",
+        baseURL: "https://api.openai.com/v1",
+        useChatCompletions: false,
+        isOpenRouter: false,
+      },
+      context: {
+        systemPrompt: "system",
+        messages: [
+          { role: "user", content: "hello" },
+          { role: "assistant", content: [{ type: "text", text: "seen" }] },
+        ],
+      },
+      signal: new AbortController().signal,
+      fetchImpl: fetchMock as typeof fetch,
+    });
+
+    expect(result.text).toBe("Hello from responses");
+    expect(result.resolvedModelId).toBe("gpt-5.4");
+  });
+
+  it("uses chat completions directly for OpenRouter GPT-5-family text models", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe("https://openrouter.ai/api/v1/chat/completions");
+      expect((init?.headers as Record<string, string>)?.["HTTP-Referer"]).toBe(
+        "https://github.com/steipete/summarize",
+      );
+      expect((init?.headers as Record<string, string>)?.["X-Title"]).toBe("summarize");
+      const body = JSON.parse(String(init?.body)) as {
+        model: string;
+        messages: Array<{ role: string; content: string }>;
+      };
+      expect(body.model).toBe("openai/gpt-5-mini");
+      expect(body.messages).toEqual([{ role: "user", content: "hello" }]);
+      return new Response(
+        JSON.stringify({
+          choices: [{ message: { content: "Hello from OpenRouter" } }],
+          usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    const result = await completeOpenAiText({
+      modelId: "openai/gpt-5-mini",
+      openaiConfig: {
+        apiKey: "or-key",
+        baseURL: "https://openrouter.ai/api/v1",
+        useChatCompletions: true,
+        isOpenRouter: true,
+      },
+      context: {
+        systemPrompt: null,
+        messages: [{ role: "user", content: "hello" }],
+      },
+      signal: new AbortController().signal,
+      fetchImpl: fetchMock as typeof fetch,
+    });
+
+    expect(result.text).toBe("Hello from OpenRouter");
+    expect(result.resolvedModelId).toBe("openai/gpt-5-mini");
+  });
+
+  it("falls back GitHub GPT-5-family requests to gpt-5-chat when the direct id fails", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { model: string };
+        expect(body.model).toBe("openai/gpt-5.4");
+        return new Response(JSON.stringify({ error: "server error" }), { status: 500 });
+      })
+      .mockImplementationOnce(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)) as { model: string };
+        expect(body.model).toBe("openai/gpt-5-chat");
+        return new Response(
+          JSON.stringify({
+            choices: [{ message: { content: "Hello from GitHub compat" } }],
+            usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 },
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      });
+
+    const result = await completeOpenAiText({
+      modelId: "openai/gpt-5.4",
+      openaiConfig: {
+        apiKey: "gh-key",
+        baseURL: "https://models.github.ai/inference",
+        useChatCompletions: true,
+        isOpenRouter: false,
+      },
+      context: {
+        systemPrompt: null,
+        messages: [{ role: "user", content: "hello" }],
+      },
+      signal: new AbortController().signal,
+      fetchImpl: fetchMock as typeof fetch,
+    });
+
+    expect(result.text).toBe("Hello from GitHub compat");
+    expect(result.resolvedModelId).toBe("openai/gpt-5-chat");
+  });
+
   it("surfaces GitHub chat completion HTTP errors", async () => {
     const originalFetch = globalThis.fetch;
     vi.stubGlobal(

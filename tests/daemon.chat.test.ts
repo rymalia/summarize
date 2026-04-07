@@ -90,7 +90,7 @@ describe("daemon/chat", () => {
       pageTitle: "Example",
       pageContent: "Hello world",
       messages: [{ role: "user", content: "Hi" }],
-      modelOverride: "github-copilot/gpt-4.1",
+      modelOverride: "github-copilot/gpt-5.4",
       pushToSession: () => {},
       emitMeta: (patch) => meta.push(patch),
     });
@@ -102,11 +102,11 @@ describe("daemon/chat", () => {
       forceChatCompletions?: boolean;
       apiKeys?: { openaiApiKey?: string | null };
     };
-    expect(args.modelId).toBe("github-copilot/openai/gpt-4.1");
+    expect(args.modelId).toBe("github-copilot/openai/gpt-5.4");
     expect(args.openaiBaseUrlOverride).toBe("https://models.github.ai/inference");
     expect(args.forceChatCompletions).toBe(true);
     expect(args.apiKeys?.openaiApiKey).toBe("gh-token");
-    expect(meta[0]?.model).toBe("github-copilot/openai/gpt-4.1");
+    expect(meta[0]?.model).toBe("github-copilot/openai/gpt-5.4");
   });
 
   it("runs fixed CLI model overrides through the CLI transport", async () => {

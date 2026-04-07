@@ -25,7 +25,7 @@ describe("llm/generate-text extra branches", () => {
     );
 
     const result = await streamTextWithModelId({
-      modelId: "openai/gpt-5.2",
+      modelId: "openai/gpt-5-chat",
       apiKeys: {
         openaiApiKey: "k",
         xaiApiKey: null,
@@ -95,7 +95,7 @@ describe("llm/generate-text extra branches", () => {
 
       const onRetry = vi.fn();
       const promise = generateTextWithModelId({
-        modelId: "openai/gpt-5.2",
+        modelId: "openai/gpt-5-chat",
         apiKeys: {
           openaiApiKey: "k",
           xaiApiKey: null,
@@ -126,7 +126,7 @@ describe("llm/generate-text extra branches", () => {
     mocks.completeSimple.mockReset();
     await expect(
       generateTextWithModelId({
-        modelId: "openai/gpt-5.2",
+        modelId: "openai/gpt-5-chat",
         apiKeys: {
           openaiApiKey: null,
           xaiApiKey: null,

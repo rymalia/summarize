@@ -75,7 +75,7 @@ describe("cli config precedence", () => {
     const tempRoot = mkdtempSync(join(tmpdir(), "summarize-cli-config-"));
     const configPath = join(tempRoot, ".summarize", "config.json");
     mkdirSync(join(tempRoot, ".summarize"), { recursive: true });
-    writeFileSync(configPath, JSON.stringify({ model: { id: "openai/gpt-5.2" } }), "utf8");
+    writeFileSync(configPath, JSON.stringify({ model: { id: "openai/gpt-5-chat" } }), "utf8");
 
     await runCli(["--timeout", "2s", "https://example.com"], {
       env: { HOME: tempRoot, OPENAI_API_KEY: "test" },
@@ -110,7 +110,7 @@ describe("cli config precedence", () => {
         models: {
           mypreset: {
             mode: "auto",
-            rules: [{ candidates: ["openai/gpt-5.2"] }],
+            rules: [{ candidates: ["openai/gpt-5-chat"] }],
           },
         },
       }),
@@ -163,7 +163,7 @@ describe("cli config precedence", () => {
     await runCli(
       ["--timeout", "2s", "--extract", "--format", "text", "--json", "https://example.com"],
       {
-        env: { HOME: tempRoot, SUMMARIZE_MODEL: "openai/gpt-5.2" },
+        env: { HOME: tempRoot, SUMMARIZE_MODEL: "openai/gpt-5-chat" },
         fetch: fetchMock as unknown as typeof fetch,
         stdout: stdout.stream,
         stderr: noopStream(),
@@ -171,7 +171,7 @@ describe("cli config precedence", () => {
     );
 
     const parsed = JSON.parse(stdout.getText()) as { input: { model: string } };
-    expect(parsed.input.model).toBe("openai/gpt-5.2");
+    expect(parsed.input.model).toBe("openai/gpt-5-chat");
 
     // --extract means no LLM calls; ensure we didn't try to init a provider.
     expect(mocks.completeSimple).toHaveBeenCalledTimes(0);
@@ -195,7 +195,7 @@ describe("cli config precedence", () => {
     mkdirSync(join(tempRoot, ".summarize"), { recursive: true });
     writeFileSync(
       configPath,
-      JSON.stringify({ model: { id: "openai/gpt-5.2" }, output: { length: "short" } }),
+      JSON.stringify({ model: { id: "openai/gpt-5-chat" }, output: { length: "short" } }),
       "utf8",
     );
 
@@ -230,7 +230,7 @@ describe("cli config precedence", () => {
     mkdirSync(join(tempRoot, ".summarize"), { recursive: true });
     writeFileSync(
       configPath,
-      JSON.stringify({ model: { id: "openai/gpt-5.2" }, output: { length: "short" } }),
+      JSON.stringify({ model: { id: "openai/gpt-5-chat" }, output: { length: "short" } }),
       "utf8",
     );
 

@@ -65,7 +65,7 @@ describe("OpenAI chat completions toggle", () => {
     });
 
     const out = collectStdout();
-    await runCli(["--model", "openai/gpt-5.2", "--timeout", "2s", "https://example.com"], {
+    await runCli(["--model", "openai/gpt-5-chat", "--timeout", "2s", "https://example.com"], {
       env: { OPENAI_API_KEY: "test", OPENAI_USE_CHAT_COMPLETIONS: "1" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: out.stdout,
@@ -99,7 +99,7 @@ describe("OpenAI chat completions toggle", () => {
     );
 
     const out = collectStdout();
-    await runCli(["--model", "openai/gpt-5.2", "--timeout", "2s", "https://example.com"], {
+    await runCli(["--model", "openai/gpt-5-chat", "--timeout", "2s", "https://example.com"], {
       env: { HOME: tempRoot, OPENAI_API_KEY: "test" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: out.stdout,

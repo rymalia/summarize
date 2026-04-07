@@ -48,7 +48,7 @@ describe("cli json + metrics report", () => {
     writeFileSync(
       join(cacheDir, "litellm-model_prices_and_context_window.json"),
       JSON.stringify({
-        "gpt-5.2": {
+        "gpt-5-chat": {
           input_cost_per_token: 0.000001,
           output_cost_per_token: 0.000002,
           max_output_tokens: 2048,
@@ -94,7 +94,7 @@ describe("cli json + metrics report", () => {
         "--metrics",
         "detailed",
         "--model",
-        "openai/gpt-5.2",
+        "openai/gpt-5-chat",
         "--timeout",
         "10s",
         "https://example.com",

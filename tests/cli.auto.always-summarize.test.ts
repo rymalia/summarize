@@ -70,7 +70,7 @@ describe("--model auto", () => {
 
     const out = collectStdout();
     await runCli(["--model", "auto", "--timeout", "2s", "https://example.com"], {
-      env: { OPENAI_API_KEY: "test" },
+      env: { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "not a url" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: out.stdout,
       stderr: silentStderr,
@@ -94,7 +94,7 @@ describe("--model auto", () => {
 
     const out = collectStdout();
     await runCli(["--model", "auto", "--force-summary", "--timeout", "2s", "https://example.com"], {
-      env: { OPENAI_API_KEY: "test" },
+      env: { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "not a url" },
       fetch: fetchMock as unknown as typeof fetch,
       stdout: out.stdout,
       stderr: silentStderr,
@@ -130,7 +130,7 @@ describe("--model auto", () => {
         "https://example.com",
       ],
       {
-        env: { OPENAI_API_KEY: "test" },
+        env: { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "not a url" },
         fetch: fetchMock as unknown as typeof fetch,
         stdout: out.stdout,
         stderr: silentStderr,
@@ -150,7 +150,7 @@ describe("--model auto", () => {
 
     const out = collectStdout();
     await runCli(["--model", "auto", "--force-summary", "--timeout", "2s", filePath], {
-      env: { OPENAI_API_KEY: "test" },
+      env: { OPENAI_API_KEY: "test", OPENAI_BASE_URL: "not a url" },
       fetch: globalThis.fetch.bind(globalThis),
       stdout: out.stdout,
       stderr: silentStderr,

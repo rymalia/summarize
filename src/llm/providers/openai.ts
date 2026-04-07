@@ -19,10 +19,25 @@ export type OpenAiClientConfigInput = {
   forceChatCompletions?: boolean;
 };
 
+type OpenAiTextCompletionResult = {
+  text: string;
+  usage: LlmTokenUsage | null;
+  resolvedModelId?: string;
+};
+
 function isGitHubModelsBaseUrl(baseUrl: string | undefined): boolean {
   if (!baseUrl) return false;
   try {
     return new URL(baseUrl).host === "models.github.ai";
+  } catch {
+    return false;
+  }
+}
+
+function isApiOpenAiBaseUrl(baseUrl: string | undefined): boolean {
+  if (!baseUrl) return true;
+  try {
+    return new URL(baseUrl).host === "api.openai.com";
   } catch {
     return false;
   }
@@ -95,6 +110,54 @@ function resolveOpenAiResponsesUrl(baseUrl: string): URL {
   return url;
 }
 
+function resolveOpenAiChatCompletionsUrl(baseUrl: string): URL {
+  const url = new URL(baseUrl);
+  const path = url.pathname.replace(/\/$/, "");
+  if (url.host === "models.github.ai") {
+    if (/\/chat\/completions$/.test(path)) {
+      url.pathname = path;
+      return url;
+    }
+    url.pathname = `${path}/chat/completions`;
+    return url;
+  }
+  if (/\/chat\/completions$/.test(path)) {
+    url.pathname = path;
+    return url;
+  }
+  if (/\/v1$/.test(path)) {
+    url.pathname = `${path}/chat/completions`;
+    return url;
+  }
+  url.pathname = `${path}/v1/chat/completions`;
+  return url;
+}
+
+function stripOpenAiProviderPrefix(modelId: string): string {
+  return modelId.trim().replace(/^openai\//i, "");
+}
+
+function isOpenAiResponsesTextModelId(modelId: string): boolean {
+  const normalized = stripOpenAiProviderPrefix(modelId).toLowerCase();
+  return normalized.startsWith("gpt-5") && normalized !== "gpt-5-chat";
+}
+
+function resolveGitHubModelsCompatFallbackModelId(modelId: string): string | null {
+  const normalized = modelId.trim().toLowerCase();
+  if (!normalized.startsWith("openai/gpt-5") || normalized === "openai/gpt-5-chat") {
+    return null;
+  }
+  return "openai/gpt-5-chat";
+}
+
+function shouldRetryGitHubModelsCompat(error: unknown): boolean {
+  const statusCode =
+    typeof (error as { statusCode?: unknown })?.statusCode === "number"
+      ? Number((error as { statusCode?: unknown }).statusCode)
+      : null;
+  return statusCode === 400 || statusCode === 404 || statusCode === 500 || statusCode === 502;
+}
+
 function extractOpenAiResponseText(payload: {
   output_text?: unknown;
   output?: Array<{ content?: Array<{ text?: string }> }>;
@@ -154,13 +217,41 @@ function contextToChatCompletionMessages(
   return messages;
 }
 
-async function completeGitHubModelsText({
+function contextToResponsesInput(context: Context): Array<{
+  role: string;
+  content: Array<{ type: "input_text"; text: string }>;
+}> {
+  return contextToChatCompletionMessages({
+    systemPrompt: undefined,
+    messages: context.messages,
+  }).map((message) => ({
+    role: message.role,
+    content: [{ type: "input_text", text: message.content }],
+  }));
+}
+
+function buildOpenAiRequestHeaders(openaiConfig: OpenAiClientConfig): Record<string, string> {
+  return {
+    "content-type": "application/json",
+    authorization: `Bearer ${openaiConfig.apiKey}`,
+    ...(openaiConfig.isOpenRouter
+      ? {
+          "HTTP-Referer": "https://github.com/steipete/summarize",
+          "X-Title": "summarize",
+        }
+      : {}),
+    ...(openaiConfig.extraHeaders ?? {}),
+  };
+}
+
+async function completeOpenAiChatText({
   modelId,
   openaiConfig,
   context,
   temperature,
   maxOutputTokens,
   signal,
+  fetchImpl,
 }: {
   modelId: string;
   openaiConfig: OpenAiClientConfig;
@@ -168,16 +259,12 @@ async function completeGitHubModelsText({
   temperature?: number;
   maxOutputTokens?: number;
   signal: AbortSignal;
-}): Promise<{ text: string; usage: LlmTokenUsage | null }> {
-  const baseUrl = openaiConfig.baseURL ?? "https://models.github.ai/inference";
-  const url = new URL("chat/completions", baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`);
-  const response = await globalThis.fetch(url, {
+  fetchImpl: typeof fetch;
+}): Promise<OpenAiTextCompletionResult> {
+  const baseUrl = openaiConfig.baseURL ?? "https://api.openai.com/v1";
+  const response = await fetchImpl(resolveOpenAiChatCompletionsUrl(baseUrl), {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${openaiConfig.apiKey}`,
-      ...(openaiConfig.extraHeaders ?? {}),
-    },
+    headers: buildOpenAiRequestHeaders(openaiConfig),
     body: JSON.stringify({
       model: modelId,
       messages: contextToChatCompletionMessages(context),
@@ -201,7 +288,100 @@ async function completeGitHubModelsText({
   };
   const text = extractChatCompletionText(data);
   if (!text) throw new Error(`LLM returned an empty summary (model openai/${modelId}).`);
-  return { text, usage: normalizeOpenAiUsage(data.usage) };
+  return { text, usage: normalizeOpenAiUsage(data.usage), resolvedModelId: modelId };
+}
+
+async function completeOpenAiResponsesText({
+  modelId,
+  openaiConfig,
+  context,
+  temperature,
+  maxOutputTokens,
+  signal,
+  fetchImpl,
+}: {
+  modelId: string;
+  openaiConfig: OpenAiClientConfig;
+  context: Context;
+  temperature?: number;
+  maxOutputTokens?: number;
+  signal: AbortSignal;
+  fetchImpl: typeof fetch;
+}): Promise<OpenAiTextCompletionResult> {
+  const baseUrl = openaiConfig.baseURL ?? "https://api.openai.com/v1";
+  const response = await fetchImpl(resolveOpenAiResponsesUrl(baseUrl), {
+    method: "POST",
+    headers: buildOpenAiRequestHeaders(openaiConfig),
+    body: JSON.stringify({
+      model: modelId,
+      input: contextToResponsesInput(context),
+      ...(context.systemPrompt?.trim() ? { instructions: context.systemPrompt.trim() } : {}),
+      ...(typeof maxOutputTokens === "number" ? { max_output_tokens: maxOutputTokens } : {}),
+      ...(typeof temperature === "number" ? { temperature } : {}),
+    }),
+    signal,
+  });
+
+  const bodyText = await response.text();
+  if (!response.ok) {
+    const error = new Error(`OpenAI API error (${response.status}).`);
+    (error as { statusCode?: number }).statusCode = response.status;
+    (error as { responseBody?: string }).responseBody = bodyText;
+    throw error;
+  }
+
+  const data = JSON.parse(bodyText) as {
+    output_text?: unknown;
+    output?: Array<{ content?: Array<{ text?: string }> }>;
+    usage?: unknown;
+  };
+  const text = extractOpenAiResponseText(data);
+  if (!text) throw new Error(`LLM returned an empty summary (model openai/${modelId}).`);
+  return { text, usage: normalizeOpenAiUsage(data.usage), resolvedModelId: modelId };
+}
+
+async function completeGitHubModelsText({
+  modelId,
+  openaiConfig,
+  context,
+  temperature,
+  maxOutputTokens,
+  signal,
+  fetchImpl,
+}: {
+  modelId: string;
+  openaiConfig: OpenAiClientConfig;
+  context: Context;
+  temperature?: number;
+  maxOutputTokens?: number;
+  signal: AbortSignal;
+  fetchImpl: typeof fetch;
+}): Promise<OpenAiTextCompletionResult> {
+  try {
+    return await completeOpenAiChatText({
+      modelId,
+      openaiConfig,
+      context,
+      temperature,
+      maxOutputTokens,
+      signal,
+      fetchImpl,
+    });
+  } catch (error) {
+    const fallbackModelId = resolveGitHubModelsCompatFallbackModelId(modelId);
+    if (!fallbackModelId || !shouldRetryGitHubModelsCompat(error)) {
+      throw error;
+    }
+    return completeOpenAiChatText({
+      modelId: fallbackModelId,
+      openaiConfig,
+      context,
+      temperature,
+      maxOutputTokens,
+      signal,
+      fetchImpl,
+    });
+  }
 }
 
 export async function completeOpenAiText({
@@ -211,6 +391,7 @@ export async function completeOpenAiText({
   temperature,
   maxOutputTokens,
   signal,
+  fetchImpl = globalThis.fetch.bind(globalThis),
 }: {
   modelId: string;
   openaiConfig: OpenAiClientConfig;
@@ -218,7 +399,8 @@ export async function completeOpenAiText({
   temperature?: number;
   maxOutputTokens?: number;
   signal: AbortSignal;
-}): Promise<{ text: string; usage: LlmTokenUsage | null }> {
+  fetchImpl?: typeof fetch;
+}): Promise<OpenAiTextCompletionResult> {
   if (isGitHubModelsBaseUrl(openaiConfig.baseURL)) {
     return completeGitHubModelsText({
       modelId,
@@ -227,6 +409,33 @@ export async function completeOpenAiText({
       temperature,
       maxOutputTokens,
       signal,
+      fetchImpl,
+    });
+  }
+  if (openaiConfig.isOpenRouter && isOpenAiResponsesTextModelId(modelId)) {
+    return completeOpenAiChatText({
+      modelId,
+      openaiConfig,
+      context,
+      temperature,
+      maxOutputTokens,
+      signal,
+      fetchImpl,
+    });
+  }
+  if (
+    !openaiConfig.isOpenRouter &&
+    isApiOpenAiBaseUrl(openaiConfig.baseURL) &&
+    isOpenAiResponsesTextModelId(modelId)
+  ) {
+    return completeOpenAiResponsesText({
+      modelId,
+      openaiConfig,
+      context,
+      temperature,
+      maxOutputTokens,
+      signal,
+      fetchImpl,
     });
   }
   const model = resolveOpenAiModel({ modelId, context, openaiConfig });
